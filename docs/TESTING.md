@@ -9,7 +9,7 @@ dotnet build Dalamud.DiscordBridge.sln -c Release
 ```
 
 - Must report **0 errors**.
-- Warning count must not exceed the baseline in `CLAUDE.md` (14 at the time of writing). Compare the `N Warning(s)` line before and after your change.
+- Warning count must not exceed the baseline in `CLAUDE.md` (13 at the time of writing). Compare the `N Warning(s)` line before and after your change.
 - Requires Dalamud dev assemblies at `%AppData%\XIVLauncher\addon\Hooks\dev\` (the SDK's `DalamudLibPath`). If they're missing, the build fails resolving `Dalamud.dll`. Installing XIVLauncher with Dalamud provides them.
 - Output: `Dalamud.DiscordBridge/bin/x64/Release/` (DLL and dependencies; point Dev Plugin Locations here). A packaged `latest.zip` and manifest are written to `bin/x64/Release/DiscordChatPears/`.
 

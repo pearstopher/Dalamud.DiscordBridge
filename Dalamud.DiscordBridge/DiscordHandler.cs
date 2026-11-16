@@ -28,7 +28,11 @@ namespace Dalamud.DiscordBridge
         public bool IsConnected => this.socketClient.ConnectionState == ConnectionState.Connected;
         public ulong UserId => this.socketClient.CurrentUser.Id;
 
-        private static readonly ConcurrentDictionary<string, LodestoneCharacter> CachedResponses = new();
+        /// <summary>Lodestone portraits and misses, shared by every handler this session (#47).</summary>
+        private static readonly AvatarCache Avatars = new();
+
+        /// <summary>Longest a single Lodestone lookup may hold up the relay queue (#47).</summary>
+        internal static readonly TimeSpan LodestoneTimeout = TimeSpan.FromSeconds(5);
 
         /// <summary>
         /// Defines if the bot has connected and verified that it has the correct permissions
@@ -126,7 +130,7 @@ namespace Dalamud.DiscordBridge
         public readonly SerialWorkQueue<InboundDiscordMessage> InboundQueue;
 
 
-        private LodestoneClient lodestoneClient;
+        private LodestoneClient? lodestoneClient;
 
         /// <summary>One webhook client per channel, reused for every message (#40).</summary>
         private readonly ClientCache<DiscordWebhookClient> webhooks = new();
@@ -1157,13 +1161,55 @@ namespace Dalamud.DiscordBridge
             }
         }
 
+        /// <summary>
+        /// A character's Lodestone portrait: cached, else searched with a <see cref="LodestoneTimeout"/> limit. Misses and
+        /// failures are remembered for a while (#47), so the relay queue never waits on the same slow search twice.
+        /// </summary>
+        /// <returns>The portrait URL, or null (use the fallback avatar).</returns>
+        private async Task<string?> LookupAvatarAsync(string name, string world)
+        {
+            var key = $"{name}＠{world}";
+            if (Avatars.TryGet(key, DateTimeOffset.UtcNow, out var known))
+                return known;
+
+            if (this.lodestoneClient == null)
+            {
+                Logger.Debug("Lodestone isn't ready yet; no portrait for {0}.", key);
+                return null;
+            }
+
+            try
+            {
+                var url = await this.FindLodestoneAvatarAsync(name, world).WaitAsync(LodestoneTimeout);
+                if (url != null)
+                    Avatars.AddHit(key, url);
+                else
+                    Avatars.AddMiss(key, DateTimeOffset.UtcNow, AvatarCache.NotFoundTtl);
+                return url;
+            }
+            catch (TimeoutException)
+            {
+                Logger.Debug("Lodestone lookup for {0} took over {1} s; using the fallback avatar.", key, LodestoneTimeout.TotalSeconds);
+            }
+            catch (Exception ex)
+            {
+                Logger.Warning(ex, "Lodestone lookup for {0} failed; using the fallback avatar.", key);
+            }
+
+            Avatars.AddMiss(key, DateTimeOffset.UtcNow, AvatarCache.FailedTtl);
+            return null;
+        }
+
         /// <summary>Whether the Lodestone client has been created (after <see cref="Start"/>).</summary>
         internal bool LodestoneReady => this.lodestoneClient != null;
 
         /// <summary>Self-tests: find a character's Lodestone portrait URL, or null if not found.</summary>
         internal async Task<string?> FindLodestoneAvatarAsync(string name, string world)
         {
-            var page = await this.lodestoneClient.SearchCharacter(new CharacterSearchQuery { CharacterName = name, World = world });
+            if (this.lodestoneClient is not { } client)
+                return null;
+
+            var page = await client.SearchCharacter(new CharacterSearchQuery { CharacterName = name, World = world });
             var entry = page?.Results.FirstOrDefault(r => r.Name == name);
             if (entry == null)
                 return null;
@@ -1414,42 +1460,8 @@ namespace Dalamud.DiscordBridge
 
                         if (doSearch)
                         {
-                            var playerCacheName = $"{senderName}＠{senderWorld}";
-                            Logger.Debug($"Searching for {playerCacheName}");
-                            
-                            if (CachedResponses.TryGetValue(playerCacheName, out LodestoneCharacter? lschar))
-                            {
-                                Logger.Debug($"Retrived cached data for {lschar.Name} {lschar.Avatar}");
-                                avatarUrl = lschar.Avatar?.ToString() ?? plugin.Config.DefaultAvatarURL;
-                            }
-                            else
-                            {
-                                Logger.Debug($"Searching lodestone for {playerCacheName}");
-
-                                var searchPage = await lodestoneClient.SearchCharacter(new CharacterSearchQuery
-                                {
-                                    CharacterName = senderName,
-                                    World = senderWorld ?? "",
-                                });
-
-                                var matchingEntry = searchPage?.Results.FirstOrDefault(result => result.Name == senderName);
-                                if (matchingEntry == null)
-                                {
-                                    break;
-                                }
-                                
-                                lschar = await matchingEntry.GetCharacter();
-
-                                if (lschar != null) {
-                                    CachedResponses.TryAdd(playerCacheName, lschar);
-                                    Logger.Debug($"Adding cached data for {lschar.Name} {lschar.Avatar}");
-                                    avatarUrl = lschar.Avatar?.ToString() ?? plugin.Config.DefaultAvatarURL;
-                                }
-
-                                
-                            }
-
-                            // avatarUrl = (await XivApiClient.GetCharacterSearch(senderName, senderWorld)).AvatarUrl;
+                            if (await this.LookupAvatarAsync(senderName, senderWorld) is { } portrait)
+                                avatarUrl = portrait;
                         }
                         
                         break;
