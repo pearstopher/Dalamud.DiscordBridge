@@ -23,6 +23,7 @@ All source is in `Dalamud.DiscordBridge/`.
 | `InboundDisplay.cs` | Prints converted Discord messages into the local chat log (`IChatGui.Print` on the framework thread, only when logged in). Also `InboundFormat` (pure: entry type/name/text, Echo mode, `[D] {name}` sender label) and the `InboundResult` outcomes. |
 | `InboundSender.cs` | "Send as me": types the owner's converted message into the chat box (`UIModule.ProcessChatBoxEntry`, framework thread) after `Utf8String.SanitizeString` must leave it unchanged. Registers the echo with the guard and returns an `InboundOutcome` (result + reason). |
 | `GameChatCommand.cs` | Pure: chat type → command (`/s /sh /y /p /a /fc /l1-8 /cwl1-8 /e /em`), builds `"/fc text"` and rejects unsupported channels, empty text, leading `/`, line breaks, >500 bytes. Also `SendRateLimiter` (≥2 s apart, ≤5 waiting). |
+| `ChatContentFormat.cs` | Pure formatting of relayed lines for Discord: `{prefix}**[{slug}]** {body}`, the body with sender and `→ Recipient` for outgoing tells, and cleaning raw tell-recipient text. Parsed back by `ContentParser`. |
 | `ChannelOverride.cs` | Pure parser for one-message overrides typed in Discord (`!e`, `!fc`, `!l1`/`!ls1`, `!cwl1`, `!em`, `!t First Last@World …`). Precedence: override > reply routing > `setinbound` default. Unknown `!word` → ❌, not relayed. |
 | `ReplyRouting.cs` | Discord replies → in-game target. `RelayedMessageIndex` (bounded, in memory, on the plugin) records each outbound relay's Discord message ID → chat type / tell partner. `ReplyRouting.Resolve` uses it, or parses an older relay's `**[slug]**`, `→ Name:` and webhook name. Tells become `/tell Name@World`. |
 | `InboundEchoGuard.cs` | Remembers whether each expected echo was *displayed* or *sent* (`EchoKind`). For sent lines, `DiscordBridgePlugin.ReshowAsSent` hides the original on this screen (`PreventOriginal`) and prints a copy tagged `[S]` (others are unaffected). Loop prevention: lines printed/sent for Discord messages are registered first, and `ChatOnOnChatMessage` swallows the matching echo once (type + text, 10 s window) so it isn't relayed back to Discord. |
@@ -35,6 +36,7 @@ All source is in `Dalamud.DiscordBridge/`.
 | `PluginUI.cs` | ImGui setup window (`/dcp`): token, owner name/ID, connection status, invite link. Save disposes and recreates `DiscordHandler`. |
 | `API/` | IPC for other plugins: `DiscordBridge.APIVersion` (returns `1`) and `DiscordBridge.SendMessage(pluginName, avatarUrl, message)`. |
 | `XivApi/` | Legacy XIVAPI client and result models. Mostly unused now (avatars come from NetStone; item icons are built as `beta.xivapi.com` asset URLs). |
+| `DiscordState.cs` | Bot connection state shown in `/dcp`: `None`, `Ready`, `TokenInvalid`. |
 | `Constant.cs` | Help/wiki/Discord/logo URLs. |
 | `SelfTests/` | Dev-only in-game self-tests: `SelfTestFramework.cs` (pure runner with timeouts, JSON/text reports), `GameSelfTests.cs` (the tests), `SelfTestService.cs` (button / `/dcptest` / auto-run after load, writes `selftest-results.json`). Hooks: `DiscordBridgePlugin.ChatObserver`, `DiscordHandler.MessageObserved`. |
 | `BuildInfo.cs` | Build configuration/time/path for the `… loaded (Debug build, built …, from …)` line logged at startup (see DEVELOPMENT.md). |
@@ -112,6 +114,8 @@ Commands that start with the bot prefix are never relayed. A message that doesn'
 
 ## Discord commands
 
+User-facing reference with examples: [COMMANDS.md](COMMANDS.md). All settings: [SETTINGS.md](SETTINGS.md).
+
 All commands are handled in `DiscordHandler.SocketClientOnMessageReceived`, a long `if (args[0] == prefix + "name" && await EnsureOwner(...))` chain. The prefix is `Configuration.DiscordBotPrefix`, default `xl!`. Messages from bots and webhooks are ignored. `EnsureOwner` matches `DiscordOwnerName` against `username#discriminator`, bare `username` (new-style accounts, discriminator `0000`), or a numeric user ID.
 
 | Command | Effect |
@@ -119,6 +123,7 @@ All commands are handled in `DiscordHandler.SocketClientOnMessageReceived`, a lo
 | `setchannel <kinds>` / `unsetchannel <kinds>` | Add/remove chat types for this channel. `any` = `DefaultChatTypes` (regular chat incl. both tell directions), `all` = `AllChatTypes` (every known kind), `tell` = in+out, `p` = party+cross-party. |
 | `listchannel` | Show this channel's chat types and inbound setting. |
 | `setinbound <kind\|off>` | Relay messages posted in this channel into the game as `<kind>` (`say, shout, yell, p, alliance, fc, ls1–8, cwls1–8, nn, e, customemote`). |
+| `selftesthere [off]` | Developer builds: use this channel for the Discord round-trip and reply-routing self-tests (not in `help`). |
 | `togglesend` | Opt-in per channel: the owner's own messages are **sent** as their character (needs the global "Allow sending as my character" switch too). |
 | `setinboundperm <owner\|everyone\|role @role>` | Who may relay from this channel (default owner only; the owner is always allowed). |
 | `setprefix <kinds> <prefix>` / `unsetprefix <kind>` | Per-type text/emoji prefix. |

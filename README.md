@@ -34,7 +34,7 @@ Save, then install **Discord Chat Pears** from `/xlplugins`.
 
 **Telling them apart in game:** `[D]` = shown on your screen only (nobody else sees it). `[S]` = really sent by the plugin as your character. Only *your* screen shows the tag; others see your normal message. No tag = normal game chat you typed yourself.
 
-`xl!help` lists every Discord command. The `/dcp` window has the on/off switches.
+`xl!help` lists the Discord commands. Full references: **[docs/COMMANDS.md](docs/COMMANDS.md)** (every command, `!` override, reaction and tag) and **[docs/SETTINGS.md](docs/SETTINGS.md)** (every setting and its default). The `/dcp` window has the on/off switches.
 
 ## Safety and Dalamud's rules
 

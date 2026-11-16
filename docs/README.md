@@ -4,6 +4,8 @@ Developer docs for **Discord Chat Pears** (`DiscordChatPears`), a fork of Discor
 
 | Doc | Read it when… |
 |---|---|
+| [COMMANDS.md](COMMANDS.md) | you need any Discord or in-game command, `!` override, reaction or `[D]`/`[S]` tag |
+| [SETTINGS.md](SETTINGS.md) | you need any setting, its default, or where it's changed |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | you need to know what each class does and how a chat line gets from the game to Discord |
 | [CODING_STANDARDS.md](CODING_STANDARDS.md) | you're writing or reviewing any code |
 | [TESTING.md](TESTING.md) | you need to verify a change (build, unit tests, in-game checklist) |

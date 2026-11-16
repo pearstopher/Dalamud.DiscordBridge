@@ -76,7 +76,7 @@ Hidden from `/xlhelp`. Use them to exercise the pipeline without waiting for rea
 
 Dev builds (loaded from a Dev Plugin Location, or any Debug build) add a **Developer: self-tests** section to `/dcp`:
 
-- **Run self-tests**, or type `/dcptest`. This runs about 14 checks in the live game and Discord: the loop guard, the send path via `/e` (local only), slash-command rejection, IPC, Lodestone, game data, channel permissions, and the Discord round trip. They're listed in [docs/IN_GAME_TEST_PLAN.md §0](docs/IN_GAME_TEST_PLAN.md).
+- **Run self-tests**, or type `/dcptest`. This runs 17 checks in the live game and Discord: environment, game data, tell-recipient reading, IPC, Lodestone, the loop guard (two display modes), the client sanitizer, the send path via `/e` (local only) and the `[S]` tag, the opt-in tell to yourself, slash-command rejection, channel permissions, reply routing on real Discord messages, and the Discord round trip. They're listed in [docs/IN_GAME_TEST_PLAN.md §0](docs/IN_GAME_TEST_PLAN.md).
 - Results appear in a table (hover a test for its description), as a chat summary with failures listed, in `/xllog`, and in **`%APPDATA%\XIVLauncher\pluginConfigs\DiscordChatPears\selftest-results.json`**. Claude reads that file after you test, so there's nothing to copy. **Copy results** puts a text version on the clipboard.
 - **Run self-tests after each load**: combined with Dalamud's automatic reloading (§3), `dotnet build` → reload → tests run by themselves once you're logged in and connected.
 - `xl!selftesthere` (once, in a private channel) enables the Discord round-trip test. `xl!selftesthere off` disables it.
