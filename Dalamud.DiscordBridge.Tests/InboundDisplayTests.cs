@@ -79,6 +79,58 @@ public class InboundFormatTests
         Assert.Equal(new InboundEntry(XivChatType.FreeCompany, "[D] Alice", "hi"), entry);
     }
 
+    private static InboundDiscordMessage Owner(XivChatType target, string? tellTarget = null) => new()
+    {
+        ChannelId = 1, MessageId = 2, AuthorId = 3, AuthorName = "Ane Mora", IsOwner = true, TargetType = target, TellTarget = tellTarget,
+    };
+
+    [Fact]
+    public void GameLike_Chat_OnlyAddsTag()
+    {
+        Assert.Equal(new InboundEntry(XivChatType.FreeCompany, "[D] Ane Mora", "hi"),
+                     InboundFormat.Build(Owner(XivChatType.FreeCompany), "hi", null, asEcho: false));
+    }
+
+    [Theory]
+    [InlineData("purrs loudly.", " purrs loudly.")]
+    [InlineData("'s tail wags.", "'s tail wags.")]
+    [InlineData(" already spaced", " already spaced")]
+    public void GameLike_CustomEmote_RestoresSpaceAfterName(string text, string expected)
+    {
+        Assert.Equal(new InboundEntry(XivChatType.CustomEmote, "[D] Ane Mora", expected),
+                     InboundFormat.Build(Owner(XivChatType.CustomEmote), text, null, asEcho: false));
+    }
+
+    [Fact]
+    public void GameLike_OwnersTell_LooksLikeAnOutgoingTell()
+    {
+        Assert.Equal(new InboundEntry(XivChatType.TellOutgoing, "[D] Bob Smith＠Gilgamesh", "hi"),
+                     InboundFormat.Build(Owner(XivChatType.TellOutgoing, "Bob Smith＠Gilgamesh"), "hi", null, asEcho: false));
+    }
+
+    [Fact]
+    public void GameLike_OwnersEcho_IsJustTagAndText()
+    {
+        Assert.Equal(new InboundEntry(XivChatType.Echo, "", "[D] hi"),
+                     InboundFormat.Build(Owner(XivChatType.Echo), "hi", null, asEcho: false));
+    }
+
+    [Fact]
+    public void GameLike_OthersEcho_NamesTheSender()
+    {
+        Assert.Equal(new InboundEntry(XivChatType.Echo, "", "[D] Alice: hi"),
+                     InboundFormat.Build(Msg("Alice", XivChatType.Echo), "hi", null, asEcho: false));
+    }
+
+    [Theory]
+    [InlineData("{name}", "")]
+    [InlineData("[D] {name}", "[D]")]
+    [InlineData("🍐 {name}", "🍐")]
+    public void TagOnly(string format, string expected)
+    {
+        Assert.Equal(expected, InboundFormat.TagOnly(format));
+    }
+
     [Fact]
     public void Build_Echo_PutsChannelAndNameInText()
     {

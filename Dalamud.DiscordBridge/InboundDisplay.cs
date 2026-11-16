@@ -50,17 +50,47 @@ namespace Dalamud.DiscordBridge
         internal static InboundEntry Build(InboundDiscordMessage message, string text, string? senderFormat, bool asEcho)
         {
             var name = SenderLabel(message.AuthorName, senderFormat);
-
-            // Tells: tell-coloured, with the person it's addressed to.
             var isTell = message.TargetType is XivChatType.TellOutgoing or XivChatType.TellIncoming;
-            var type = isTell ? XivChatType.TellIncoming : message.TargetType;
-            if (isTell && !string.IsNullOrWhiteSpace(message.TellTarget))
-                text = $"→ {message.TellTarget}: {text}";
+            var hasPartner = isTell && !string.IsNullOrWhiteSpace(message.TellTarget);
 
-            if (!asEcho)
-                return new InboundEntry(type, name, text);
+            if (asEcho)
+            {
+                // "Show as Echo" setting: everything as a labelled Echo line.
+                var label = isTell ? XivChatType.TellIncoming.GetSlug() : message.TargetType.GetSlug();
+                var body = hasPartner ? $"→ {message.TellTarget}: {text}" : text;
+                return new InboundEntry(XivChatType.Echo, string.Empty, $"[{label.ToUpperInvariant()}] {name}: {body}");
+            }
 
-            return new InboundEntry(XivChatType.Echo, string.Empty, $"[{type.GetSlug().ToUpperInvariant()}] {name}: {text}");
+            // Otherwise mirror the game's own output for that kind of line, with only the [D] tag added.
+            switch (message.TargetType)
+            {
+                // Your own tell: the game shows ">> Recipient: text" (the name slot holds the recipient).
+                case XivChatType.TellOutgoing or XivChatType.TellIncoming when message.IsOwner && hasPartner:
+                    return new InboundEntry(XivChatType.TellOutgoing, SenderLabel(message.TellTarget!, senderFormat), text);
+
+                // Someone else's reply to a tell: an incoming-tell-styled line, so it never looks like you sent it.
+                case XivChatType.TellOutgoing or XivChatType.TellIncoming:
+                    return new InboundEntry(XivChatType.TellIncoming, name, hasPartner ? $"→ {message.TellTarget}: {text}" : text);
+
+                // Custom emote: the game prints name + " text"; the space is part of the message (none before 's).
+                case XivChatType.CustomEmote:
+                    return new InboundEntry(XivChatType.CustomEmote, name, text.StartsWith('\'') || text.StartsWith(' ') ? text : " " + text);
+
+                // Echo: the game shows just the text.
+                case XivChatType.Echo:
+                    return new InboundEntry(XivChatType.Echo, string.Empty,
+                        message.IsOwner ? $"{TagOnly(senderFormat)} {text}".TrimStart() : $"{name}: {text}");
+
+                default:
+                    return new InboundEntry(message.TargetType, name, text);
+            }
+        }
+
+        /// <summary>The sender format without the name, e.g. "[D]".</summary>
+        internal static string TagOnly(string? senderFormat)
+        {
+            var format = string.IsNullOrWhiteSpace(senderFormat) ? DefaultSenderFormat : senderFormat;
+            return format.Replace("{name}", string.Empty).Trim();
         }
 
         internal static string SenderLabel(string authorName, string? senderFormat)
