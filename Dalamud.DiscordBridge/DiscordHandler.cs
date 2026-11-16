@@ -214,7 +214,7 @@ namespace Dalamud.DiscordBridge
 
             try
             {
-                if (TryRouteInbound(message))
+                if (await TryRouteInboundAsync(message))
                     return;
             }
             catch (Exception ex)
@@ -1206,7 +1206,7 @@ namespace Dalamud.DiscordBridge
         /// If this message is in a channel with inbound relay enabled (and isn't a command), queue it for the game.
         /// </summary>
         /// <returns>True if the message was handled here (queued, or rejected by permissions) and isn't a command.</returns>
-        private bool TryRouteInbound(SocketMessage message)
+        private async Task<bool> TryRouteInboundAsync(SocketMessage message)
         {
             if (!this.plugin.Config.ChannelConfigs.TryGetValue(message.Channel.Id, out var config))
                 return false;
@@ -1226,9 +1226,41 @@ namespace Dalamud.DiscordBridge
 
             var draft = Snapshot(message, config.InboundChatType!.Value, isOwner);
 
+            // The gateway's copy of the replied-to message can lack its content (or be missing). If we don't have the
+            // relay in memory either, fetch it so routing can parse the channel / tell partner from it.
+            if (draft.ReplyToMessageId is { } toFetch && this.plugin.RelayIndex.Find(toFetch) == null && string.IsNullOrEmpty(draft.ReplyToContent))
+            {
+                try
+                {
+                    if (await message.Channel.GetMessageAsync(toFetch) is { } fetched)
+                    {
+                        var fields = ReplyFieldsOf(fetched, toFetch);
+                        draft = draft with
+                        {
+                            ReplyToAuthor = fields.Author ?? draft.ReplyToAuthor,
+                            ReplyToContent = fields.Content,
+                            ReplyToIsRelay = fields.IsRelay,
+                        };
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Logger.Warning(ex, "Could not fetch replied-to message {0}.", toFetch);
+                }
+            }
+
             // A reply to a relayed message goes back where that message came from (channel, or tell partner).
-            var inbound = ReplyRouting.Resolve(draft, this.plugin.RelayIndex, this.plugin.Config.CustomSlugsConfigs) is { } reply
-                ? draft with { TargetType = reply.Type, TellTarget = reply.TellPartner, ReplyToAuthor = null }
+            var reply = ReplyRouting.Resolve(draft, this.plugin.RelayIndex, this.plugin.Config.CustomSlugsConfigs);
+            if (draft.ReplyToMessageId is { } replyId)
+            {
+                Logger.Debug("Reply routing: reply to {0} (relay={1}, indexed={2}, author=\"{3}\", content=\"{4}\") → {5}",
+                    replyId, draft.ReplyToIsRelay, this.plugin.RelayIndex.Find(replyId)?.ToString() ?? "no",
+                    draft.ReplyToAuthor ?? "", draft.ReplyToContent ?? "(none)",
+                    reply?.ToString() ?? $"default ({draft.TargetType})");
+            }
+
+            var inbound = reply is { } r
+                ? draft with { TargetType = r.Type, TellTarget = r.TellPartner, ReplyToAuthor = null }
                 : draft;
 
             this.InboundQueue.Enqueue(inbound);
@@ -1241,13 +1273,34 @@ namespace Dalamud.DiscordBridge
                 this.plugin.RelayIndex.Record(discordMessageId, t);
         }
 
+        /// <summary>The reply-related fields of an inbound message, from the message it replies to.</summary>
+        internal readonly record struct ReplyFields(ulong? MessageId, string? Author, string? Content, bool IsRelay);
+
+        /// <summary>
+        /// Extract reply fields from the replied-to message (shared by real replies and the reply-routing self-test).
+        /// For relays, the webhook name ("Name＠World") or embed title is the in-game sender.
+        /// </summary>
+        internal static ReplyFields ReplyFieldsOf(IMessage? referenced, ulong? referenceId)
+        {
+            if (referenced == null)
+                return new ReplyFields(referenceId, null, null, false);
+
+            var embed = referenced.Embeds.FirstOrDefault();
+            var isRelay = referenced.Author.IsWebhook || referenced.Author.IsBot;
+            var hasContent = !string.IsNullOrEmpty(referenced.Content);
+            var author = isRelay
+                ? (!hasContent && embed != null ? embed.Title : referenced.Author.Username)
+                : DisplayNameOf(referenced.Author);
+
+            return new ReplyFields(referenceId ?? referenced.Id, author, hasContent ? referenced.Content : embed?.Description, isRelay);
+        }
+
         private static InboundDiscordMessage Snapshot(SocketMessage message, XivChatType target, bool isOwner)
         {
             var userMessage = message as SocketUserMessage;
-            var referenced = userMessage?.ReferencedMessage;
             var reference = userMessage?.Reference;
-            var replyEmbed = referenced?.Embeds.FirstOrDefault();
-            var replyIsRelay = referenced != null && (referenced.Author.IsWebhook || referenced.Author.IsBot);
+            var reply = ReplyFieldsOf(userMessage?.ReferencedMessage,
+                                      reference != null && reference.MessageId.IsSpecified ? reference.MessageId.Value : null);
 
             return new InboundDiscordMessage
             {
@@ -1263,15 +1316,10 @@ namespace Dalamud.DiscordBridge
                     .Select(a => new InboundAttachment(a.Filename, a.ContentType?.StartsWith("image/") ?? false))
                     .ToList(),
                 Stickers = message.Stickers.Select(s => s.Name).ToList(),
-                // For relays, the webhook name ("Name＠World") or embed title is the in-game sender.
-                ReplyToAuthor = referenced == null
-                    ? null
-                    : replyIsRelay
-                        ? (string.IsNullOrEmpty(referenced.Content) && replyEmbed != null ? replyEmbed.Title : referenced.Author.Username)
-                        : DisplayNameOf(referenced.Author),
-                ReplyToMessageId = reference != null && reference.MessageId.IsSpecified ? reference.MessageId.Value : referenced?.Id,
-                ReplyToContent = string.IsNullOrEmpty(referenced?.Content) ? replyEmbed?.Description : referenced.Content,
-                ReplyToIsRelay = replyIsRelay,
+                ReplyToAuthor = reply.Author,
+                ReplyToMessageId = reply.MessageId,
+                ReplyToContent = reply.Content,
+                ReplyToIsRelay = reply.IsRelay,
             };
         }
 
