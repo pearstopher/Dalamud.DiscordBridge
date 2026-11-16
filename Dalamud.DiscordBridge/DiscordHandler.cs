@@ -104,6 +104,9 @@ namespace Dalamud.DiscordBridge
 
         private LodestoneClient lodestoneClient;
 
+        /// <summary>One webhook client per channel, reused for every message (#40).</summary>
+        private readonly ClientCache<DiscordWebhookClient> webhooks = new();
+
         /// <summary>Channels already warned about this session (#39).</summary>
         private readonly WarnOnce unreachableChannels = new();
 
@@ -1565,13 +1568,9 @@ namespace Dalamud.DiscordBridge
                         await SendPrettyEmbed(channel, $"FALLBACKMODE\n\nMissing ManageWebHooks permission.\n\n{message}", $"Retainer sold {name}", iconurl, EmbedColorError);
                         break;
                     case DeliveryRoute.Webhook:
-                        var webhookClient = await GetOrCreateWebhookClient((ITextChannel)channel);
-                        if (webhookClient != null)
-                        {
-                            await webhookClient.SendMessageAsync($"{prefix} {message}",
-                                username: $"Retainer sold {name}", avatarUrl: iconurl);
-                        }
-                        else
+                        var saleSent = await SendViaWebhookAsync((ITextChannel)channel, client => client.SendMessageAsync($"{prefix} {message}",
+                            username: $"Retainer sold {name}", avatarUrl: iconurl));
+                        if (saleSent == null)
                         {
                             Logger.Debug("FALLBACKMODE - Unable to create WebHook");
                             await SendPrettyEmbed(channel, $"FALLBACKMODE\nUnable to create WebHook\n\n{message}", $"Retainer sold {name}", iconurl, EmbedColorError);
@@ -1863,29 +1862,27 @@ namespace Dalamud.DiscordBridge
                 }
                 else
                 {
-                    var webhookClient = await GetOrCreateWebhookClient((ITextChannel)channel);
-
                     // Compare against the body actually posted (it includes the sender/recipient when shown).
+                    // Checked before touching the webhook, so a duplicate costs no Discord call (#40).
                     if (duplicateFilter.CheckAlreadySent(channel, slug: chatTypeText, displayName, chatText: body))
                     {
                         continue;
                     }
 
-                    if (webhookClient != null)
+                    var webhookName = displayName;
+                    var webhookAvatar = avatarUrl;
+                    if (this.plugin.Config.ForceDefaultNameAvatar)
                     {
-                        var webhookName = displayName;
-                        var webhookAvatar = avatarUrl;
-                        if (this.plugin.Config.ForceDefaultNameAvatar)
-                        {
-                            webhookName = this.socketClient.CurrentUser.Username.ToLower().Contains("discord") ? Constant.WebhookName : this.socketClient.CurrentUser.Username;
-                            webhookAvatar = plugin.Config.DefaultAvatarURL;
-                        }
+                        webhookName = this.socketClient.CurrentUser.Username.ToLower().Contains("discord") ? Constant.WebhookName : this.socketClient.CurrentUser.Username;
+                        webhookAvatar = plugin.Config.DefaultAvatarURL;
+                    }
 
-                        var relayedId = await webhookClient.SendMessageAsync(
-                            messageContent, username: webhookName, avatarUrl: webhookAvatar,
-                            allowedMentions: new AllowedMentions(AllowedMentionTypes.Roles | AllowedMentionTypes.Users | AllowedMentionTypes.None)
-                        );
-                        Remember(relayedId, relayTarget);
+                    var relayedId = await SendViaWebhookAsync((ITextChannel)channel, client => client.SendMessageAsync(
+                        messageContent, username: webhookName, avatarUrl: webhookAvatar,
+                        allowedMentions: new AllowedMentions(AllowedMentionTypes.Roles | AllowedMentionTypes.Users | AllowedMentionTypes.None)));
+                    if (relayedId is { } sentId)
+                    {
+                        Remember(sentId, relayTarget);
                         Logger.Debug("SendChatEvent sent to WebHook.");
                     }
                     else
@@ -1949,13 +1946,9 @@ namespace Dalamud.DiscordBridge
                             .Build());
                         break;
                     case DeliveryRoute.Webhook:
-                        var webhookClient = await GetOrCreateWebhookClient((ITextChannel)channel);
-                        if (webhookClient != null)
-                        {
-                            await webhookClient.SendMessageAsync($"{prefix}", embeds: [NewEmbed().Build()],
-                                username: Constant.WebhookName, avatarUrl: Constant.LogoLink);
-                        }
-                        else
+                        var cfSent = await SendViaWebhookAsync((ITextChannel)channel, client => client.SendMessageAsync($"{prefix}", embeds: [NewEmbed().Build()],
+                            username: Constant.WebhookName, avatarUrl: Constant.LogoLink));
+                        if (cfSent == null)
                         {
                             Logger.Debug("FALLBACKMODE - Unable to create WebHook - Unknown error");
                             await channel.SendMessageAsync($"{prefix}", embed: NewEmbed()
@@ -1969,43 +1962,67 @@ namespace Dalamud.DiscordBridge
         }
 
         /// <summary>
-        /// Get the webhook for the respective channel, or create one if it doesn't exist.
+        /// The channel's webhook client: cached (#40), else the stored webhook, else a new one. Null if none can be made.
         /// </summary>
         /// <param name="channel">The guild text channel to get the webhook for</param>
-        /// <returns>A webhook client for the channel, or null if one couldn't be created.</returns>
         internal async Task<DiscordWebhookClient?> GetOrCreateWebhookClient(ITextChannel channel)
         {
-            if (channel is { } textChannel)
+            ArgumentNullException.ThrowIfNull(channel);
+
+            if (this.webhooks.TryGet(channel.Id, out var cached) && cached != null)
+                return cached;
+
+            if (!this.plugin.Config.ChannelConfigs.TryGetValue(channel.Id, out var channelConfig))
+                throw new ArgumentException("No configuration for channel.", nameof(channel));
+
+            IWebhook hook;
+            try
             {
-                if (!this.plugin.Config.ChannelConfigs.TryGetValue(channel.Id, out var channelConfig))
-                    throw new ArgumentException("No configuration for channel.", nameof(channel));
-
-                IWebhook hook;
-                if (channelConfig.WebhookId != 0)
-                    hook = await textChannel.GetWebhookAsync(channelConfig.WebhookId) ?? await textChannel.CreateWebhookAsync("FFXIV Bridge Worker");
-                else
-                {
-                    try
-                    {
-                        hook = await textChannel.CreateWebhookAsync("FFXIV Bridge Worker");
-                    }
-                    catch (Discord.Net.HttpException e)
-                    {
-                        Logger.Error("Unable to get or create webhook", e.StackTrace ?? "No stack trace available");
-                        return null;
-                    }
-                }
-
-
-                this.plugin.Config.ChannelConfigs[channel.Id].WebhookId = hook.Id;
-                this.plugin.Config.Save();
-
-                Logger.Verbose("Webhook for {0} OK!! {1}", channel.Id, hook.Id);
-
-                return new DiscordWebhookClient(hook);
+                hook = (channelConfig.WebhookId != 0 ? await channel.GetWebhookAsync(channelConfig.WebhookId) : null)
+                       ?? await channel.CreateWebhookAsync("FFXIV Bridge Worker");
+            }
+            catch (Discord.Net.HttpException e)
+            {
+                Logger.Error(e, "Unable to get or create a webhook for channel {0}.", channel.Id);
+                return null;
             }
 
-            throw new ArgumentNullException(nameof(channel));
+            if (WebhookRules.ShouldSaveId(channelConfig.WebhookId, hook.Id))
+            {
+                channelConfig.WebhookId = hook.Id;
+                this.plugin.Config.Save();
+            }
+
+            Logger.Verbose("Webhook for {0} OK!! {1}", channel.Id, hook.Id);
+
+            return this.webhooks.Add(channel.Id, new DiscordWebhookClient(hook));
+        }
+
+        /// <summary>
+        /// Send through the channel's webhook. If Discord says the webhook was deleted, make a new one and retry once.
+        /// </summary>
+        /// <returns>The sent message's ID, or null if no webhook could be used (callers fall back to an embed).</returns>
+        private async Task<ulong?> SendViaWebhookAsync(ITextChannel channel, Func<DiscordWebhookClient, Task<ulong>> send)
+        {
+            for (var attempt = 0; attempt < 2; attempt++)
+            {
+                if (await GetOrCreateWebhookClient(channel) is not { } client)
+                    return null;
+
+                try
+                {
+                    return await send(client);
+                }
+                catch (Discord.Net.HttpException ex) when (attempt == 0 && WebhookRules.IsGone(ex.HttpCode, (int?)ex.DiscordCode))
+                {
+                    Logger.Information("The webhook for channel {0} was deleted; creating a new one.", channel.Id);
+                    this.webhooks.Evict(channel.Id);
+                    if (this.plugin.Config.ChannelConfigs.TryGetValue(channel.Id, out var config))
+                        config.WebhookId = 0;
+                }
+            }
+
+            return null;
         }
 
         public void Dispose()
@@ -2023,6 +2040,7 @@ namespace Dalamud.DiscordBridge
                 this.InboundQueue?.Stop();
                 this.socketClient?.LogoutAsync().GetAwaiter().GetResult();
                 this.socketClient?.Dispose();
+                this.webhooks.Dispose();
             }
         }
     }
