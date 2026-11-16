@@ -752,7 +752,8 @@ namespace Dalamud.DiscordBridge
                     return;
                 }
 
-                if (args[0] == this.plugin.Config.DiscordBotPrefix + "setavatar")
+                if (args[0] == this.plugin.Config.DiscordBotPrefix + "setavatar" &&
+                    await EnsureOwner(message.Author, message.Channel))
                 {
                     // Are there parameters?
                     if (args.Length != 3)
@@ -847,13 +848,16 @@ namespace Dalamud.DiscordBridge
                     return;
                 }
 
-                if (args[0] == this.plugin.Config.DiscordBotPrefix + "unsetavatar")
+                if (args[0] == this.plugin.Config.DiscordBotPrefix + "unsetavatar" &&
+                    await EnsureOwner(message.Author, message.Channel))
                 {
                     if (args.Length != 2)
                     {
                         await SendGenericEmbed(message.Channel,
                             $"You have entered this command incorrectly. Please try again.",
                             "Error", EmbedColorError);
+
+                        return;
                     }
 
                     if (args[1] == "default")
