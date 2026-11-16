@@ -74,7 +74,7 @@ Hidden from `/xlhelp`. Use them to exercise the pipeline without waiting for rea
 
 ## 7. What to check in game
 
-Use [docs/TESTING.md § 3](docs/TESTING.md) as the checklist. Each issue's "Manual test plan" lists the specific steps. Issues that need a check in game carry the `needs-in-game-test` label:
+For a full session, follow [docs/IN_GAME_TEST_PLAN.md](docs/IN_GAME_TEST_PLAN.md). [docs/TESTING.md § 3](docs/TESTING.md) has the short checklist. Each issue's "Manual test plan" lists the specific steps. Issues that need a check in game carry the `needs-in-game-test` label:
 
 ```sh
 gh issue list --label needs-in-game-test --state all

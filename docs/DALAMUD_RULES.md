@@ -21,7 +21,10 @@ Square Enix's terms prohibit third-party tools in general. These rules are the D
 | XIVAPI icon URLs | ✅ Yes | Public web assets. |
 | IPC `DiscordBridge.SendMessage` | ✅ Yes | Other plugins post to Discord. No game interaction. |
 | Discord configuration commands | ✅ Yes | Discord-only. |
-| Debug commands (`/dcpdebug`, `/dcpsaledebug`, `/dcpprintlist`) | ✅ Yes | Local only. |
+| Debug commands (`/dcpdebug`, `/dcpsaledebug`, `/dcpprintlist`, `/dcpin`) | ✅ Yes | Local only. |
+| `/dcpsend` debug command | ✅ Yes | You type it in game yourself (direct input), like typing the chat line. |
+| Settings import from Discord Chat Bridge (#11) | ✅ Yes | Reads a local config file once. |
+| Discord reactions and replies about inbound messages | ✅ Yes | Discord-only. |
 | Discord → game: inbound config and routing (`setinbound`, `setinboundperm`, #13) | ✅ Yes | Discord-side only. Messages are queued; nothing reaches the game yet. |
 | Discord → game text conversion (#14) | ✅ Yes | Pure text processing. |
 | **Discord → game: local display** (#15) | ✅ Yes | Printed into your own chat log with `IChatGui.Print`, client-side only. Nobody else sees it, and nothing is sent to the server. |

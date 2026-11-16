@@ -1,5 +1,7 @@
 # Design: Discord → FFXIV relay
 
+> **Status:** implemented in #13–#16 (2026-11-16). User docs: [README](../../README.md). Test: [IN_GAME_TEST_PLAN.md](../IN_GAME_TEST_PLAN.md).
+>
 > Research for #9 (2026-11-16). **Decision:** Option A + B, phased: local display first (#13–#15), then opt-in owner "send as me" (#16), docs in #17. Plugin is distributed via the owner's custom repo and renamed **Discord Chat Pears** (#11). It is not bound by Dalamud rules; compliance is recorded in [../DALAMUD_RULES.md](../DALAMUD_RULES.md).
 
 
