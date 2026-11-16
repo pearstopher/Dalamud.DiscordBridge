@@ -66,6 +66,15 @@ namespace Dalamud.DiscordBridge
             if (ImGui.IsItemHovered())
                 ImGui.SetTooltip("With Dalamud's automatic reloading, every dotnet build reloads the plugin and runs the tests once you're logged in.");
 
+            var tellSelf = config.DevSelfTestTellSelf;
+            if (ImGui.Checkbox("Self-tests may send a tell to myself", ref tellSelf))
+            {
+                config.DevSelfTestTellSelf = tellSelf;
+                config.Save();
+            }
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip("Enables send.tell-self: a real /tell to your own character (goes through the server, only to you).");
+
             ImGui.TextDisabled($"Results file: {SelfTests.SelfTestService.ResultsPath}");
             if (config.SelfTestChannelId == null)
                 ImGui.TextDisabled($"Discord round trip: run {config.DiscordBotPrefix}selftesthere in a private channel to enable.");

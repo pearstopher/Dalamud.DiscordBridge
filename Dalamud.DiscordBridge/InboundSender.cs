@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using Dalamud.DiscordBridge.Model;
+using Dalamud.Game.Text;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.System.String;
 using FFXIVClientStructs.FFXIV.Client.UI;
@@ -40,7 +41,7 @@ namespace Dalamud.DiscordBridge
         /// </summary>
         internal async Task<InboundOutcome> SendAsync(InboundDiscordMessage message, string text)
         {
-            if (!GameChatCommand.TryBuild(message.TargetType, text, out var line, out var reason))
+            if (!GameChatCommand.TryBuild(message.TargetType, text, message.TellTarget, out var line, out var reason))
                 return new InboundOutcome(InboundResult.Rejected, reason);
 
             this.limiter.Interval = TimeSpan.FromMilliseconds(Math.Max(500, this.config.SendIntervalMs));
@@ -62,7 +63,13 @@ namespace Dalamud.DiscordBridge
                         return new InboundOutcome(InboundResult.Rejected, "contains characters the game won't accept");
 
                     // The game echoes our own line back as chat from us; don't relay that back to Discord.
-                    this.echoGuard.Register(message.TargetType, text);
+                    var isTell = message.TargetType is XivChatType.TellOutgoing or XivChatType.TellIncoming;
+                    this.echoGuard.Register(isTell ? XivChatType.TellOutgoing : message.TargetType, text);
+
+                    // A tell to yourself also arrives as an incoming tell.
+                    if (isTell && IsSelf(message.TellTarget))
+                        this.echoGuard.Register(XivChatType.TellIncoming, text);
+
                     SendChatBoxLine(line);
                     return new InboundOutcome(InboundResult.Sent);
                 });
@@ -72,6 +79,17 @@ namespace Dalamud.DiscordBridge
                 Logger.Error(ex, "Could not send Discord message as your character.");
                 return new InboundOutcome(InboundResult.Failed, "error while sending");
             }
+        }
+
+        /// <summary>Whether a tell target is the logged-in character (framework thread).</summary>
+        private static bool IsSelf(string? tellTarget)
+        {
+            var name = Service.PlayerState.CharacterName;
+            if (string.IsNullOrEmpty(name) || GameChatCommand.NormalizeTellTarget(tellTarget) is not { } target)
+                return false;
+
+            var world = Service.PlayerState.HomeWorld.Value.Name.ExtractText();
+            return target == name || target == $"{name}@{world}";
         }
 
         /// <summary>The client's own chat sanitization (framework thread).</summary>

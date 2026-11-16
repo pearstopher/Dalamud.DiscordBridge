@@ -26,6 +26,7 @@ For the Discord round trip, run `xl!selftesthere` once in a **private** channel.
 | `inbound.display.echo-mode` | Same, in Echo mode | C8 (echo part) |
 | `send.sanitizer` | Client sanitizer keeps plain text | — |
 | `send.echo-roundtrip` | Send path via `/e`: typed, echoed, swallowed | D2, D3 (loop part) |
+| `send.tell-self` | *(opt-in)* Real tell to yourself via the send path; both copies swallowed | D3 |
 | `send.slash-rejected` | `/logout` is rejected and you stay logged in | D5 |
 | `discord.channels` | Every configured channel reachable, webhook permission | B4 (permission part) |
 | `discord.round-trip` | Post → gateway → back, Message Content intent working | — |
@@ -66,19 +67,24 @@ The steps below are still manual: things that need a second Discord account, oth
 - [ ] C9. `xl!setinbound off` → nothing shown. `xl!setinbound tell` → error listing the allowed kinds.
 - [ ] C10. *(automated: `inbound.display.loop-guard`)* **Loop check:** `xl!setchannel fc` **and** `xl!setinbound fc` on the same channel. A post there shows in game and is **not** reposted to that channel by the webhook.
 
-## D. Discord → game: send as me (#16)
+## D. Discord → game: send as me and replies (#16, #21, #22)
 
-Do these somewhere it's OK for others to see test lines, or use Echo (`e`) first.
+Test with **tells to yourself**, not FC, so nobody else sees test lines. A tell to yourself shows twice in game (outgoing `>>` and incoming). Neither copy should be relayed back to Discord. Have `xl!setchannel tell` on your outbound channel so your tells are relayed there to reply to.
 
 - [ ] D1. With "Allow sending as my character" **off**: `/dcpsend e hi` → error "turned off in /dcp".
-- [ ] D2. Tick it (a red warning appears). `/dcpsend e hello from dev` → Echo line from you.
-- [ ] D3. `/dcpsend fc hello from dev` → FC members see it, and `#out` (subscribed to FC) gets **no** duplicate.
-- [ ] D4. In `#two-way`: `xl!togglesend` → a warning embed naming Free Company. As the owner, post `omw` → said in FC, ✅, no echo back to Discord or `#out`.
+- [ ] D2. Tick it (a red warning appears). `/dcpsend e hello from dev` → Echo line from you, and nothing in Discord.
+- [ ] D3. *(automated, opt-in: `send.tell-self`, tick "Self-tests may send a tell to myself")* In game, `/tell <your name>@<world> ping` yourself. Discord shows the relayed tell (`→ You＠World: ping`).
+- [ ] D4. In the channel with `setinbound` (any default kind) run `xl!togglesend`. In Discord, **reply** to the relayed `[tell] → You＠World: ping` with `pong` → your character sends `/tell You@World pong`. In game you see it twice (outgoing and incoming), with ✅ on Discord, and **neither copy is relayed back** to Discord.
 - [ ] D5. *(automated: `send.slash-rejected`)* **Command safety:** Discord's client turns `/logout` into its own slash-command menu, so post ` /logout` (leading space) or `` `/logout` ``. Expect ❌ with the reply "Not sent to game: messages can't start with /". You are **not** logged out, and nothing is said in game. In display-only channels the text is shown literally as `/logout` (printing never runs commands).
-- [ ] D6. Post 600 characters → ❌ "too long for game chat".
-- [ ] D7. Post 10 messages quickly → about one every 2 s, and the extras ❌ "too many at once".
-- [ ] D8. From the second account (with `setinboundperm everyone`) → shown locally only, never sent.
-- [ ] D9. `xl!togglesend` again → back to display-only. Untick "Allow sending as my character".
+- [ ] D6. Reply to the tell with 600 characters → ❌ "too long for game chat".
+- [ ] D7. Reply 10 times quickly → about one every 2 s, and the extras ❌ "too many at once".
+- [ ] D8. **Replies go to the right place** (display mode is fine here, no sending needed):
+  - Reply to a relayed **incoming** tell from someone → shown as a tell-coloured `[D] you: → Them＠World: …` (or sent as a tell to them, in send mode).
+  - Reply to a relayed `[say]` (or `[ls1]`) line → shown/sent in Say (LS1), not the channel's default.
+  - Reply to a relayed emote or system message, or a normal non-reply message → uses the channel's default (`setinbound`).
+  - Reload the plugin, then reply to an *older* relayed tell → still goes to that person (parsed from the message).
+- [ ] D9. From the second account (with `setinboundperm everyone`) → shown locally only, never sent.
+- [ ] D10. `xl!togglesend` again → back to display-only. Untick "Allow sending as my character".
 
 ## E. Wrap-up
 

@@ -28,6 +28,19 @@ namespace Dalamud.DiscordBridge
             [XivChatType.Echo] = "/e",
         };
 
+        private static readonly System.Text.RegularExpressions.Regex TellTargetPattern =
+            new(@"^[A-Za-z][A-Za-z'\-]* [A-Za-z][A-Za-z'\-]*(@[A-Za-z]+)?$", System.Text.RegularExpressions.RegexOptions.Compiled);
+
+        /// <summary>"Bob Smith＠Gilgamesh" → "Bob Smith@Gilgamesh"; null if it isn't a valid FFXIV character name.</summary>
+        internal static string? NormalizeTellTarget(string? target)
+        {
+            if (string.IsNullOrWhiteSpace(target))
+                return null;
+
+            var normalized = target.Trim().Replace('＠', '@');
+            return TellTargetPattern.IsMatch(normalized) ? normalized : null;
+        }
+
         /// <summary>The chat command for a channel, or null if sending to it isn't supported.</summary>
         internal static string? PrefixFor(XivChatType type) => Prefixes.TryGetValue(type, out var prefix) ? prefix : null;
 
@@ -36,11 +49,30 @@ namespace Dalamud.DiscordBridge
         /// line breaks, or the whole line is over the game's 500-byte limit.
         /// </summary>
         internal static bool TryBuild(XivChatType type, string text, out string line, out string reason)
+            => TryBuild(type, text, null, out line, out reason);
+
+        /// <param name="tellTarget">For tells: "First Last＠World" (or with a plain @), or "First Last" on your own world.</param>
+        internal static bool TryBuild(XivChatType type, string text, string? tellTarget, out string line, out string reason)
         {
             line = string.Empty;
             reason = string.Empty;
 
-            if (PrefixFor(type) is not { } prefix)
+            string prefix;
+            if (type is XivChatType.TellOutgoing or XivChatType.TellIncoming)
+            {
+                if (NormalizeTellTarget(tellTarget) is not { } target)
+                {
+                    reason = string.IsNullOrWhiteSpace(tellTarget) ? "no one to send the tell to" : $"'{tellTarget}' isn't a valid character name";
+                    return false;
+                }
+
+                prefix = $"/tell {target}";
+            }
+            else if (PrefixFor(type) is { } channelPrefix)
+            {
+                prefix = channelPrefix;
+            }
+            else
             {
                 reason = $"sending to {type.GetFancyName()} isn't supported";
                 return false;

@@ -1077,7 +1077,8 @@ namespace Dalamud.DiscordBridge
                         //$"The following chat kinds are available:\n```all - All regular chat\n{XivChatTypeExtensions.TypeInfoDict.Select(x => $"{x.Value.Slug} - {x.Value.FancyName}").Aggregate((x, y) => x + "\n" + y)}```")
                         .AddField($"{this.plugin.Config.DiscordBotPrefix}unsetchannel", "Works like the previous command, but removes kinds of chat from the list of kinds that are sent to this channel.")
                         .AddField($"{this.plugin.Config.DiscordBotPrefix}listchannel", "List all chat kinds that are sent to this channel, and its inbound setting.")
-                        .AddField($"{this.plugin.Config.DiscordBotPrefix}setinbound <kind|off>", "Show messages posted in this channel in your in-game chat, as the given chat kind.\n"
+                        .AddField($"{this.plugin.Config.DiscordBotPrefix}setinbound <kind|off>", "Show messages posted in this channel in your in-game chat, as the given chat kind. "
+                            + "**Replying** to a relayed message goes to that message's channel instead (or, for a tell, to that person).\n"
                             + $"Kinds: {InboundRules.AllowedSlugList}\n"
                             + $"Format: ``{this.plugin.Config.DiscordBotPrefix}setinbound fc``")
                         .AddField($"{this.plugin.Config.DiscordBotPrefix}setinboundperm <owner|everyone|role @role>", "Choose who can relay messages from this channel into the game. Default: owner only.")
@@ -1156,7 +1157,8 @@ namespace Dalamud.DiscordBridge
                 .ConfigureAwait(false);
         }
 
-        private static async Task SendPrettyEmbed(IMessageChannel channel, string message, string title, string iconurl, uint color)
+        /// <returns>The Discord message ID.</returns>
+        private static async Task<ulong> SendPrettyEmbed(IMessageChannel channel, string message, string title, string iconurl, uint color)
         {
             var builder = new EmbedBuilder()
                 .WithTitle(title)
@@ -1170,10 +1172,11 @@ namespace Dalamud.DiscordBridge
                 .WithThumbnailUrl(iconurl);
 
             var embed = builder.Build();
-            await channel.SendMessageAsync(
+            var sent = await channel.SendMessageAsync(
                     null,
                     embed: embed)
                 .ConfigureAwait(false);
+            return sent.Id;
         }
 
         /// <summary>
@@ -1221,13 +1224,30 @@ namespace Dalamud.DiscordBridge
                 return true;
             }
 
-            this.InboundQueue.Enqueue(Snapshot(message, config.InboundChatType!.Value, isOwner));
+            var draft = Snapshot(message, config.InboundChatType!.Value, isOwner);
+
+            // A reply to a relayed message goes back where that message came from (channel, or tell partner).
+            var inbound = ReplyRouting.Resolve(draft, this.plugin.RelayIndex, this.plugin.Config.CustomSlugsConfigs) is { } reply
+                ? draft with { TargetType = reply.Type, TellTarget = reply.TellPartner, ReplyToAuthor = null }
+                : draft;
+
+            this.InboundQueue.Enqueue(inbound);
             return true;
+        }
+
+        private void Remember(ulong discordMessageId, ReplyTarget? target)
+        {
+            if (target is { } t)
+                this.plugin.RelayIndex.Record(discordMessageId, t);
         }
 
         private static InboundDiscordMessage Snapshot(SocketMessage message, XivChatType target, bool isOwner)
         {
-            var reply = (message as SocketUserMessage)?.ReferencedMessage?.Author;
+            var userMessage = message as SocketUserMessage;
+            var referenced = userMessage?.ReferencedMessage;
+            var reference = userMessage?.Reference;
+            var replyEmbed = referenced?.Embeds.FirstOrDefault();
+            var replyIsRelay = referenced != null && (referenced.Author.IsWebhook || referenced.Author.IsBot);
 
             return new InboundDiscordMessage
             {
@@ -1243,7 +1263,15 @@ namespace Dalamud.DiscordBridge
                     .Select(a => new InboundAttachment(a.Filename, a.ContentType?.StartsWith("image/") ?? false))
                     .ToList(),
                 Stickers = message.Stickers.Select(s => s.Name).ToList(),
-                ReplyToAuthor = reply != null ? DisplayNameOf(reply) : null,
+                // For relays, the webhook name ("Name＠World") or embed title is the in-game sender.
+                ReplyToAuthor = referenced == null
+                    ? null
+                    : replyIsRelay
+                        ? (string.IsNullOrEmpty(referenced.Content) && replyEmbed != null ? replyEmbed.Title : referenced.Author.Username)
+                        : DisplayNameOf(referenced.Author),
+                ReplyToMessageId = reference != null && reference.MessageId.IsSpecified ? reference.MessageId.Value : referenced?.Id,
+                ReplyToContent = string.IsNullOrEmpty(referenced?.Content) ? replyEmbed?.Description : referenced.Content,
+                ReplyToIsRelay = replyIsRelay,
             };
         }
 
@@ -1431,6 +1459,16 @@ namespace Dalamud.DiscordBridge
         /// <param name="recipient">For outgoing tells: who the tell was to ("Name＠World"), shown in the message.</param>
         public async Task SendChatEvent(string message, string senderName, string senderWorld, XivChatType chatType, string avatarUrl = "", string? recipient = null)
         {
+            // Where a Discord reply to this relay should go (tells: back to the other person). IPC posts aren't replyable.
+            ReplyTarget? relayTarget = chatType == XivChatTypeExtensions.IpcChatType
+                ? null
+                : ReplyRouting.ForRelay(chatType, chatType switch
+                {
+                    XivChatType.TellOutgoing => recipient,
+                    XivChatType.TellIncoming => string.IsNullOrEmpty(senderWorld) ? senderName : $"{senderName}＠{senderWorld}",
+                    _ => null,
+                });
+
             // set fields for true chat messages or custom via ipc
             if (chatType != XivChatTypeExtensions.IpcChatType)
             {
@@ -1601,12 +1639,12 @@ namespace Dalamud.DiscordBridge
 
                 if (route == DeliveryRoute.DirectMessage)
                 {
-                    await SendPrettyEmbed(channel, messageContent, displayName, avatarUrl, EmbedColorFine);
+                    Remember(await SendPrettyEmbed(channel, messageContent, displayName, avatarUrl, EmbedColorFine), relayTarget);
                     Logger.Debug("SendChatEvent sent to DMs.");
                 }
                 else if (route == DeliveryRoute.Embed)
                 {
-                    await SendPrettyEmbed(channel, $"{messageContent}", $"{displayName}", avatarUrl, EmbedColorFine);
+                    Remember(await SendPrettyEmbed(channel, $"{messageContent}", $"{displayName}", avatarUrl, EmbedColorFine), relayTarget);
                 }
                 else if (route == DeliveryRoute.MissingWebhookPermission)
                 {
@@ -1633,10 +1671,11 @@ namespace Dalamud.DiscordBridge
                             webhookAvatar = plugin.Config.DefaultAvatarURL;
                         }
 
-                        await webhookClient.SendMessageAsync(
+                        var relayedId = await webhookClient.SendMessageAsync(
                             messageContent, username: webhookName, avatarUrl: webhookAvatar,
                             allowedMentions: new AllowedMentions(AllowedMentionTypes.Roles | AllowedMentionTypes.Users | AllowedMentionTypes.None)
                         );
+                        Remember(relayedId, relayTarget);
                         Logger.Debug("SendChatEvent sent to WebHook.");
                     }
                     else
