@@ -22,14 +22,15 @@ Square Enix's terms prohibit third-party tools in general. These rules are the D
 | IPC `DiscordBridge.SendMessage` | ✅ Yes | Other plugins post to Discord. No game interaction. |
 | Discord configuration commands | ✅ Yes | Discord-only. |
 | Debug commands (`/dcpdebug`, `/dcpsaledebug`, `/dcpprintlist`, `/dcpin`) | ✅ Yes | Local only. |
-| Developer self-tests (`/dcptest`, dev builds only) | ✅ Yes | Local checks. The only send test uses `/e` (Echo), which never reaches the server. The optional Discord round trip posts and deletes one message in the owner's chosen channel. |
+| Developer self-tests (`/dcptest`, dev builds only) | ✅ Yes (except opt-in `send.tell-self`: ⚠️ sends one real tell, to yourself only) | Local checks. The default send test uses `/e` (Echo), which never reaches the server. The optional Discord round trip posts and deletes one message in the owner's chosen channel. |
 | `/dcpsend` debug command | ✅ Yes | You type it in game yourself (direct input), like typing the chat line. |
 | Settings import from Discord Chat Bridge (#11) | ✅ Yes | Reads a local config file once. |
 | Discord reactions and replies about inbound messages | ✅ Yes | Discord-only. |
 | Discord → game: inbound config and routing (`setinbound`, `setinboundperm`, #13) | ✅ Yes | Discord-side only. Messages are queued; nothing reaches the game yet. |
 | Discord → game text conversion (#14) | ✅ Yes | Pure text processing. |
 | **Discord → game: local display** (#15) | ✅ Yes | Printed into your own chat log with `IChatGui.Print`, client-side only. Nobody else sees it, and nothing is sent to the server. |
-| **Discord → game: owner "send as me"** (#16, `togglesend`) | ⚠️ **No (R2)** | Your character sends chat to the server because of a Discord message, without in-game input. It's mitigated: owner-only, opt-in (off by default), you typed the text yourself, rate-limited, and it can't run commands. Similar plugins exist (ChatTwo, ChatAnywhere) but take input inside the client. Never submit this feature to the official repo. |
+| Discord → game: replies routed to the replied message's channel or tell partner (#21) | Same as display / send below | Routing only decides *where*. Showing stays local (✅), sending as a tell is part of send-as-me (⚠️). |
+| **Discord → game: owner "send as me"** (#16, `togglesend`, incl. tells #21) | ⚠️ **No (R2)** | Your character sends chat to the server because of a Discord message, without in-game input. It's mitigated: owner-only, opt-in (off by default), you typed the text yourself, rate-limited, and it can't run commands. Similar plugins exist (ChatTwo, ChatAnywhere) but take input inside the client. Never submit this feature to the official repo. |
 
 ## Adding a feature
 

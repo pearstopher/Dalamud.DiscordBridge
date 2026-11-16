@@ -7,7 +7,7 @@ namespace Dalamud.DiscordBridge.Model
     /// A Discord message that should be relayed into the game. It's a plain snapshot with no Discord.Net types, so
     /// the converter and display/send code can be unit tested.
     /// </summary>
-    public class InboundDiscordMessage
+    public record InboundDiscordMessage
     {
         public required ulong ChannelId { get; init; }
         public required ulong MessageId { get; init; }
@@ -34,8 +34,21 @@ namespace Dalamud.DiscordBridge.Model
         /// <summary>Names of stickers on the message.</summary>
         public IReadOnlyList<string> Stickers { get; init; } = [];
 
-        /// <summary>Display name of the author of the message this one replies to, if any.</summary>
+        /// <summary>Display name of the author of the message this one replies to, if any. For relayed messages this is
+        /// the webhook name, e.g. "Name＠World".</summary>
         public string? ReplyToAuthor { get; init; }
+
+        /// <summary>Discord ID of the message this one replies to, if any.</summary>
+        public ulong? ReplyToMessageId { get; init; }
+
+        /// <summary>Content of the replied-to message (if Discord provided it).</summary>
+        public string? ReplyToContent { get; init; }
+
+        /// <summary>Whether the replied-to message was posted by a webhook or bot (i.e. likely one of our relays).</summary>
+        public bool ReplyToIsRelay { get; init; }
+
+        /// <summary>For tells (<see cref="TargetType"/> TellOutgoing): who to send/show the tell to, "Name＠World".</summary>
+        public string? TellTarget { get; init; }
     }
 
     /// <summary>An attachment on an inbound message.</summary>

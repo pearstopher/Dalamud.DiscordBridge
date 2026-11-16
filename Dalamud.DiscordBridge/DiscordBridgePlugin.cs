@@ -30,6 +30,9 @@ namespace Dalamud.DiscordBridge
         /// <summary>Swallows the game's echo of lines we print/send for Discord messages, so they aren't relayed back.</summary>
         internal readonly InboundEchoGuard EchoGuard = new();
 
+        /// <summary>Which in-game channel / tell partner each relayed Discord message came from (for routing replies).</summary>
+        internal readonly RelayedMessageIndex RelayIndex = new();
+
         /// <summary>
         /// Self-test hook: called for every chat line with (type, text, swallowedByEchoGuard). Null outside self-tests.
         /// </summary>

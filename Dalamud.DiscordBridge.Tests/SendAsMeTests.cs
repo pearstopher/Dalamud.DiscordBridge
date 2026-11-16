@@ -95,7 +95,6 @@ public class GameChatCommandTests
 
     [Theory]
     [InlineData(XivChatType.NoviceNetwork)]
-    [InlineData(XivChatType.TellOutgoing)]
     [InlineData(XivChatType.SystemMessage)]
     public void TryBuild_UnsupportedChannel_Rejected(XivChatType type)
     {

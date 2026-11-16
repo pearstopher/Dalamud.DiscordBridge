@@ -51,10 +51,16 @@ namespace Dalamud.DiscordBridge
         {
             var name = SenderLabel(message.AuthorName, senderFormat);
 
-            if (!asEcho)
-                return new InboundEntry(message.TargetType, name, text);
+            // Tells: tell-coloured, with the person it's addressed to.
+            var isTell = message.TargetType is XivChatType.TellOutgoing or XivChatType.TellIncoming;
+            var type = isTell ? XivChatType.TellIncoming : message.TargetType;
+            if (isTell && !string.IsNullOrWhiteSpace(message.TellTarget))
+                text = $"→ {message.TellTarget}: {text}";
 
-            return new InboundEntry(XivChatType.Echo, string.Empty, $"[{message.TargetType.GetSlug().ToUpperInvariant()}] {name}: {text}");
+            if (!asEcho)
+                return new InboundEntry(type, name, text);
+
+            return new InboundEntry(XivChatType.Echo, string.Empty, $"[{type.GetSlug().ToUpperInvariant()}] {name}: {text}");
         }
 
         internal static string SenderLabel(string authorName, string? senderFormat)

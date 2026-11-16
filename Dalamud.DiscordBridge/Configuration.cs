@@ -65,6 +65,9 @@ namespace Dalamud.DiscordBridge
         /// <summary>Dev builds: run the self-tests automatically after each (re)load, once logged in and connected.</summary>
         public bool DevRunSelfTestsOnLoad { get; set; } = false;
 
+        /// <summary>Dev builds: allow the send.tell-self self-test to send a real tell to your own character.</summary>
+        public bool DevSelfTestTellSelf { get; set; } = false;
+
 
         public void Initialize(IDalamudPluginInterface pluginInterface)
         {

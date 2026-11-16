@@ -153,6 +153,51 @@ namespace Dalamud.DiscordBridge.SelfTests
                         : SelfTestResult.Fail("the echo was NOT swallowed: it would be relayed back to Discord");
                 }),
 
+            new DelegateSelfTest("send.tell-self", "Send as me", "Opt-in: a real tell to yourself through the send path; both copies swallowed (plan D3)",
+                async token =>
+                {
+                    if (!plugin.Config.DevSelfTestTellSelf)
+                        return SelfTestResult.Skip("opt-in: tick \"Self-tests may send a tell to myself\" (it reaches the server, only to you)");
+                    if (!await LoggedIn())
+                        return SelfTestResult.Skip("not logged in");
+
+                    var self = await Service.Framework.RunOnFrameworkThread(() =>
+                        $"{Service.PlayerState.CharacterName}＠{Service.PlayerState.HomeWorld.Value.Name.ExtractText()}");
+                    var tag = NewTag();
+                    var copies = new List<(XivChatType Type, bool Swallowed)>();
+                    void Observer(XivChatType type, string text, bool swallowed)
+                    {
+                        if (text.Contains(tag))
+                            lock (copies) copies.Add((type, swallowed));
+                    }
+
+                    plugin.ChatObserver += Observer;
+                    try
+                    {
+                        var message = FakeMessage(XivChatType.TellOutgoing, isOwner: true) with { TellTarget = self };
+                        var outcome = await plugin.InboundSenderService.SendAsync(message, $"{tag} tell test");
+                        if (outcome.Result != InboundResult.Sent)
+                            return SelfTestResult.Fail($"send returned {outcome.Result} ({outcome.Reason})");
+
+                        var deadline = DateTime.UtcNow.AddSeconds(8);
+                        while (DateTime.UtcNow < deadline && copies.Count < 2)
+                            await Task.Delay(100, token);
+                    }
+                    finally
+                    {
+                        plugin.ChatObserver -= Observer;
+                    }
+
+                    lock (copies)
+                    {
+                        if (copies.Count == 0)
+                            return SelfTestResult.Fail($"the tell to {self} never appeared in chat");
+                        if (copies.Any(c => !c.Swallowed))
+                            return SelfTestResult.Fail($"not swallowed: {string.Join(", ", copies.Where(c => !c.Swallowed).Select(c => c.Type))}; it would be relayed back to Discord");
+                        return SelfTestResult.Pass($"tell to {self}: {copies.Count} copies ({string.Join(", ", copies.Select(c => c.Type))}), all swallowed");
+                    }
+                }, TimeSpan.FromSeconds(15)),
+
             new DelegateSelfTest("send.slash-rejected", "Send as me", "Text starting with / is rejected and never executed (plan D5)",
                 async _ =>
                 {
