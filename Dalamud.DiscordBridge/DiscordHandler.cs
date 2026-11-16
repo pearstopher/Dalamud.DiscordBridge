@@ -1120,11 +1120,11 @@ namespace Dalamud.DiscordBridge
                             + $"Format: ``{this.plugin.Config.DiscordBotPrefix}unsetprefix <kind>``")
                         .AddField($"{this.plugin.Config.DiscordBotPrefix}unsetchattypename", "Remove custom name for a chat kind. \n"
                             + $"Format: ``{this.plugin.Config.DiscordBotPrefix}unsetchattypename <kind>``")
-                        .AddField($"{this.plugin.Config.DiscordBotPrefix}setavatar <kind> <url>", "Set custom fallback avator for a chat kind. "
+                        .AddField($"{this.plugin.Config.DiscordBotPrefix}setavatar <kind> <url>", "Set custom fallback avatar for a chat kind. "
                             + "Use ``default`` as the fallback for any unconfigured overrides.\n"
                             + "__NOTE__: Upload the icon to Discord first if you don't have a URL already.\n"
                             + $"Format: ``{this.plugin.Config.DiscordBotPrefix}setavatar <kind> <url>``")
-                        .AddField($"{this.plugin.Config.DiscordBotPrefix}unsetavatar <kind>", "Unset custom fallback avator for a chat kind. "
+                        .AddField($"{this.plugin.Config.DiscordBotPrefix}unsetavatar <kind>", "Unset custom fallback avatar for a chat kind. "
                             + "Use ``default`` to reset the fallback for any unconfigured overrides.\n"
                             + $"Format: ``{this.plugin.Config.DiscordBotPrefix}unsetavatar <kind>``")
                         .AddField("Need more help?",

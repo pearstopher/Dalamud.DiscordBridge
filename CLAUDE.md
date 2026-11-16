@@ -62,6 +62,7 @@ Read these before implementing anything:
 - [docs/DALAMUD_RULES.md](docs/DALAMUD_RULES.md) — per-feature Dalamud-rules compliance
 - [docs/design/discord-to-game.md](docs/design/discord-to-game.md) — design and decision for the two-way (Discord → game) feature
 - [DEVELOPMENT.md](DEVELOPMENT.md) — building, loading in game, debug commands, CI
+- [docs/COMMANDS.md](docs/COMMANDS.md) / [docs/SETTINGS.md](docs/SETTINGS.md) — user-facing command and settings references. Keep them current: `DocumentationTests` fail when a command, setting or source file isn't documented.
 
 ## Git conventions
 
