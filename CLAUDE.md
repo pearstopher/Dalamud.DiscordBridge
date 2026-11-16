@@ -44,7 +44,7 @@ dotnet test Dalamud.DiscordBridge.sln -c Release --no-build    # all tests green
 - Requires the .NET SDK (10.x is installed) and Dalamud dev files at `%AppData%\XIVLauncher\addon\Hooks\dev` (present on this machine). Project SDK: `Dalamud.NET.Sdk/15.0.0` (Dalamud API 15).
 - Output: `Dalamud.DiscordBridge/bin/x64/Release/` (DLL). Packaged zip: `bin/x64/Release/Dalamud.DiscordBridge/latest.zip`.
 - Claude can't run FFXIV. Behaviour that needs the game gets manual test steps in the issue and the `needs-in-game-test` label.
-- **Warning baseline: 17 warnings** (nullable warnings plus one CS0414). Lower this number whenever a change reduces it. Don't add new warnings. Fix existing ones only when you're already touching that code.
+- **Warning baseline: 16 warnings** (all nullable-reference warnings). Lower this number whenever a change reduces it. Don't add new warnings. Fix existing ones only when you're already touching that code.
 - The upstream GitHub Actions workflows (`build.yml` on `buildme` branch, `release.yml` on tags) are stale (net472/msbuild). Don't push tags or a `buildme` branch.
 
 ## Project docs

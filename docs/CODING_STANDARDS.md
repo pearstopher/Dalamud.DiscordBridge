@@ -27,7 +27,7 @@ The codebase is inherited and inconsistent in places. These rules apply to **new
 - **Game state access:** read `IClientState`/`IObjectTable`/`IPlayerState`/Excel data on the framework thread, or through `Service.Framework.RunOnFrameworkThread`. Prefer the existing `cachedPlayerName`/`cachedPlayerWorld` over re-reading.
 - **Shared mutable state** touched from more than one context (game thread, queue thread, Discord gateway) must be synchronized (`lock` on a private object, or `Concurrent*` collections). Never hold a lock across `await`.
 - **No `async void`** except Dalamud/UI event handlers whose signature requires it. Those must wrap their whole body in try/catch.
-- **Every Dalamud subscription needs a matching unsubscription in `Dispose`.** Same for IPC registrations and command handlers.
+- **Every Dalamud subscription needs a matching unsubscription in `Dispose`.** Same for IPC registrations and command handlers. `EventSubscriptionTests` enforces this for files listed in its `FilesWithSubscriptions`; add new files there.
 - Use `Service.*` for Dalamud services. Don't stash `IDalamudPluginInterface` in new places.
 - Reuse existing helpers: `SendGenericEmbed` for command replies, `GetOrCreateWebhookClient` for webhooks, `XivChatTypeExtensions.GetSlug/GetFancyName/GetBySlug` for chat types, `EnsureOwner` for permissions.
 - Keep pure logic (parsing, formatting, mapping) in classes without Dalamud runtime dependencies so it can be unit tested (see [TESTING.md](TESTING.md)).
