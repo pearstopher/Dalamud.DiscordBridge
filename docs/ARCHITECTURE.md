@@ -2,7 +2,7 @@
 
 This plugin listens to FFXIV chat (and a few game events) through Dalamud, queues each event, and a background worker posts it to whichever Discord channels the owner has subscribed to that chat kind. A Discord bot account (token supplied by the user) does the posting, normally through a per-channel **webhook** so each message shows the in-game sender's name and Lodestone portrait.
 
-Relaying is one-way: FFXIV → Discord. Discord → FFXIV isn't supported. The only things read from Discord are the owner's configuration commands, plus webhook messages for the duplicate filter.
+Relaying is two-way. Game → Discord is described below. Discord → game (see [Inbound flow](#inbound-flow-discord--game)) shows messages from channels with `setinbound` in your chat log, or with the in-game opt-in sends the owner's messages as their character. Discord is also read for commands (`xl!…`, `!` overrides) and for webhook messages (duplicate filter).
 
 ## Source map
 
@@ -155,7 +155,7 @@ All commands are handled in `DiscordHandler.SocketClientOnMessageReceived`, a lo
 
 ## Persistence
 
-- Dalamud serializes `Configuration` with Newtonsoft.Json to `%AppData%\XIVLauncher\pluginConfigs\Dalamud.DiscordBridge.json`.
+- Dalamud serializes `Configuration` with Newtonsoft.Json to `%AppData%\XIVLauncher\pluginConfigs\DiscordChatPears.json` (the InternalName).
 - `Config.Save()` is called right after every mutation.
 - Dictionaries are keyed by `XivChatType` (enum) or Discord channel ID (`ulong`).
 - `Version` exists but no migrations are implemented. The constructor's chat-type sanitizing is the only upgrade logic.
