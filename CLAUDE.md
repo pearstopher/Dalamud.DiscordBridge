@@ -37,8 +37,8 @@ Don't stop to ask questions mid-queue. If a decision is truly the owner's to mak
 ## Build & verify
 
 ```powershell
-dotnet build Dalamud.DiscordBridge.sln -c Release   # must be 0 errors
-dotnet test                                          # once a test project exists
+dotnet build Dalamud.DiscordBridge.sln -c Release             # must be 0 errors
+dotnet test Dalamud.DiscordBridge.sln -c Release --no-build    # all tests green
 ```
 
 - Requires the .NET SDK (10.x is installed) and Dalamud dev files at `%AppData%\XIVLauncher\addon\Hooks\dev` (present on this machine). Project SDK: `Dalamud.NET.Sdk/15.0.0` (Dalamud API 15).

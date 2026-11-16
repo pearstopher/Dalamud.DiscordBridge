@@ -10,6 +10,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		.editorconfig = .editorconfig
 	EndProjectSection
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Dalamud.DiscordBridge.Tests", "Dalamud.DiscordBridge.Tests\Dalamud.DiscordBridge.Tests.csproj", "{1D58FF66-C4DD-4EA4-9959-BAC04ED43CFD}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -20,6 +22,10 @@ Global
 		{517A4352-7F10-48B9-B332-BB592157E377}.Debug|x64.Build.0 = Debug|x64
 		{517A4352-7F10-48B9-B332-BB592157E377}.Release|x64.ActiveCfg = Release|x64
 		{517A4352-7F10-48B9-B332-BB592157E377}.Release|x64.Build.0 = Release|x64
+		{1D58FF66-C4DD-4EA4-9959-BAC04ED43CFD}.Debug|x64.ActiveCfg = Debug|x64
+		{1D58FF66-C4DD-4EA4-9959-BAC04ED43CFD}.Debug|x64.Build.0 = Debug|x64
+		{1D58FF66-C4DD-4EA4-9959-BAC04ED43CFD}.Release|x64.ActiveCfg = Release|x64
+		{1D58FF66-C4DD-4EA4-9959-BAC04ED43CFD}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

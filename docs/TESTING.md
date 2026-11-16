@@ -15,13 +15,14 @@ dotnet build Dalamud.DiscordBridge.sln -c Release
 
 ## 2. Unit tests
 
-> Status: the test project doesn't exist yet. It's being added by #2. Until then, level 1 plus careful diff review is the gate. Update this section when #2 lands.
-
-**Layout (planned):** `Dalamud.DiscordBridge.Tests/` (xUnit) in the solution, referencing the plugin project. Dalamud assemblies are copy-local in the test project only, so types like `XivChatType` and `Dalamud.Utility` extensions load at runtime.
+**Layout:** `Dalamud.DiscordBridge.Tests/` (xUnit 2.9, `net10.0-windows`, x64) is in the solution and references the plugin project. The plugin references Dalamud assemblies with `Private=false`, so the test project adds its own copy-local references to `Dalamud`, `Lumina`, `Lumina.Excel`, `FFXIVClientStructs`, and `Newtonsoft.Json` from `$(DalamudLibPath)`. That's `DALAMUD_HOME` when set (CI), otherwise `%AppData%\XIVLauncher\addon\Hooks\dev\`. The plugin's own output is unaffected. The plugin csproj has `InternalsVisibleTo Dalamud.DiscordBridge.Tests`, so internal types are testable.
 
 ```powershell
-dotnet test Dalamud.DiscordBridge.sln
+dotnet build Dalamud.DiscordBridge.sln -c Release
+dotnet test Dalamud.DiscordBridge.sln -c Release --no-build
 ```
+
+If a test needs a Dalamud assembly that isn't listed, add another `<Reference … Private="true" />` to the test csproj.
 
 **What is unit-testable** (no live Dalamud services or Discord connection needed):
 
