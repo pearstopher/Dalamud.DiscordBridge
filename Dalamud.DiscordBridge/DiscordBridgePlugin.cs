@@ -8,7 +8,6 @@ using Dalamud.Game.Text.SeStringHandling;
 using Dalamud.Game.Text.SeStringHandling.Payloads;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
-using FFXIVClientStructs.FFXIV.Client.System.Framework;
 using Lumina.Excel;
 using Lumina.Excel.Sheets;
 using Lumina.Text.ReadOnly;
@@ -26,6 +25,11 @@ namespace Dalamud.DiscordBridge
         public DiscordHandler Discord;
         public Configuration Config;
         public DiscordBridgeProvider DiscordBridgeProvider;
+
+        /// <summary>Swallows the game's echo of lines we print/send for Discord messages, so they aren't relayed back.</summary>
+        internal readonly InboundEchoGuard EchoGuard = new();
+
+        private InboundDisplay inboundDisplay = null!;
 
         private static IPluginLog Logger => Service.Logger;
 
@@ -83,6 +87,7 @@ namespace Dalamud.DiscordBridge
 
             
             this.DiscordBridgeProvider = new DiscordBridgeProvider(pluginInterface, new DiscordBridgeAPI(this));
+            this.inboundDisplay = new InboundDisplay(this.Config, this.EchoGuard);
             this.Discord = new DiscordHandler(this);
             // Task t = this.Discord.Start(); // bot won't start if we just have this
 
@@ -195,6 +200,9 @@ namespace Dalamud.DiscordBridge
         {
             if (message.IsHandled) return; // don't process a message that's been handled.
 
+            // A line we printed or sent because of a Discord message: don't relay it back to Discord.
+            if (this.EchoGuard.TryConsume(message.LogKind, message.Message.TextValue)) return;
+
             if (message.LogKind == XivChatType.RetainerSale)
             {
                 this.Discord.MessageQueue.Enqueue(new QueuedRetainerItemSaleEvent 
@@ -274,6 +282,53 @@ namespace Dalamud.DiscordBridge
         }
 
         
+        /// <summary>
+        /// Handle a converted Discord message destined for the game. Called from the Discord handler's inbound queue
+        /// (and by /dcpin). Lives on the plugin so it survives the Discord handler being recreated from the settings window.
+        /// </summary>
+        internal Task<InboundResult> HandleInboundAsync(InboundDiscordMessage message, string text)
+            => this.inboundDisplay.ShowAsync(message, text);
+
+        [Command("/dcpin")]
+        [HelpMessage("Simulate a Discord message arriving in game: /dcpin <kind> <name> <text…>")]
+        [DoNotShowInHelp]
+        public void InboundDebugCommand(string command, string args)
+        {
+            var parts = args.Split(' ', 3, StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length < 3)
+            {
+                Service.Chat.PrintError($"Usage: /dcpin <kind> <name> <text>. Kinds: {InboundRules.AllowedSlugList}");
+                return;
+            }
+
+            if (!InboundRules.TryParseTarget(parts[0], out var target, out var error) || target == null)
+            {
+                Service.Chat.PrintError(string.IsNullOrEmpty(error) ? "Pick a chat kind, not off." : error);
+                return;
+            }
+
+            var fake = new InboundDiscordMessage
+            {
+                ChannelId = 0,
+                MessageId = 0,
+                AuthorId = 0,
+                AuthorName = parts[1],
+                IsOwner = false,
+                TargetType = target.Value,
+                Content = parts[2],
+                CleanContent = parts[2],
+            };
+
+            var text = this.Discord.InboundConverter.Convert(fake);
+            _ = Task.Run(async () =>
+            {
+                var result = await this.HandleInboundAsync(fake, text);
+                Logger.Information("/dcpin: {0} ({1})", result, text);
+                if (result is not InboundResult.Shown and not InboundResult.Sent)
+                    Service.Chat.PrintError($"/dcpin: {result}");
+            });
+        }
+
         [Command("/dcpprintlist")]
         [HelpMessage("Dump all plugin config to chat box.")]
         [DoNotShowInHelp]

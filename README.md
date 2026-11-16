@@ -4,7 +4,7 @@ A Dalamud plugin for FFXIV that relays your in-game chat to one or more Discord 
 
 **This is a fork** of [Discord Chat Bridge](https://github.com/reiichi001/Dalamud.DiscordBridge) by goat and Franz, maintained by pearstopher. It installs as a separate plugin (`DiscordChatPears`) and imports your Discord Chat Bridge settings the first time it loads. Disable Discord Chat Bridge afterwards so messages aren't relayed twice.
 
-Two-way chat (showing Discord messages in game) is in development. See [docs/design/discord-to-game.md](docs/design/discord-to-game.md).
+**Discord → game:** run `xl!setinbound fc` (or `ls1`, `cwls1`, `say`, …) in a Discord channel, and messages posted there show up in **your** chat log as `[D] Name: message`, coloured like that channel. Only you see them. `xl!setinboundperm` controls who can relay (owner only by default). Toggle it in `/dcp`. Sending as your character is coming next. See [docs/design/discord-to-game.md](docs/design/discord-to-game.md).
 
 ## Install
 

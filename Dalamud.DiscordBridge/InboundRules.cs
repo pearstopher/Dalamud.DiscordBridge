@@ -144,6 +144,17 @@ namespace Dalamud.DiscordBridge
             return string.IsNullOrEmpty(commandPrefix) || !content.TrimStart().StartsWith(commandPrefix, StringComparison.Ordinal);
         }
 
+        /// <summary>Reaction added to the Discord message for each outcome, or null for none.</summary>
+        internal static string? ReactionFor(InboundResult result) => result switch
+        {
+            InboundResult.Shown or InboundResult.Sent => "✅",
+            InboundResult.Queued => "⏳",
+            InboundResult.NotLoggedIn => "⏸️",
+            InboundResult.Rejected => "❌",
+            InboundResult.Failed => "⚠️",
+            _ => null,
+        };
+
         /// <summary>One-line description of a channel's inbound setting, for <c>listchannel</c>/<c>setinbound</c> replies.</summary>
         internal static string Describe(DiscordChannelConfig config)
         {
