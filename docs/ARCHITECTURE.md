@@ -37,7 +37,7 @@ All source is in `Dalamud.DiscordBridge/`.
 | `SpecialCharsHandler.cs` | Maps FFXIV private-use glyphs (U+E020–U+E0DB: HQ, auto-translate brackets, boxed letters/numbers, time icons…) to Unicode/emoji or custom guild emotes (`xivAtl`, `xivAtr`, `xivHq`). |
 | `XivChatTypeExtensions.cs` | `TypeInfoDict`: the master table of supported `XivChatType` → slug (used in commands, e.g. `fc`, `ls1`) and display name. `GetInfo` masks with `& 0x7F`. Defines `IpcChatType = (XivChatType)99` for IPC messages. |
 | `PluginCommandManager.cs` + `Attributes/` | Reflection-based registration of in-game slash commands from `[Command]`, `[HelpMessage]`, `[Aliases]`, `[DoNotShowInHelp]` attributes on methods of `DiscordBridgePlugin`. |
-| `PluginUI.cs` | ImGui setup window (`/dcp`): token, owner name/ID, connection status, invite link. Save disposes and recreates `DiscordHandler`. |
+| `PluginUI.cs` | ImGui setup window (`/dcp`): token (hidden unless *Show* is ticked), owner name/ID, connection status, invite link. Save reconnects on a background task (`SwapGate`: one at a time, "Reconnecting…" meanwhile, #44): disposes and recreates `DiscordHandler`. |
 | `API/` | IPC for other plugins: `DiscordBridge.APIVersion` (returns `1`) and `DiscordBridge.SendMessage(pluginName, avatarUrl, message)`. |
 | `XivApi/` | Legacy XIVAPI client and result models. Mostly unused now (avatars come from NetStone; item icons are built as `beta.xivapi.com` asset URLs). |
 | `DiscordState.cs` | Bot connection state shown in `/dcp`: `None`, `Ready`, `TokenInvalid`. |
@@ -47,6 +47,7 @@ All source is in `Dalamud.DiscordBridge/`.
 | `DiscordChatPears.json` | Plugin manifest metadata (name, author, description, tags). The InternalName comes from `<AssemblyName>DiscordChatPears` in the csproj. |
 | `ChannelLookup.cs` | Pure (#39): classifies a failed channel lookup (`Found`/`NotFound`/`Error`). Only a definitive "Unknown Channel" removes a channel's settings; outages and missing access keep them (`WarnOnce` logs once per session). |
 | `MentionPolicy.cs` | Pure (#41): relays never ping, except the users/roles/`@everyone` written in the owner's own prefix (`DiscordHandler.MentionsForPrefix`). |
+| `SwapGate.cs` | One `/dcp` Save reconnect at a time (#44). |
 | `ChatKindArgs.cs` | Pure (#42): parses the chat-kind list of `setchannel`/`unsetchannel`/`setprefix`/`unsetprefix`/`setchattypename`/`unsetchattypename`/`setavatar`/`unsetavatar` (`tell`, `p`, `any`, `all`, typos named in the error), formats list replies (truncated to fit an embed), validates avatar URLs and `setduplicatems`. |
 | `ClientCache.cs` / `WebhookRules.cs` | One cached `DiscordWebhookClient` per channel (#40), disposed on eviction and shutdown; a deleted webhook ("Unknown Webhook") is recreated once and the send retried; the config is saved only when the webhook ID changes. |
 | `ConfigImport.cs` | One-time, read-only import of the official Discord Chat Bridge config (`pluginConfigs/Dalamud.DiscordBridge.json`) on first run, stripping its `$type` metadata. |

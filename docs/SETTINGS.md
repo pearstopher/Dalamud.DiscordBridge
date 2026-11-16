@@ -8,7 +8,7 @@ On first load, settings are imported once from the official Discord Chat Bridge 
 
 | Option | Setting | Default | What it does |
 |---|---|---|---|
-| Enter your bot token | `DiscordToken` | empty | The Discord bot's token. Click **Save** to reconnect. Keep it secret. |
+| Enter your bot token | `DiscordToken` | empty | The Discord bot's token, hidden unless you tick **Show**. Click **Save** to reconnect (in the background; the status shows *Reconnecting…*). Keep it secret. |
 | Enter your Username | `DiscordOwnerName` | empty | Your Discord username, `name#1234`, or numeric user ID. Owner-only commands and send-as-me check this. |
 | Show Discord messages in game chat | `InboundDisplayEnabled` | on | Master switch for showing Discord messages in your chat log (channels still need `setinbound`). |
 | Show them as Echo instead of the channel's own colour | `InboundDisplayAsEcho` | off | Print every inbound message as a labelled Echo line, `[FC] [D] Name: text`, instead of mimicking the channel. |
