@@ -8,6 +8,7 @@ Developer docs for **Discord Chat Pears** (`DiscordChatPears`), a fork of Discor
 | [CODING_STANDARDS.md](CODING_STANDARDS.md) | you're writing or reviewing any code |
 | [TESTING.md](TESTING.md) | you need to verify a change (build, unit tests, in-game checklist) |
 | [ADDING_FEATURES.md](ADDING_FEATURES.md) | you're adding a chat type, Discord command, config option, IPC endpoint, or UI |
+| [IN_GAME_TEST_PLAN.md](IN_GAME_TEST_PLAN.md) | you're testing a build in game (one checklist for everything) |
 | [DALAMUD_RULES.md](DALAMUD_RULES.md) | you need to know which features follow Dalamud's plugin rules |
 | [design/discord-to-game.md](design/discord-to-game.md) | you're working on the two-way (Discord → game) feature |
 | [../DEVELOPMENT.md](../DEVELOPMENT.md) | you want to build, load the plugin in game, use debug commands, or check CI |
