@@ -86,6 +86,12 @@ namespace Dalamud.DiscordBridge
         private const int EmbedColorFine = 0x478CFF;
 
         /// <summary>
+        /// Nothing the bot or its webhooks post may ping anyone (#41): relayed game text could contain
+        /// <c>&lt;@&amp;role&gt;</c> or <c>&lt;@user&gt;</c> typed by any player. Mentions still show as text.
+        /// </summary>
+        internal static readonly AllowedMentions RelayMentions = AllowedMentions.None;
+
+        /// <summary>
         /// Embed color signalling that everything is bad.
         /// </summary>
         private const int EmbedColorError = 0xD10303;
@@ -1155,7 +1161,8 @@ namespace Dalamud.DiscordBridge
 
                     var m = await message.Channel.SendMessageAsync(
                             null,
-                            embed: embed)
+                            embed: embed,
+                            allowedMentions: RelayMentions)
                         .ConfigureAwait(false);
                     ;
                     Logger.Verbose(m.Id.ToString());
@@ -1185,7 +1192,8 @@ namespace Dalamud.DiscordBridge
             var embed = builder.Build();
             await channel.SendMessageAsync(
                     null,
-                    embed: embed)
+                    embed: embed,
+                    allowedMentions: RelayMentions)
                 .ConfigureAwait(false);
         }
 
@@ -1206,7 +1214,8 @@ namespace Dalamud.DiscordBridge
             var embed = builder.Build();
             var sent = await channel.SendMessageAsync(
                     null,
-                    embed: embed)
+                    embed: embed,
+                    allowedMentions: RelayMentions)
                 .ConfigureAwait(false);
             return sent.Id;
         }
@@ -1405,7 +1414,7 @@ namespace Dalamud.DiscordBridge
                 Logger.Debug(ex, "Could not react to ping; replying instead.");
                 await message.Channel.SendMessageAsync(InboundRules.PingText(loggedIn),
                     messageReference: new MessageReference(message.Id),
-                    allowedMentions: AllowedMentions.None);
+                    allowedMentions: RelayMentions);
             }
         }
 
@@ -1502,7 +1511,7 @@ namespace Dalamud.DiscordBridge
 
                 await channel.SendMessageAsync(text,
                     messageReference: new MessageReference(messageId),
-                    allowedMentions: AllowedMentions.None);
+                    allowedMentions: RelayMentions);
             }
             catch (Exception ex)
             {
@@ -1569,7 +1578,7 @@ namespace Dalamud.DiscordBridge
                         break;
                     case DeliveryRoute.Webhook:
                         var saleSent = await SendViaWebhookAsync((ITextChannel)channel, client => client.SendMessageAsync($"{prefix} {message}",
-                            username: $"Retainer sold {name}", avatarUrl: iconurl));
+                            username: $"Retainer sold {name}", avatarUrl: iconurl, allowedMentions: RelayMentions));
                         if (saleSent == null)
                         {
                             Logger.Debug("FALLBACKMODE - Unable to create WebHook");
@@ -1879,7 +1888,7 @@ namespace Dalamud.DiscordBridge
 
                     var relayedId = await SendViaWebhookAsync((ITextChannel)channel, client => client.SendMessageAsync(
                         messageContent, username: webhookName, avatarUrl: webhookAvatar,
-                        allowedMentions: new AllowedMentions(AllowedMentionTypes.Roles | AllowedMentionTypes.Users | AllowedMentionTypes.None)));
+                        allowedMentions: RelayMentions));
                     if (relayedId is { } sentId)
                     {
                         Remember(sentId, relayTarget);
@@ -1936,25 +1945,25 @@ namespace Dalamud.DiscordBridge
                 {
                     case DeliveryRoute.DirectMessage:
                     case DeliveryRoute.Embed:
-                        await channel.SendMessageAsync($"{prefix}", embed: NewEmbed().WithAuthor(bridgeAuthor).Build());
+                        await channel.SendMessageAsync($"{prefix}", embed: NewEmbed().WithAuthor(bridgeAuthor).Build(), allowedMentions: RelayMentions);
                         break;
                     case DeliveryRoute.MissingWebhookPermission:
                         Logger.Debug("FALLBACKMODE - Unable to create WebHook - No Permission");
                         await channel.SendMessageAsync($"{prefix}", embed: NewEmbed()
                             .WithAuthor(bridgeAuthor)
                             .WithDescription("FALLBACKMODE - Unable to create WebHook - Missing ManageWebHook permission.")
-                            .Build());
+                            .Build(), allowedMentions: RelayMentions);
                         break;
                     case DeliveryRoute.Webhook:
                         var cfSent = await SendViaWebhookAsync((ITextChannel)channel, client => client.SendMessageAsync($"{prefix}", embeds: [NewEmbed().Build()],
-                            username: Constant.WebhookName, avatarUrl: Constant.LogoLink));
+                            username: Constant.WebhookName, avatarUrl: Constant.LogoLink, allowedMentions: RelayMentions));
                         if (cfSent == null)
                         {
                             Logger.Debug("FALLBACKMODE - Unable to create WebHook - Unknown error");
                             await channel.SendMessageAsync($"{prefix}", embed: NewEmbed()
                                 .WithAuthor(bridgeAuthor)
                                 .WithDescription("FALLBACKMODE - Unable to create WebHook - Unknown failure")
-                                .Build());
+                                .Build(), allowedMentions: RelayMentions);
                         }
                         break;
                 }
