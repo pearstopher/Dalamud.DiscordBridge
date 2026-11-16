@@ -47,24 +47,39 @@ public class GameChatCommandTests
         Assert.Contains("/", reason);
     }
 
-    [Fact]
-    public void ConverterOutput_NeverProducesABareCommand()
+    [Theory]
+    [InlineData("/logout")]
+    [InlineData(" /logout")]       // how you get past Discord's own slash-command menu
+    [InlineData("**/logout**")]
+    [InlineData("`/logout`")]
+    [InlineData("\n/logout")]
+    [InlineData("> /logout")]
+    [InlineData("__/gaction teleport__")]
+    public void SlashCommandsFromDiscord_AreRejectedInSendMode(string input)
     {
-        var converter = new DiscordToGameConverter();
-        foreach (var input in new[] { "/logout", "**/logout**", "`/logout`", "\n/logout", "> /logout", "||/logout||" })
-        {
-            var message = new InboundDiscordMessage
-            {
-                ChannelId = 1, MessageId = 1, AuthorId = 1, AuthorName = "me", IsOwner = true,
-                TargetType = XivChatType.FreeCompany, Content = input, CleanContent = input,
-            };
-            var text = converter.Convert(message, int.MaxValue);
+        var text = new DiscordToGameConverter().Convert(Msg(input), int.MaxValue);
 
-            if (GameChatCommand.TryBuild(XivChatType.FreeCompany, text, out var line, out _))
-                Assert.StartsWith("/fc ", line);  // the only command is the one the plugin chose
-            Assert.False(text.TrimStart().StartsWith('/'), $"'{input}' converted to '{text}'");
-        }
+        Assert.False(GameChatCommand.TryBuild(XivChatType.FreeCompany, text, out var line, out var reason), $"'{input}' → '{line}'");
+        Assert.Equal("messages can't start with /", reason);
     }
+
+    [Theory]
+    [InlineData("||/logout||")]   // becomes "[spoiler]"
+    [InlineData("hi /logout")]    // slash not at the start
+    public void TextThatIsNotACommand_IsSentWithThePluginsPrefixOnly(string input)
+    {
+        var text = new DiscordToGameConverter().Convert(Msg(input), int.MaxValue);
+
+        Assert.True(GameChatCommand.TryBuild(XivChatType.FreeCompany, text, out var line, out _));
+        Assert.StartsWith("/fc ", line);
+        Assert.False(line["/fc ".Length..].StartsWith('/'));
+    }
+
+    private static InboundDiscordMessage Msg(string input) => new()
+    {
+        ChannelId = 1, MessageId = 1, AuthorId = 1, AuthorName = "me", IsOwner = true,
+        TargetType = XivChatType.FreeCompany, Content = input, CleanContent = input,
+    };
 
     [Fact]
     public void TryBuild_LineBreaks_Rejected()

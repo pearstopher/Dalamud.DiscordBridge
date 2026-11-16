@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -115,7 +115,7 @@ namespace Dalamud.DiscordBridge.SelfTests
                     [
                         "hello world 123",
                         "re @Bob: gg (+1) [image] [sticker: Wave]",
-                        "／logout is just text",
+                        "and/or 50/50 (not a command)",
                         "café ñ ü — 日本語 テスト ~ !? <3 :D",
                         "see the guide (https://example.com/g?x=1&y=2)",
                     ];

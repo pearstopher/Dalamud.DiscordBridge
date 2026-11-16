@@ -120,20 +120,14 @@ public class DiscordToGameConverterTests
     }
 
     [Theory]
-    [InlineData("/logout", "／logout")]
-    [InlineData("/fc hi", "／fc hi")]
+    [InlineData("/logout", "/logout")]
+    [InlineData(" /logout", "/logout")]
+    [InlineData("**/logout**", "/logout")]
     [InlineData("a /b", "a /b")]
-    public void LeadingSlash_Neutralized(string input, string expected)
+    public void LeadingSlash_KeptAsIs_DisplayNeverRunsCommands(string input, string expected)
     {
+        // Send mode rejects these (GameChatCommandTests); display prints them literally.
         Assert.Equal(expected, converter.Convert(Msg(input)));
-    }
-
-    [Fact]
-    public void LeadingSlash_AfterMarkdownStripping_StillNeutralized()
-    {
-        Assert.Equal("／logout", converter.Convert(Msg("**/logout**")));
-        Assert.Equal("／logout", converter.Convert(Msg("`/logout`")));
-        Assert.Equal("／logout", converter.Convert(Msg("\n  /logout")));
     }
 
     [Fact]
