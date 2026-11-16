@@ -8,7 +8,7 @@ Kinds are chat-type names such as `say`, `fc`, `ls1`, `cwls1`, `p`, `tell`, `e` 
 
 | Command | Who | What it does | Example |
 |---|---|---|---|
-| `xl!setchannel <kinds>` | Owner | Relay these chat kinds to this channel. Comma-separated. `any` = all regular chat (incl. both tell directions), `all` = **every** kind (system, loot, retainer sales…), `tell` = incoming and outgoing tells, `p` = party and cross-party. | `xl!setchannel fc,ls1,tell` · `xl!setchannel all` |
+| `xl!setchannel <kinds>` | Owner | Relay these chat kinds to this channel. Comma-separated. `any` = all regular chat (incl. both tell directions), `all` = **every** kind (system, loot, retainer sales…), `tell` = incoming and outgoing tells, `p` = party and cross-party. **GM messages** come along with the matching player channel (a GM tell when tells are on, GM FC when FC is on, GM LS1 with LS1…), labelled `[gmtell]`, `[gmfc]`… (replies to them are blocked). | `xl!setchannel fc,ls1,tell` · `xl!setchannel all` |
 | `xl!unsetchannel <kinds>` | Owner | Stop relaying these kinds here (`any`/`all` work too). | `xl!unsetchannel all` |
 | `xl!listchannel` | Owner | Show what this channel receives, plus its inbound (Discord → game) setting. | |
 | `xl!toggledf` | Owner | Post Duty Finder pops in this channel (on/off). | |

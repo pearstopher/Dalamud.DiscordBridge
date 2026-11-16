@@ -159,7 +159,8 @@ namespace Dalamud.DiscordBridge
                             }
                         }
 
-                        if (senderWorld.Equals(string.Empty))
+                        // GM messages without a player link: don't stamp our own world on the GM's name.
+                        if (senderWorld.Equals(string.Empty) && !ReplyRouting.IsGmChannel(chatEvent.ChatType))
                             senderWorld = plugin.cachedPlayerWorld;
                     }
                     else
