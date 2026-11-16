@@ -76,3 +76,4 @@ Kinds are chat-type names such as `say`, `fc`, `ls1`, `cwls1`, `p`, `tell`, `e` 
 | `/dcpdebug <kind>` | Developer: relay a fake "Test Message" of that kind to Discord. Hidden. |
 | `/dcpsaledebug` | Developer: relay a fake retainer sale. Hidden. |
 | `/dcpprintlist` | Print every chat kind (`id slug - name`). Hidden. |
+| `/dcpfriends` | Research (#36): print the friends the client currently holds, with home/current world and online status. Read-only, sends nothing. Hidden. |

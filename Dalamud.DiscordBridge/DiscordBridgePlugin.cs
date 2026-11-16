@@ -468,6 +468,18 @@ namespace Dalamud.DiscordBridge
                 Service.Chat.PrintError("Self-tests are already running.");
         }
 
+        [Command("/dcpfriends")]
+        [HelpMessage("Research (#36): print what the client knows about your friend list. Read-only, sends nothing.")]
+        [DoNotShowInHelp]
+        public void FriendsDebugCommand(string command, string args)
+        {
+            var friends = FriendListProbe.Read();
+            Service.Chat.Print($"{Constant.PluginName}: {friends.Count} friends loaded in the client" +
+                               (friends.Count == 0 ? " (open your Friend List once, then try again)." : ":"));
+            for (var i = 0; i < friends.Count; i++)
+                Service.Chat.Print(FriendListProbe.Describe(i + 1, friends[i]));
+        }
+
         [Command("/dcpprintlist")]
         [HelpMessage("Dump all plugin config to chat box.")]
         [DoNotShowInHelp]
