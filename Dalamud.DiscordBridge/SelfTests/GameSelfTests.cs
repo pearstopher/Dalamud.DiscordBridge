@@ -299,7 +299,7 @@ namespace Dalamud.DiscordBridge.SelfTests
                     if (text == null)
                         return SelfTestResult.Fail("no server info bar entry");
                     return shown == expected && text == PauseStatus.Glyph(expected)
-                        ? SelfTestResult.Pass($"{expected} ({(text == "||" ? "||" : "game icon")})")
+                        ? SelfTestResult.Pass($"{expected}: \"{text}\"")
                         : SelfTestResult.Fail($"shows {shown?.ToString() ?? "nothing"}, expected {expected}");
                 }),
 
