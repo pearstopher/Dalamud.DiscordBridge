@@ -26,7 +26,7 @@
 1. Add `Model/Queued<Thing>Event.cs : QueuedXivEvent` with `required` properties for everything the sender needs. Capture game data **on the game thread** when you enqueue.
 2. Subscribe to the Dalamud event in the `DiscordBridgePlugin` constructor, enqueue the event, and **unsubscribe in `Dispose`**.
 3. Add an `is Queued<Thing>Event` branch in `RunMessageQueue`, wrapped in its own try/catch.
-4. Add `DiscordHandler.Send<Thing>EventAsync`. Choose target channels the way existing senders do (a `DiscordChannelConfig` flag or chat-type membership), and follow the DM → embed fallback → webhook pattern (once #5 lands, use the shared helper).
+4. Add `DiscordHandler.Send<Thing>EventAsync`. Choose target channels the way existing senders do (a `DiscordChannelConfig` flag or chat-type membership), and follow the DM → embed fallback → webhook pattern (use `ResolveDeliveryAsync` + a `switch` on `DeliveryRoute`).
 5. If it needs a per-channel toggle, add a `bool` to `DiscordChannelConfig` (default `false`) and a `toggle<thing>` command (next recipe).
 
 ### Add a Discord text command

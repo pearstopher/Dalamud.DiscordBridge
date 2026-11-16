@@ -64,7 +64,7 @@ Game chat ─► IChatGui.ChatMessage ─► DiscordBridgePlugin.ChatOnOnChatMes
            3. channels = ChannelConfigs where ChatTypes contains type (none → return)
            4. SpecialCharsHandler.TransformToUnicode
            5. content = "{prefix}**[{customSlug|slug}]** {[displayName: ]message}"
-           6. per channel: DM → embed | ForceEmbedFallbackMode → embed |
+           6. per channel (ResolveDeliveryAsync → ChooseRoute): DM → embed | ForceEmbedFallbackMode → embed |
                            no ManageWebhooks → error embed | else DuplicateFilter check → webhook
                               (username = "Name＠World", or the bot name when ForceDefaultNameAvatar is set)
 ```

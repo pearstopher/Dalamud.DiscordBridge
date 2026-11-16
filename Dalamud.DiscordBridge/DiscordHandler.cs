@@ -994,7 +994,7 @@ namespace Dalamud.DiscordBridge
             }
         }
 
-        private static async Task SendGenericEmbed(ISocketMessageChannel channel, string message, string title, uint color)
+        private static async Task SendGenericEmbed(IMessageChannel channel, string message, string title, uint color)
         {
             var builder = new EmbedBuilder()
                 .WithTitle(title)
@@ -1014,7 +1014,7 @@ namespace Dalamud.DiscordBridge
                 .ConfigureAwait(false);
         }
 
-        private static async Task SendPrettyEmbed(ISocketMessageChannel channel, string message, string title, string iconurl, uint color)
+        private static async Task SendPrettyEmbed(IMessageChannel channel, string message, string title, string iconurl, uint color)
         {
             var builder = new EmbedBuilder()
                 .WithTitle(title)
@@ -1040,7 +1040,7 @@ namespace Dalamud.DiscordBridge
         /// <param name="user">User in question.</param>
         /// <param name="errorMessageChannel">Channel for error message.</param>
         /// <returns>True if the user is the owner of this plugin.</returns>
-        private async Task<bool> EnsureOwner(IUser user, ISocketMessageChannel errorMessageChannel = null)
+        private async Task<bool> EnsureOwner(IUser user, IMessageChannel? errorMessageChannel = null)
         {
             Logger.Verbose("EnsureOwner: " + user.Username + "#" + user.Discriminator);
             if (user.Username + "#" + user.Discriminator == this.plugin.Config.DiscordOwnerName) 
@@ -1079,47 +1079,104 @@ namespace Dalamud.DiscordBridge
 
             foreach (var channelConfig in applicableChannels)
             {
-                var socketChannel = this.socketClient.GetChannel(channelConfig.Key);
+                var (channel, route) = await ResolveDeliveryAsync(channelConfig.Key, forceEmbed: false);
 
-                if (socketChannel == null)
+                if (channel == null)
                 {
                     Logger.Error("Could not find channel {0} for {1}", channelConfig.Key, chatType);
                     continue;
                 }
 
-                // add handling for webhook vs embed here
-                IGuildChannel guildChannel = (IGuildChannel)socketChannel;
-                IGuildUser guildUser = await guildChannel.Guild.GetUserAsync(this.socketClient.CurrentUser.Id);
-                bool hasManageWebHooks = guildUser.GetPermissions(guildChannel).Has(ChannelPermission.ManageWebhooks);
+                switch (route)
+                {
+                    case DeliveryRoute.DirectMessage:
+                    case DeliveryRoute.Embed:
+                        await SendPrettyEmbed(channel, message, $"Retainer sold {name}", iconurl, EmbedColorFine);
+                        break;
+                    case DeliveryRoute.MissingWebhookPermission:
+                        Logger.Debug("FALLBACKMODE - Unable to create WebHook - No permission");
+                        await SendPrettyEmbed(channel, $"FALLBACKMODE\n\nMissing ManageWebHooks permission.\n\n{message}", $"Retainer sold {name}", iconurl, EmbedColorError);
+                        break;
+                    case DeliveryRoute.Webhook:
+                        var webhookClient = await GetOrCreateWebhookClient((ITextChannel)channel);
+                        if (webhookClient != null)
+                        {
+                            await webhookClient.SendMessageAsync($"{prefix} {message}",
+                                username: $"Retainer sold {name}", avatarUrl: iconurl);
+                        }
+                        else
+                        {
+                            Logger.Debug("FALLBACKMODE - Unable to create WebHook");
+                            await SendPrettyEmbed(channel, $"FALLBACKMODE\nUnable to create WebHook\n\n{message}", $"Retainer sold {name}", iconurl, EmbedColorError);
+                        }
+                        break;
+                }
+            }
+        }
 
-                if (socketChannel is SocketDMChannel)
+        /// <summary>
+        /// How a relayed message should be delivered to a configured channel.
+        /// </summary>
+        internal enum DeliveryRoute
+        {
+            /// <summary>A DM with the bot. Webhooks don't exist there, so post an embed.</summary>
+            DirectMessage,
+
+            /// <summary>Post an embed (embed fallback mode, or a channel type without webhooks).</summary>
+            Embed,
+
+            /// <summary>Guild text channel, but the bot can't manage webhooks. Post an error embed.</summary>
+            MissingWebhookPermission,
+
+            /// <summary>Guild text channel with webhook permission. Post through the channel webhook.</summary>
+            Webhook,
+        }
+
+        /// <summary>
+        /// Pure routing decision, separated out for unit tests.
+        /// </summary>
+        internal static DeliveryRoute ChooseRoute(bool isDirectMessage, bool isGuildTextChannel, bool forceEmbed, bool hasManageWebhooks)
+        {
+            if (isDirectMessage)
+                return DeliveryRoute.DirectMessage;
+            if (forceEmbed || !isGuildTextChannel)
+                return DeliveryRoute.Embed;
+            return hasManageWebhooks ? DeliveryRoute.Webhook : DeliveryRoute.MissingWebhookPermission;
+        }
+
+        /// <summary>
+        /// Find a configured channel (from cache, or over REST since DM channels usually aren't cached after a restart)
+        /// and decide how to deliver to it. Checks for DMs before any guild-only API is touched.
+        /// </summary>
+        /// <returns>The channel, or null if it no longer exists or can't be accessed, and the route to use.</returns>
+        private async Task<(IMessageChannel? Channel, DeliveryRoute Route)> ResolveDeliveryAsync(ulong channelId, bool forceEmbed)
+        {
+            IMessageChannel? channel = this.socketClient.GetChannel(channelId) as IMessageChannel;
+            if (channel == null)
+            {
+                try
                 {
-                    var DMChannel = await this.socketClient.GetDMChannelAsync(channelConfig.Key);
-                    await SendPrettyEmbed((ISocketMessageChannel)DMChannel, message, $"Retainer sold {name}", iconurl, EmbedColorFine);
+                    channel = await this.socketClient.GetChannelAsync(channelId) as IMessageChannel;
                 }
-                else if (!hasManageWebHooks)
+                catch (Exception ex)
                 {
-                    Logger.Debug("FALLBACKMODE - Unable to create WebHook - No permission\n");
-                    await SendPrettyEmbed((ISocketMessageChannel)socketChannel, $"FALLBACKMODE\n\nMissing ManageWebHooks permission.\n\n{message}", $"Retainer sold {name}", iconurl, EmbedColorError);
+                    Logger.Warning(ex, "Could not fetch channel {0}.", channelId);
                 }
-                else
-                {
-                    var webhookClient = await GetOrCreateWebhookClient(socketChannel);
-                    if (webhookClient != null)
-                    {
-                        await webhookClient.SendMessageAsync($"{prefix} {message}",
-                        username: $"Retainer sold {name}", avatarUrl: iconurl);
-                    }
-                    else
-                    {
-                        Logger.Debug("FALLBACKMODE - Unable to create WebHook\n");
-                        await SendPrettyEmbed((ISocketMessageChannel)socketChannel, $"FALLBACKMODE\nUnable to create WebHook\n\n{message}", $"Retainer sold {name}", iconurl, EmbedColorError);
-                    }
-                    
-                }
-                    
             }
 
+            if (channel == null)
+                return (null, DeliveryRoute.Embed);
+
+            var isDirectMessage = channel is IDMChannel;
+            var hasManageWebhooks = false;
+
+            if (!isDirectMessage && !forceEmbed && channel is ITextChannel guildText)
+            {
+                var self = await guildText.Guild.GetUserAsync(this.socketClient.CurrentUser.Id);
+                hasManageWebhooks = self?.GetPermissions(guildText).Has(ChannelPermission.ManageWebhooks) ?? false;
+            }
+
+            return (channel, ChooseRoute(isDirectMessage, channel is ITextChannel, forceEmbed, hasManageWebhooks));
         }
 
         public async Task SendChatEvent(string message, string senderName, string senderWorld, XivChatType chatType, string avatarUrl = "")
@@ -1269,16 +1326,13 @@ namespace Dalamud.DiscordBridge
 
             foreach (var channelConfig in applicableChannels)
             {
-                var socketChannel = this.socketClient.GetChannel(channelConfig.Key);
+                var (channel, route) = await ResolveDeliveryAsync(channelConfig.Key, this.plugin.Config.ForceEmbedFallbackMode);
 
-                if (socketChannel == null)
+                if (channel == null)
                 {
                     Logger.Error("Could not find channel {0} for {1}", channelConfig.Key, chatType);
 
-                    // try one more time just in case.
-                    socketChannel = this.socketClient.GetChannel(channelConfig.Key);
-
-                    if (socketChannel is null && !characterSearchFailed)
+                    if (!characterSearchFailed)
                     {
                         var channelConfigs = this.plugin.Config.ChannelConfigs;
                         channelConfigs.Remove(channelConfig.Key);
@@ -1296,53 +1350,49 @@ namespace Dalamud.DiscordBridge
                 messageContent = chatType != XivChatTypeExtensions.IpcChatType ? $"{prefix}**[{chatTypeText}]** {messageContent}" : $"{prefix} {messageContent}";
 
 
-                // add handling for webhook vs embed here
-                IGuildChannel guildChannel = (IGuildChannel)socketChannel;
-                IGuildUser guildUser = await guildChannel.Guild.GetUserAsync(this.socketClient.CurrentUser.Id);
-                bool hasManageWebHooks = guildUser.GetPermissions(guildChannel).Has(ChannelPermission.ManageWebhooks);
-
-                if (socketChannel is SocketDMChannel)
+                if (route == DeliveryRoute.DirectMessage)
                 {
-                    var DMChannel = await this.socketClient.GetDMChannelAsync(channelConfig.Key);
-                    await SendPrettyEmbed((ISocketMessageChannel)DMChannel, messageContent, displayName, avatarUrl, EmbedColorFine);
+                    await SendPrettyEmbed(channel, messageContent, displayName, avatarUrl, EmbedColorFine);
                     Logger.Debug("SendChatEvent sent to DMs.");
                 }
-                else if (this.plugin.Config.ForceEmbedFallbackMode)
+                else if (route == DeliveryRoute.Embed)
                 {
-                    await SendPrettyEmbed((ISocketMessageChannel)socketChannel, $"{messageContent}", $"{displayName}", avatarUrl, EmbedColorFine);
+                    await SendPrettyEmbed(channel, $"{messageContent}", $"{displayName}", avatarUrl, EmbedColorFine);
                 }
-                else if (!hasManageWebHooks)
+                else if (route == DeliveryRoute.MissingWebhookPermission)
                 {
-                    Logger.Debug("FALLBACKMODE - Unable to create WebHook - No Permission\n");
-                    await SendPrettyEmbed((ISocketMessageChannel)socketChannel, $"FALLBACKMODE\n\nMissing ManageWebHooks permission.\n\n{messageContent}", $"{displayName}", avatarUrl, EmbedColorError);
+                    Logger.Debug("FALLBACKMODE - Unable to create WebHook - No Permission");
+                    await SendPrettyEmbed(channel, $"FALLBACKMODE\n\nMissing ManageWebHooks permission.\n\n{messageContent}", $"{displayName}", avatarUrl, EmbedColorError);
                 }
                 else
                 {
-                    var webhookClient = await GetOrCreateWebhookClient(socketChannel);
+                    var webhookClient = await GetOrCreateWebhookClient((ITextChannel)channel);
 
-                    if (duplicateFilter.CheckAlreadySent(socketChannel, slug: chatTypeText, displayName, chatText: message))
+                    if (duplicateFilter.CheckAlreadySent(channel, slug: chatTypeText, displayName, chatText: message))
                     {
                         continue;
                     }
 
                     if (webhookClient != null)
                     {
+                        var webhookName = displayName;
+                        var webhookAvatar = avatarUrl;
                         if (this.plugin.Config.ForceDefaultNameAvatar)
                         {
-                            displayName = this.socketClient.CurrentUser.Username.ToLower().Contains("discord") ? "Dalamud Chat Bridge" : this.socketClient.CurrentUser.Username;
-                            avatarUrl = plugin.Config.DefaultAvatarURL;
+                            webhookName = this.socketClient.CurrentUser.Username.ToLower().Contains("discord") ? "Dalamud Chat Bridge" : this.socketClient.CurrentUser.Username;
+                            webhookAvatar = plugin.Config.DefaultAvatarURL;
                         }
-                        
+
                         await webhookClient.SendMessageAsync(
-                            messageContent, username: displayName, avatarUrl: avatarUrl,
+                            messageContent, username: webhookName, avatarUrl: webhookAvatar,
                             allowedMentions: new AllowedMentions(AllowedMentionTypes.Roles | AllowedMentionTypes.Users | AllowedMentionTypes.None)
                         );
                         Logger.Debug("SendChatEvent sent to WebHook.");
                     }
                     else
                     {
-                        Logger.Debug("FALLBACKMODE - Unable to create WebHook - Unknown failure\n");
-                        await SendPrettyEmbed((ISocketMessageChannel)socketChannel, $"FALLBACKMODE\n\nUnable to create WebHook\n\n{messageContent}", $"{displayName}", avatarUrl, EmbedColorError);
+                        Logger.Debug("FALLBACKMODE - Unable to create WebHook - Unknown failure");
+                        await SendPrettyEmbed(channel, $"FALLBACKMODE\n\nUnable to create WebHook\n\n{messageContent}", $"{displayName}", avatarUrl, EmbedColorError);
                     }
                 }
             }
@@ -1357,82 +1407,76 @@ namespace Dalamud.DiscordBridge
                 return;
 
             var iconFolder = cfEvent.ContentFinderCondition.Image / 1000 * 1000;
-            
-            var embedBuilder = new EmbedBuilder()
+            var dutyName = cfEvent.ContentFinderCondition.Name.ExtractText();
+            var playerName = plugin.cachedPlayerName ?? "Unknown LocalPlayer";
+
+            // A fresh builder per channel, so fallback descriptions don't leak into later channels.
+            EmbedBuilder NewEmbed() => new EmbedBuilder()
                 .WithCurrentTimestamp()
                 .WithColor(0x297c00)
-                .WithTitle("Duty is ready: " + cfEvent.ContentFinderCondition.Name.ExtractText())
+                .WithTitle("Duty is ready: " + dutyName)
                 .WithImageUrl("https://xivapi.com" + $"/i/{iconFolder}/{cfEvent.ContentFinderCondition.Image}.png")
                 .WithFooter(footer =>
                 {
                     footer
-                        .WithText("For: " + plugin.cachedPlayerName ?? "Unknown LocalPlayer")
+                        .WithText("For: " + playerName)
                         .WithIconUrl(Constant.LogoLink);
                 });
 
+            var bridgeAuthor = new EmbedAuthorBuilder { Name = "Dalamud Chat Bridge", IconUrl = Constant.LogoLink };
+            var prefix = this.plugin.Config.CFPrefixConfig ?? "";
+
             foreach (var channelConfig in applicableChannels)
             {
-                var socketChannel = this.socketClient.GetChannel(channelConfig.Key);
+                var (channel, route) = await ResolveDeliveryAsync(channelConfig.Key, forceEmbed: false);
 
-                if (socketChannel == null)
+                if (channel == null)
                 {
                     Logger.Error("Could not find channel {0} for cfc", channelConfig.Key);
                     continue;
                 }
 
-                var prefix = this.plugin.Config.CFPrefixConfig ?? "";
-
-                // add handling for webhook vs embed here
-                IGuildChannel guildChannel = (IGuildChannel)socketChannel;
-                IGuildUser guildUser = await guildChannel.Guild.GetUserAsync(this.socketClient.CurrentUser.Id);
-                bool hasManageWebHooks = guildUser.GetPermissions(guildChannel).Has(ChannelPermission.ManageWebhooks);
-
-                if (socketChannel is SocketDMChannel)
+                switch (route)
                 {
-                    embedBuilder.WithAuthor(new EmbedAuthorBuilder {Name = "Dalamud Chat Bridge", IconUrl = Constant.LogoLink});
-                    var DMChannel = await this.socketClient.GetDMChannelAsync(channelConfig.Key);
-                    await DMChannel.SendMessageAsync($"{prefix}", embed: embedBuilder.Build());
+                    case DeliveryRoute.DirectMessage:
+                    case DeliveryRoute.Embed:
+                        await channel.SendMessageAsync($"{prefix}", embed: NewEmbed().WithAuthor(bridgeAuthor).Build());
+                        break;
+                    case DeliveryRoute.MissingWebhookPermission:
+                        Logger.Debug("FALLBACKMODE - Unable to create WebHook - No Permission");
+                        await channel.SendMessageAsync($"{prefix}", embed: NewEmbed()
+                            .WithAuthor(bridgeAuthor)
+                            .WithDescription("FALLBACKMODE - Unable to create WebHook - Missing ManageWebHook permission.")
+                            .Build());
+                        break;
+                    case DeliveryRoute.Webhook:
+                        var webhookClient = await GetOrCreateWebhookClient((ITextChannel)channel);
+                        if (webhookClient != null)
+                        {
+                            await webhookClient.SendMessageAsync($"{prefix}", embeds: [NewEmbed().Build()],
+                                username: "Dalamud Chat Bridge", avatarUrl: Constant.LogoLink);
+                        }
+                        else
+                        {
+                            Logger.Debug("FALLBACKMODE - Unable to create WebHook - Unknown error");
+                            await channel.SendMessageAsync($"{prefix}", embed: NewEmbed()
+                                .WithAuthor(bridgeAuthor)
+                                .WithDescription("FALLBACKMODE - Unable to create WebHook - Unknown failure")
+                                .Build());
+                        }
+                        break;
                 }
-                else if (!hasManageWebHooks)
-                {
-                    Logger.Debug("FALLBACKMODE - Unable to create WebHook - No Permission\n");
-                    embedBuilder
-                        .WithAuthor(new EmbedAuthorBuilder { Name = "Dalamud Chat Bridge", IconUrl = Constant.LogoLink })
-                        .WithDescription("FALLBACKMODE - Unable to create WebHook - Missing ManageWebHook permission.");
-                    await ((ISocketMessageChannel)socketChannel).SendMessageAsync($"{prefix}", embed: embedBuilder.Build());
-                }
-                else
-                {
-                    var webhookClient = await GetOrCreateWebhookClient(socketChannel);
-                    
-
-                    if (webhookClient != null)
-                    {
-                        await webhookClient.SendMessageAsync($"{prefix}", embeds: [embedBuilder.Build()],
-                    username: "Dalamud Chat Bridge", avatarUrl: Constant.LogoLink);
-                    }
-                    else
-                    {
-                        Logger.Debug("FALLBACKMODE - Unable to create WebHook - Unknown error\n");
-                        embedBuilder
-                            .WithAuthor(new EmbedAuthorBuilder { Name = "Dalamud Chat Bridge", IconUrl = Constant.LogoLink })
-                            .WithDescription("FALLBACKMODE - Unable to create WebHook - Unknown failure");
-                        await ((ISocketMessageChannel)socketChannel).SendMessageAsync($"{prefix}", embed: embedBuilder.Build());
-                    }
-                }
-
-                
             }
         }
 
         /// <summary>
         /// Get the webhook for the respective channel, or create one if it doesn't exist.
         /// </summary>
-        /// <param name="channel">The channel to get the webhook for</param>
-        /// <returns><see cref="IWebhook"/> for the respective channel.</returns>
-        private async Task<DiscordWebhookClient> GetOrCreateWebhookClient(SocketChannel channel)
+        /// <param name="channel">The guild text channel to get the webhook for</param>
+        /// <returns>A webhook client for the channel, or null if one couldn't be created.</returns>
+        private async Task<DiscordWebhookClient?> GetOrCreateWebhookClient(ITextChannel channel)
         {
-            if (channel is SocketTextChannel textChannel)
+            if (channel is { } textChannel)
             {
                 if (!this.plugin.Config.ChannelConfigs.TryGetValue(channel.Id, out var channelConfig))
                     throw new ArgumentException("No configuration for channel.", nameof(channel));
