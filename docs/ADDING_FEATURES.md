@@ -33,25 +33,27 @@
 
 ### Add a Discord text command
 
-1. In `DiscordHandler.SocketClientOnMessageReceived`, add a block:
+1. In `DiscordHandler.Commands.cs`, add a method and a table row (#52):
    ```csharp
-   if (args[0] == this.plugin.Config.DiscordBotPrefix + "mycommand" &&
-       await EnsureOwner(message.Author, message.Channel))
+   ["mycommand"] = new(true, (h, m, a) => h.MyCommandAsync(m, a)),   // true = owner only
+
+   private async Task MyCommandAsync(SocketMessage message, string[] args)
    {
        if (args.Length < 2)
        {
            await SendGenericEmbed(message.Channel, $"Usage: ``{this.plugin.Config.DiscordBotPrefix}mycommand <arg>``", "Error", EmbedColorError);
            return;
        }
-       // validate, mutate config, this.plugin.Config.Save();
+       // validate (pure helper), mutate config, this.plugin.Config.Save();
        await SendGenericEmbed(message.Channel, "OK! …", "Title", EmbedColorFine);
-       return;
    }
    ```
-2. **`EnsureOwner` is mandatory** for anything that changes state or reveals configuration.
-3. Command names are lowercase with no separators (`togglesender`). Check that the name doesn't prefix-collide with an existing command.
-4. Add a `.AddField(...)` line to the `help` embed. Embeds allow at most 25 fields, and there are 20 today. If you'd go past 25, split help into pages or categories as part of the issue.
-5. Put argument parsing and validation in a pure helper and unit test it.
+   The dispatcher runs `EnsureOwner` for owner-only rows before calling the method.
+2. **Owner-only is mandatory** for anything that changes state or reveals configuration. Only `help` (and `ping`/`test`, handled before the table) are open to everyone; `DiscordCommandTableTests` checks that.
+3. Command names are lowercase letters only (`togglesender`). Update `DiscordCommandTableTests.Table_HasEveryCommand`.
+4. Add a `.AddField(...)` line to the `help` embed (`HelpAsync`). Embeds allow at most 25 fields, and there are 22 today. If you'd go past 25, split help into pages or categories as part of the issue.
+5. Put argument parsing and validation in a pure helper and unit test it. Chat-kind lists: use `TryParseKindsAsync` / `ChatKindArgs`. List replies: `ChatKindArgs.FormatList`.
+6. Every send passes `allowedMentions: RelayMentions` (or `MentionsForPrefix(prefix)` for the owner's prefix); `RelayMentionsTests` enforces it.
 
 ### Add an in-game slash command
 

@@ -22,6 +22,7 @@ public class RelayMentionsTests
 
     [Theory]
     [InlineData("DiscordHandler.cs")]
+    [InlineData("DiscordHandler.Commands.cs")]
     public void EverySend_PassesRelayMentions(string file)
     {
         var source = Source(file);

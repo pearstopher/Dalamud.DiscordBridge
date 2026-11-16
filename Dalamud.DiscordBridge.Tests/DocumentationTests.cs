@@ -30,14 +30,18 @@ public class DocumentationTests
         Assert.Contains("DiscordBotPrefix}ping", HandlerSource);
     }
 
-    private static string HandlerSource => Read("Dalamud.DiscordBridge", "DiscordHandler.cs");
+    /// <summary>All of DiscordHandler (the class is split into partial files, commands in DiscordHandler.Commands.cs).</summary>
+    internal static string HandlerSource =>
+        string.Join("\n", Directory.GetFiles(Path.Combine(Root, "Dalamud.DiscordBridge"), "DiscordHandler*.cs").Order().Select(File.ReadAllText));
 
-    /// <summary>Discord commands: every `DiscordBotPrefix + "name"` the handler reacts to.</summary>
+    /// <summary>Discord commands: every name in the command table, plus ping/test (handled before it).</summary>
     public static TheoryData<string> DiscordCommands()
     {
         var data = new TheoryData<string>();
-        foreach (var name in Regex.Matches(HandlerSource, @"DiscordBotPrefix \+ ""([a-z]+)""").Select(m => m.Groups[1].Value).Distinct())
+        foreach (var name in DiscordHandler.Commands.Keys)
             data.Add(name);
+        data.Add("ping");
+        data.Add("test");
         return data;
     }
 
@@ -90,7 +94,7 @@ public class DocumentationTests
     [MemberData(nameof(DiscordCommands))]
     public void DiscordCommand_IsInHelpEmbed_UnlessDeveloperOnly(string command)
     {
-        if (command is "help" or "selftesthere")
+        if (command is "help" or "selftesthere" or "test")
             return;
 
         Assert.Matches(new Regex($@"AddField\(\$""\{{this\.plugin\.Config\.DiscordBotPrefix\}}{command}[ ""]"), HandlerSource);
