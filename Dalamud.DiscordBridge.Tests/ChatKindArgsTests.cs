@@ -155,11 +155,11 @@ public class ChatKindArgsTests
     public void Handler_KindCommandsUseTheParser()
     {
         // Regression (#42): GetBySlug("any") etc. threw, and unsetprefix read a missing args[2].
-        var source = File.ReadAllText(Path.Combine(DocumentationTests.Root, "Dalamud.DiscordBridge", "DiscordHandler.cs"));
+        var source = DocumentationTests.HandlerSource;
 
         Assert.DoesNotContain("GetBySlug(", source);
         Assert.DoesNotContain(".Aggregate(", source);
         foreach (var command in new[] { "setchannel", "unsetchannel", "setprefix", "unsetprefix", "setchattypename", "unsetchattypename", "setavatar", "unsetavatar" })
-            Assert.Contains($"TryParseKindsAsync(message, args, ", source[source.IndexOf($"+ \"{command}\" &&", StringComparison.Ordinal)..]);
+            Assert.Contains($"TryParseKindsAsync(message, args, ", source[(source.IndexOf($"\"{command} <", StringComparison.Ordinal) - 80)..]);
     }
 }
