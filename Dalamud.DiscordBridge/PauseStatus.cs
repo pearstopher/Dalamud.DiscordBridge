@@ -1,5 +1,3 @@
-using Dalamud.Game.Text;
-
 namespace Dalamud.DiscordBridge
 {
     /// <summary>What the bridge is doing, as shown in the server info bar (#54).</summary>
@@ -28,15 +26,19 @@ namespace Dalamud.DiscordBridge
             !connected ? BridgeState.Off : paused ? BridgeState.Paused : BridgeState.Running;
 
         /// <summary>
-        /// The bar icon. The game font has no ▶/⏸ symbols, so: the game's own arrow icon for running, "||" for paused,
-        /// the game's cross icon for off.
+        /// The bar icon, plain characters the game font has (owner's choice): ↑↓ relaying, the same without arrowheads
+        /// when paused, X when not connected.
         /// </summary>
         internal static string Glyph(BridgeState state) => state switch
         {
-            BridgeState.Running => SeIconChar.ArrowRight.ToIconString(),
-            BridgeState.Paused => "||",
-            _ => SeIconChar.Cross.ToIconString(),
+            BridgeState.Running => RunningGlyph,
+            BridgeState.Paused => PausedGlyph,
+            _ => OffGlyph,
         };
+
+        internal const string RunningGlyph = "↑↓";
+        internal const string PausedGlyph = "| |";
+        internal const string OffGlyph = "X";
 
         internal static string Tooltip(BridgeState state) => state switch
         {

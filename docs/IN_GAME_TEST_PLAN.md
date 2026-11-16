@@ -120,9 +120,9 @@ The self-tests above cover the reusable-webhook, no-pings, reaction, ping, cache
 
 ## G. Pause (#54)
 
-- [ ] G1. The server info bar shows the plugin's arrow icon. Click it: it turns into `||`, the bridged channel gets ⏸️ *Paused*. Say something in a relayed channel: nothing arrives in Discord. Post in Discord: 💤, nothing in game. `xl!ping` → 💤.
-- [ ] G2. Restart the game (or reload the plugin): the icon is still `||`, the 🟢 *Online* post says it's paused. `xl!resume` in Discord: the icon returns to the arrow, ▶️ *Resumed*, relaying works both ways again.
-- [ ] G3. `/dcp` → "Pause relaying" checkbox matches the icon and toggles it too. With the bot disconnected (e.g. bad token), the icon is a cross and clicking it opens `/dcp`.
+- [ ] G1. The server info bar shows `↑↓`. Click it: it turns into `| |`, the bridged channel gets ⏸️ *Paused*. Say something in a relayed channel: nothing arrives in Discord. Post in Discord: 💤, nothing in game. `xl!ping` → 💤.
+- [ ] G2. Restart the game (or reload the plugin): the icon is still `| |`, the 🟢 *Online* post says it's paused. `xl!resume` in Discord: the icon returns to `↑↓`, ▶️ *Resumed*, relaying works both ways again.
+- [ ] G3. `/dcp` → "Pause relaying" checkbox matches the icon and toggles it too. With the bot disconnected (e.g. bad token), the icon is `X` and clicking it opens `/dcp`.
 
 ## E. Wrap-up
 

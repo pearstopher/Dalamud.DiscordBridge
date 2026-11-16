@@ -15,15 +15,15 @@ public class PauseStatusTests
     }
 
     [Fact]
-    public void Glyphs_AreDistinctAndRenderInTheGameFont()
+    public void Glyphs_AreTheOwnersPlainCharacters()
     {
         var running = PauseStatus.Glyph(BridgeState.Running);
         var paused = PauseStatus.Glyph(BridgeState.Paused);
         var off = PauseStatus.Glyph(BridgeState.Off);
 
-        Assert.Equal(SeIconChar.ArrowRight.ToIconString(), running);
-        Assert.Equal("||", paused);
-        Assert.Equal(SeIconChar.Cross.ToIconString(), off);
+        Assert.Equal("↑↓", running);
+        Assert.Equal("| |", paused);
+        Assert.Equal("X", off);
         Assert.Equal(3, new[] { running, paused, off }.Distinct().Count());
     }
 
