@@ -259,6 +259,13 @@ namespace Dalamud.DiscordBridge.SelfTests
             new DelegateSelfTest("discord.reply-routing", "Discord", "Real relay messages read back from Discord route replies correctly (plan D8)",
                 token => ReplyRoutingTest(plugin, token), TimeSpan.FromSeconds(40)),
 
+            new DelegateSelfTest("discord.status-online", "Discord", "The online status post fired once this load (#34, plan A6)",
+                _ => Task.FromResult(!plugin.Config.PostStatusMessages
+                    ? SelfTestResult.Warn("PostStatusMessages is off (xl!togglestatus); nothing is posted.")
+                    : plugin.Status.OnlineAnnounced
+                        ? SelfTestResult.Pass($"Posted to {StatusAnnouncer.TargetChannels(plugin.Config.ChannelConfigs).Count} channel(s); check they show it once.")
+                        : SelfTestResult.Fail("Discord connected but no online post was attempted this load."))),
+
             new DelegateSelfTest("discord.round-trip", "Discord", "Post to the self-test channel and see it come back through the gateway",
                 token => DiscordRoundTrip(plugin, token), TimeSpan.FromSeconds(30)),
         ];

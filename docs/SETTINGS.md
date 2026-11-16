@@ -43,6 +43,7 @@ Stored under `ChannelConfigs` → channel ID.
 | `DefaultAvatarURL` | `setavatar default <url>` / `unsetavatar default` | Dalamud logo |
 | `CFPrefixConfig` | `setcfprefix` | empty |
 | `SenderInMessage` | `togglesender` | off |
+| `PostStatusMessages` | `togglestatus` | on |
 | `ForceEmbedFallbackMode` | `toggleembed` | off |
 | `ForceDefaultNameAvatar` | `toggledefaultnameavatar` | off |
 | `DuplicateCheckMS` | `setduplicatems` | 5000 |

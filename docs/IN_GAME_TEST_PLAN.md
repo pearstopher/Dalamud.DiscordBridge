@@ -30,6 +30,7 @@ For the Discord round trip, run `xl!selftesthere` once in a **private** channel.
 | `send.slash-rejected` | `/logout` is rejected and you stay logged in | D5 |
 | `discord.channels` | Every configured channel reachable, webhook permission | B4 (permission part) |
 | `discord.reply-routing` | Relay messages read back from Discord route replies to the right channel/person; GM and retainer replies blocked | D8 (routing part) |
+| `discord.status-online` | The 🟢 online post fired once this load (or the setting is off) | A6 (online part) |
 | `discord.round-trip` | Post → gateway → back, Message Content intent working | — |
 
 The steps below are still manual: things that need a second Discord account, other players, logging out, reloading, or judging how something looks. Steps fully covered above are marked *(automated)*; skip them if section 0 passed.
@@ -41,6 +42,7 @@ The steps below are still manual: things that need a second Discord account, oth
 - [ ] A3. `/dcp` opens "Discord Chat Pears Setup". `/discordpears` also opens it. Status reaches **Connected!**.
 - [ ] A4. With the official Discord Chat Bridge also enabled: our plugin loads, and `/xllog` shows the IPC **warning** (not an error). Disable the official plugin for the rest of the session.
 - [ ] A5. Disable and re-enable Discord Chat Pears in `/xlplugins`: `… unloaded`, then `… loaded`, with no errors (#6).
+- [ ] A6. Status posts (#34): on load, every bridged channel gets one 🟢 *Online* (version, character). `/dcp` → Save: no new post. Disable the plugin: one 🔴 *Offline* per channel, and the unload doesn't stall. Close the game normally: 🔴 *Offline* appears. `xl!togglestatus` off → reload → no posts; turn it back on.
 
 ## B. Game → Discord regression (#3–#8)
 

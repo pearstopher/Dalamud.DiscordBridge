@@ -18,6 +18,7 @@ Kinds are chat-type names such as `say`, `fc`, `ls1`, `cwls1`, `p`, `tell`, `e` 
 | `xl!unsetchannel <kinds>` | Owner | Stop relaying these kinds here (`any`/`all` work too). | `xl!unsetchannel all` |
 | `xl!listchannel` | Owner | Show what this channel receives, plus its inbound (Discord → game) setting. | |
 | `xl!toggledf` | Owner | Post Duty Finder pops in this channel (on/off). | |
+| `xl!togglestatus` | Owner | **Global.** Post 🟢 *Online* when the plugin starts and 🔴 *Offline* when it stops (game closed normally, plugin disabled or reloaded) in every bridged channel (any channel with chat kinds, duty pops or `setinbound`). On by default. Posted once per plugin load: reconnects and `/dcp` Save don't repost. A crash posts nothing. When the plugin isn't running, nothing reads Discord, so your messages get **no reaction at all**. | |
 | `xl!setprefix <kinds> <prefix>` | Owner | Text/emoji put in front of relayed lines of these kinds. | `xl!setprefix fc 🏠` |
 | `xl!unsetprefix <kind>` | Owner | Remove that prefix. | |
 | `xl!setcfprefix <prefix\|none>` | Owner | Prefix for Duty Finder posts (e.g. a role ping). | `xl!setcfprefix @here` |
