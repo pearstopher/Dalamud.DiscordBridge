@@ -98,7 +98,7 @@ All commands are handled in `DiscordHandler.SocketClientOnMessageReceived`, a lo
 |---|---|---|
 | Game/framework thread | Dalamud event callbacks, ImGui `Draw`, slash commands | Must return quickly. Never block on network I/O. Game state (`IClientState`, `IObjectTable`, `IPlayerState`, Excel sheets) is safest read here; use `Service.Framework.RunOnFrameworkThread` from elsewhere. |
 | Queue task | `DiscordMessageQueue.RunAsync`: one background task that sleeps on a `SemaphoreSlim` until `Enqueue` signals it, and is cancelled by `Stop()` | Serial processing keeps message order. Each event is processed in its own try/catch, so one failure never ends the loop. `Start()` is idempotent, and `Stop()` waits up to 2 s for an in-flight event. |
-| Discord.Net gateway | `Ready`, `MessageReceived` handlers (commands, duplicate filter) | Don't block the gateway. Shared state touched here and on the queue thread needs synchronization (#7). |
+| Discord.Net gateway | `Ready`, `MessageReceived` handlers (commands, duplicate filter) | Don't block the gateway. Shared state touched here and on the queue task needs synchronization (e.g. `DuplicateFilter` locks its recent-message set and never holds the lock across `await`). |
 
 `Configuration` is mutated from both the gateway (commands) and the queue (webhook ID caching, removing dead channels) without locking. Be careful when adding new mutation points.
 
@@ -122,4 +122,4 @@ All commands are handled in `DiscordHandler.SocketClientOnMessageReceived`, a lo
 
 ## Known issues (tracked)
 
-#5 DM channels throw · #7 duplicate filter compares offsets, not thread-safe · #8 custom emotes never applied.
+#5 DM channels throw · #8 custom emotes never applied.
