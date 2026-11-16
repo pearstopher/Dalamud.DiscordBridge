@@ -1,7 +1,5 @@
 using System;
-using System.Collections.Concurrent;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 using Dalamud.DiscordBridge.Model;
 using Dalamud.Game.Text;
@@ -17,144 +15,25 @@ namespace Dalamud.DiscordBridge
     /// Serial, in-order queue of game events waiting to be relayed to Discord.
     /// A single background task drains it; it sleeps on a semaphore when idle.
     /// </summary>
-    public class DiscordMessageQueue
+    public class DiscordMessageQueue : SerialWorkQueue<QueuedXivEvent>
     {
         private static IPluginLog? Logger => Service.Logger;
 
         private readonly DiscordBridgePlugin? plugin;
-        private readonly Func<QueuedXivEvent, Task> processor;
-
-        private readonly ConcurrentQueue<QueuedXivEvent> eventQueue = new();
-        private readonly SemaphoreSlim signal = new(0);
-        private readonly object stateLock = new();
-
-        private CancellationTokenSource? cancellation;
-        private Task? runner;
-
-        /// <summary>
-        /// How long <see cref="Stop"/> waits for an in-flight event before giving up.
-        /// </summary>
-        private static readonly TimeSpan StopTimeout = TimeSpan.FromSeconds(2);
 
         public DiscordMessageQueue(DiscordBridgePlugin plugin)
+            : base("Discord message queue", _ => Task.CompletedTask)
         {
             this.plugin = plugin;
-            this.processor = this.ProcessEventAsync;
+            this.Processor = this.ProcessEventAsync;
         }
 
         /// <summary>
         /// Test seam: process events with a custom handler instead of sending to Discord.
         /// </summary>
         internal DiscordMessageQueue(Func<QueuedXivEvent, Task> processor)
+            : base("Discord message queue", processor)
         {
-            this.processor = processor;
-        }
-
-        /// <summary>
-        /// Start draining the queue. Does nothing if it's already running.
-        /// </summary>
-        public void Start()
-        {
-            lock (this.stateLock)
-            {
-                if (this.runner is { IsCompleted: false })
-                    return;
-
-                this.cancellation?.Dispose();
-                this.cancellation = new CancellationTokenSource();
-                var token = this.cancellation.Token;
-                this.runner = Task.Run(() => this.RunAsync(token));
-            }
-        }
-
-        /// <summary>
-        /// Stop draining the queue. Queued events are kept until <see cref="ClearQueue"/> or the next <see cref="Start"/>.
-        /// </summary>
-        public void Stop()
-        {
-            Task? toWait;
-            lock (this.stateLock)
-            {
-                if (this.cancellation == null)
-                    return;
-
-                this.cancellation.Cancel();
-                toWait = this.runner;
-            }
-
-            try
-            {
-                if (toWait != null && !toWait.Wait(StopTimeout))
-                    Logger?.Warning("Message queue did not stop within {0}; continuing.", StopTimeout);
-            }
-            catch (AggregateException ex)
-            {
-                Logger?.Error(ex, "Message queue faulted while stopping.");
-            }
-
-            lock (this.stateLock)
-            {
-                this.cancellation?.Dispose();
-                this.cancellation = null;
-                this.runner = null;
-            }
-        }
-
-        public void ClearQueue()
-        {
-            this.eventQueue.Clear();
-
-            // Drop the matching wake-ups so the runner doesn't spin through empty dequeues.
-            while (this.signal.Wait(0))
-            {
-            }
-        }
-
-        public bool isStopped()
-        {
-            lock (this.stateLock)
-            {
-                return this.runner == null || this.runner.IsCompleted;
-            }
-        }
-
-        /// <summary>
-        /// Number of events waiting to be processed.
-        /// </summary>
-        public int Count => this.eventQueue.Count;
-
-        public void Enqueue(QueuedXivEvent @event)
-        {
-            this.eventQueue.Enqueue(@event);
-            this.signal.Release();
-        }
-
-        private async Task RunAsync(CancellationToken token)
-        {
-            while (!token.IsCancellationRequested)
-            {
-                try
-                {
-                    await this.signal.WaitAsync(token).ConfigureAwait(false);
-                }
-                catch (OperationCanceledException)
-                {
-                    break;
-                }
-
-                if (!this.eventQueue.TryDequeue(out var queuedEvent))
-                    continue;
-
-                try
-                {
-                    await this.processor(queuedEvent).ConfigureAwait(false);
-                }
-                catch (Exception e)
-                {
-                    // Never let one event end the loop.
-                    Logger?.Error(e, "Could not process event.");
-                }
-            }
         }
 
         private async Task ProcessEventAsync(QueuedXivEvent queuedEvent)
