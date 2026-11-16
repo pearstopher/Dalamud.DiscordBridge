@@ -29,7 +29,7 @@ namespace Dalamud.DiscordBridge
             channel.InboundPermission = InboundPermission.OwnerOnly;
             channel.InboundRoleId = null;
 
-            config.ChannelConfigs[channelId] = channel;
+            config.SetChannel(channelId, channel);
 
             // Display options back to their defaults.
             config.InboundDisplayEnabled = true;

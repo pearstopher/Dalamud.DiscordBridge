@@ -103,16 +103,45 @@ public class ConfigThreadSafetyTests
         for (var i = 0; i < Iterations; i++)
         {
             var id = (ulong)(i % 50);
-            config.ChannelConfigs[id] = new DiscordChannelConfig { IsContentFinder = i % 2 == 0 };
-            config.PrefixConfigs[(XivChatType)(i % 30)] = i.ToString();
+            config.SetChannel(id, new DiscordChannelConfig { IsContentFinder = i % 2 == 0 });
+            config.ChangePrefixes(m => m[(XivChatType)(i % 30)] = i.ToString());
             if (i % 3 == 0)
             {
-                config.ChannelConfigs.TryRemove(id, out _);
-                config.PrefixConfigs.TryRemove((XivChatType)(i % 30), out _);
+                config.RemoveChannel(id);
+                config.ChangePrefixes(m => m.Remove((XivChatType)(i % 30)));
             }
         }
 
         stop.Cancel();
         await Task.WhenAll(readers);
+    }
+
+    [Fact]
+    public void ParallelWriters_LoseNoChanges()
+    {
+        var config = new Configuration();
+
+        Parallel.For(0, 1000, i => config.SetChannel((ulong)i, new DiscordChannelConfig()));
+        Parallel.For(0, 1000, i => config.ChangePrefixes(m => m[(XivChatType)(i % 100)] = "x"));
+
+        Assert.Equal(1000, config.ChannelConfigs.Count);
+        Assert.Equal(100, config.PrefixConfigs.Count);
+        Assert.True(config.RemoveChannel(5));
+        Assert.False(config.RemoveChannel(5));
+    }
+
+    [Fact]
+    public void PluginCode_NeverChangesSavedMapsInPlace()
+    {
+        // Only Configuration's copy-on-write helpers may change these maps (#46).
+        var pattern = new System.Text.RegularExpressions.Regex(
+            @"(ChannelConfigs|PrefixConfigs|CustomSlugsConfigs|ChatTypeAvatarURL)(\[[^\]]*\]\s*=[^=]|\.(Try)?Remove\(|\.Add\(|\.Clear\(|\.TryAdd\()");
+        foreach (var file in Directory.GetFiles(Path.Combine(DocumentationTests.Root, "Dalamud.DiscordBridge"), "*.cs", SearchOption.AllDirectories))
+        {
+            if (file.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}") || file.EndsWith("Configuration.cs"))
+                continue;
+            var match = pattern.Match(File.ReadAllText(file));
+            Assert.False(match.Success, $"{Path.GetFileName(file)}: in-place change '{match.Value}'; use Config.SetChannel/RemoveChannel/Change*");
+        }
     }
 }

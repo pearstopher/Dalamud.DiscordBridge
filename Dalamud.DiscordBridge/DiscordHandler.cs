@@ -894,7 +894,7 @@ namespace Dalamud.DiscordBridge
         {
             if (ChannelLookup.ShouldForget(lookup))
             {
-                if (this.plugin.Config.ChannelConfigs.TryRemove(channelId, out _))
+                if (this.plugin.Config.RemoveChannel(channelId))
                 {
                     Logger.Information("Removed channel {0}'s settings: Discord says the channel no longer exists.", channelId);
                     this.plugin.Config.Save();

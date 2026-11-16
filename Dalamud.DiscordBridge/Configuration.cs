@@ -1,4 +1,4 @@
-﻿using System.Collections.Concurrent;
+﻿using System;
 using System.Collections.Generic;
 using Dalamud.Configuration;
 using Dalamud.DiscordBridge.Model;
@@ -21,14 +21,16 @@ namespace Dalamud.DiscordBridge
         public string DiscordBotPrefix { get; set; } = "xl!";
 
         public string DefaultAvatarURL = Constant.LogoLink;
-        // Concurrent (#46): commands (Discord gateway), the relay queue and the UI read and write these at the same time.
-        // Same JSON shape as a plain Dictionary, so older configs load unchanged.
-        public ConcurrentDictionary<XivChatType, string> ChatTypeAvatarURL { get; set; } = new();
+        // Copy-on-write (#46): commands (Discord gateway), the relay queue and the UI use these at the same time. Readers
+        // just read; changes go through SetChannel/RemoveChannel/Change*, which copy the map, change the copy and swap it
+        // in, so a reader never sees a map change under it. They stay plain Dictionary: Dalamud saves the "$type" of
+        // each, and a different type would make every existing config fail to load (DalamudConfigFormatTests).
+        public Dictionary<XivChatType, string> ChatTypeAvatarURL { get; set; } = [];
 
-        public ConcurrentDictionary<ulong, DiscordChannelConfig> ChannelConfigs { get; set; } = new();
-        public ConcurrentDictionary<XivChatType, string> PrefixConfigs { get; set; } = new();
+        public Dictionary<ulong, DiscordChannelConfig> ChannelConfigs { get; set; } = [];
+        public Dictionary<XivChatType, string> PrefixConfigs { get; set; } = [];
 
-        public ConcurrentDictionary<XivChatType, string> CustomSlugsConfigs { get; set; } = new();
+        public Dictionary<XivChatType, string> CustomSlugsConfigs { get; set; } = [];
         public string CFPrefixConfig { get; set; } = "";
         public bool ForceDefaultNameAvatar { get; set; } = false;
         public bool ForceEmbedFallbackMode { get; set; } = false;
@@ -87,6 +89,55 @@ namespace Dalamud.DiscordBridge
         }
 
         [JsonIgnore] private readonly object saveLock = new();
+        [JsonIgnore] private readonly object writeLock = new();
+
+        private Dictionary<TKey, TValue> CopyChange<TKey, TValue>(Dictionary<TKey, TValue> map, Action<Dictionary<TKey, TValue>> change)
+            where TKey : notnull
+        {
+            var copy = new Dictionary<TKey, TValue>(map);
+            change(copy);
+            return copy;
+        }
+
+        /// <summary>Add or replace a channel's settings (copy-on-write, #46).</summary>
+        internal void SetChannel(ulong channelId, DiscordChannelConfig channel)
+        {
+            lock (this.writeLock)
+                this.ChannelConfigs = this.CopyChange(this.ChannelConfigs, m => m[channelId] = channel);
+        }
+
+        /// <summary>Forget a channel's settings (copy-on-write, #46). True if it existed.</summary>
+        internal bool RemoveChannel(ulong channelId)
+        {
+            lock (this.writeLock)
+            {
+                if (!this.ChannelConfigs.ContainsKey(channelId))
+                    return false;
+                this.ChannelConfigs = this.CopyChange(this.ChannelConfigs, m => m.Remove(channelId));
+                return true;
+            }
+        }
+
+        /// <summary>Change the per-kind prefixes (copy-on-write, #46).</summary>
+        internal void ChangePrefixes(Action<Dictionary<XivChatType, string>> change)
+        {
+            lock (this.writeLock)
+                this.PrefixConfigs = this.CopyChange(this.PrefixConfigs, change);
+        }
+
+        /// <summary>Change the custom chat-kind names (copy-on-write, #46).</summary>
+        internal void ChangeCustomSlugs(Action<Dictionary<XivChatType, string>> change)
+        {
+            lock (this.writeLock)
+                this.CustomSlugsConfigs = this.CopyChange(this.CustomSlugsConfigs, change);
+        }
+
+        /// <summary>Change the per-kind avatars (copy-on-write, #46).</summary>
+        internal void ChangeAvatars(Action<Dictionary<XivChatType, string>> change)
+        {
+            lock (this.writeLock)
+                this.ChatTypeAvatarURL = this.CopyChange(this.ChatTypeAvatarURL, change);
+        }
 
         [JsonIgnore] private long revision;
 
