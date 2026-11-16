@@ -328,7 +328,12 @@ namespace Dalamud.DiscordBridge
             }
 
             var text = this.InboundConverter.Convert(message);
-            return new InboundOutcome(await this.inboundDisplay.ShowAsync(message, text));
+
+            // Your own messages are shown under your character name, as the game would.
+            var shown = message.IsOwner && !string.IsNullOrEmpty(this.cachedPlayerName)
+                ? message with { AuthorName = this.cachedPlayerName }
+                : message;
+            return new InboundOutcome(await this.inboundDisplay.ShowAsync(shown, text));
         }
 
         [Command("/dcpin")]
