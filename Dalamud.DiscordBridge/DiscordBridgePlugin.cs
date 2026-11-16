@@ -40,6 +40,9 @@ namespace Dalamud.DiscordBridge
         /// </summary>
         internal Action<XivChatType, string, bool>? ChatObserver;
 
+        /// <summary>Which chat kinds any channel wants, cached per config revision (#49).</summary>
+        private readonly RelayFilter relayFilter = new();
+
         /// <summary>Once-per-load gate for the online/offline posts; survives DiscordHandler recreation (#34).</summary>
         internal readonly StatusAnnouncer Status = new();
 
@@ -230,6 +233,9 @@ namespace Dalamud.DiscordBridge
             if (echoKind == EchoKind.Sent && this.Config.MarkSentInGame)
                 this.ReshowAsSent(message);
             if (echoKind != null) return;
+
+            // Nothing subscribed to this kind: drop it here instead of queueing and processing it (#49).
+            if (!this.relayFilter.ShouldRelay(this.Config, message.LogKind)) return;
 
             if (message.LogKind == XivChatType.RetainerSale)
             {

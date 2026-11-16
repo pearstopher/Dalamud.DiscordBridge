@@ -88,9 +88,18 @@ namespace Dalamud.DiscordBridge
 
         [JsonIgnore] private readonly object saveLock = new();
 
+        [JsonIgnore] private long revision;
+
+        /// <summary>Changes every time the config is saved (i.e. after every change), so caches know to refresh (#49).</summary>
+        [JsonIgnore] internal long Revision => System.Threading.Interlocked.Read(ref this.revision);
+
+        /// <summary>Mark the config as changed without writing it (tests; <see cref="Save"/> does this too).</summary>
+        internal void Touch() => System.Threading.Interlocked.Increment(ref this.revision);
+
         /// <summary>Write the config file. Serialized (#46): two threads saving at once could collide on the file.</summary>
         public void Save()
         {
+            this.Touch();
             lock (this.saveLock)
                 this.pluginInterface.SavePluginConfig(this);
         }
