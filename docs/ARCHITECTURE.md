@@ -19,6 +19,7 @@ All source is in `Dalamud.DiscordBridge/`.
 | `DiscordHandler.cs` | Owns the `DiscordSocketClient`. Login/start, presence, **all Discord text commands** (`SocketClientOnMessageReceived`), `SendChatEvent` / `SendItemSaleEvent` / `SendContentFinderEvent`, webhook get-or-create, Lodestone avatar lookups (NetStone) with an in-memory cache. |
 | `SerialWorkQueue.cs` | Generic in-order work queue (one background task, semaphore-signalled, per-item try/catch). Base of `DiscordMessageQueue` and the inbound queue. |
 | `InboundRules.cs` | Pure rules for Discord → game: allowed target chat types and slugs, `setinbound`/`setinboundperm` parsing, owner check (`IsOwner`, also used by `EnsureOwner`), sender permission, and which Discord messages qualify. |
+| `DiscordToGameConverter.cs` | Pure Discord → game text conversion: clean mentions, custom emoji → `:name:`, common Unicode emoji → ASCII stand-ins (others dropped), markdown/spoilers/code/links/timestamps flattened, private-use and control characters removed, attachment/sticker placeholders, `re @Name:` for replies, a leading `/` neutralized to `／`, sanitizer hook (`IGameTextSanitizer`), and UTF-8-safe truncation to 500 bytes. `ConvertName` cleans sender names (≤32 chars). |
 | `Model/InboundDiscordMessage.cs` | Discord-free snapshot of a message to relay into the game (author, owner flag, target chat type, content, attachments, stickers, reply author). |
 | `DuplicationFilter.cs` | `DuplicateFilter`: watches webhook messages in Discord and suppresses/deletes duplicates within `DuplicateCheckMS`. Useful when several players in the same FC/LS each run the plugin into the same channel. |
 | `ContentParser.cs` | Regex parser for the posted format `{prefix}**[{slug}]** {text}`, used by the duplicate filter to compare messages. |
@@ -90,7 +91,7 @@ Discord message ─► DiscordHandler.SocketClientOnMessageReceived     (gateway
      ▼
   DiscordHandler.InboundQueue (SerialWorkQueue, in order)
      ▼
-  processor: currently logs at Debug. #14 converts the text, #15 prints it in the chat log, #16 sends it as the owner.
+  processor: DiscordToGameConverter.Convert → (currently logged at Debug) → #15 prints it in the chat log, #16 sends it as the owner.
 ```
 
 Commands that start with the bot prefix are never relayed. A message that doesn't pass the permission check is dropped silently (logged at Debug).
