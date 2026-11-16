@@ -107,16 +107,30 @@ namespace Dalamud.DiscordBridge.SelfTests
             new DelegateSelfTest("inbound.display.echo-mode", "Discord → game", "Echo display mode is also swallowed by the loop guard (plan C8)",
                 token => DisplayLoopTest(plugin, asEcho: true, token)),
 
-            new DelegateSelfTest("send.sanitizer", "Send as me", "Client SanitizeString keeps plain text and rejects game glyphs",
+            new DelegateSelfTest("send.sanitizer", "Send as me", "Typical converter output passes the client's chat sanitizer unchanged (otherwise sends are rejected)",
                 async _ =>
                 {
-                    var (plain, glyph) = await Service.Framework.RunOnFrameworkThread(() =>
-                        (InboundSender.Sanitize("hello world 123"), InboundSender.Sanitize("ab")));
-                    if (plain != "hello world 123")
-                        return SelfTestResult.Fail($"plain text was changed to '{plain}': every send would be rejected");
-                    return glyph != "ab"
-                        ? SelfTestResult.Pass("plain text kept, glyph removed")
-                        : SelfTestResult.Warn("a private-use glyph passed sanitization (the converter strips these anyway)");
+                    // Representative DiscordToGameConverter output: replies, ASCII emoji, placeholders, neutralized slash, non-English.
+                    string[] samples =
+                    [
+                        "hello world 123",
+                        "re @Bob: gg (+1) [image] [sticker: Wave]",
+                        "／logout is just text",
+                        "café ñ ü — 日本語 テスト ~ !? <3 :D",
+                        "see the guide (https://example.com/g?x=1&y=2)",
+                    ];
+
+                    var (changed, glyphKept) = await Service.Framework.RunOnFrameworkThread(() =>
+                    {
+                        var changedSamples = samples.Where(s => InboundSender.Sanitize(s) != s).ToList();
+                        return (changedSamples, InboundSender.Sanitize("ab") == "ab");
+                    });
+
+                    if (changed.Count > 0)
+                        return SelfTestResult.Fail($"the client sanitizer changes normal text, so these would be rejected: {string.Join(" | ", changed)}");
+
+                    // Informational: the client allows its own private-use icons; the converter strips them before sending.
+                    return SelfTestResult.Pass($"{samples.Length} samples unchanged (game icons {(glyphKept ? "allowed by client; stripped by converter" : "removed by client")})");
                 }),
 
             new DelegateSelfTest("send.echo-roundtrip", "Send as me", "Send path via /e (local only): typed, echoed, swallowed by the loop guard (plan D2, D3)",
