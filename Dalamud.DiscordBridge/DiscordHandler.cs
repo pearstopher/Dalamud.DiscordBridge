@@ -94,6 +94,9 @@ namespace Dalamud.DiscordBridge
         /// </summary>
         public readonly SerialWorkQueue<InboundDiscordMessage> InboundQueue;
 
+        /// <summary>Converts inbound Discord messages to game-safe text.</summary>
+        internal DiscordToGameConverter InboundConverter { get; set; } = new();
+
         private LodestoneClient lodestoneClient;
 
         public DiscordHandler(DiscordBridgePlugin plugin)
@@ -105,7 +108,8 @@ namespace Dalamud.DiscordBridge
             this.MessageQueue = new DiscordMessageQueue(this.plugin);
             this.InboundQueue = new SerialWorkQueue<InboundDiscordMessage>("Inbound queue", inbound =>
             {
-                Logger.Debug("Inbound message {0} from {1} queued for {2}.", inbound.MessageId, inbound.AuthorName, inbound.TargetType);
+                var text = this.InboundConverter.Convert(inbound);
+                Logger.Debug("Inbound message {0} from {1} for {2}: \"{3}\"", inbound.MessageId, inbound.AuthorName, inbound.TargetType, text);
                 return Task.CompletedTask;
             });
 
