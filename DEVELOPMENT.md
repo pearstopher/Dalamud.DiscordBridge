@@ -88,7 +88,34 @@ After testing, comment the result on the issue and remove the label.
 
 ## 9. Releasing
 
-Set up in #12 (custom repo `pearstopher/ffxiv-plugins`). Claude never pushes release tags unless the owner asks for a specific release.
+Players install Discord Chat Pears from the owner's combined custom repo, [pearstopher/ffxiv-plugins](https://github.com/pearstopher/ffxiv-plugins):
+
+```
+https://raw.githubusercontent.com/pearstopher/ffxiv-plugins/main/pluginmaster.json
+```
+
+That repo lists every `pearstopher` repo with the **`dalamud-plugin`** topic (this one has it) that has a **`repo.json`** on its default branch. `repo.json` doesn't exist until the first release, so nothing is listed before then.
+
+**One-time:** the repo secret **`PLUGIN_REPO_TOKEN`** (same token as Remove PF Duplicates uses) must exist, so the release can notify `ffxiv-plugins`: `gh secret set PLUGIN_REPO_TOKEN -R pearstopher/Dalamud.DiscordBridge`. Without it, the release still publishes, but the last step fails. You can then run *Update plugin list* manually in `ffxiv-plugins`.
+
+**To release** (the owner decides when; **Claude never pushes release tags unless the owner asks for a specific release**):
+
+1. `master` has everything, CI is green, and the in-game checks pass.
+2. Set `<Version>` in `Dalamud.DiscordBridge/Dalamud.DiscordBridge.csproj` to the new version plus `.0` (`v2.1.0` → `2.1.0.0`), then commit and push.
+3. Tag and push:
+   ```sh
+   git checkout master && git pull
+   git tag v2.1.0
+   git push origin v2.1.0
+   ```
+4. [.github/workflows/release.yml](.github/workflows/release.yml) then:
+   - checks the tag matches `<Version>`, and stops if not
+   - builds and tests
+   - creates the GitHub Release with `latest.zip`
+   - regenerates `repo.json` on `master` ([.github/scripts/make_repo_json.py](.github/scripts/make_repo_json.py))
+   - fires `plugin-updated` at `ffxiv-plugins`, which rebuilds `pluginmaster.json`
+
+If the version check fails, nothing was published: delete the tag (`git push origin :v2.1.0`, `git tag -d v2.1.0`), fix the csproj, and tag again. If a release goes wrong, release a new version rather than reusing the tag. `ReleaseVersionTests` fail if the csproj version is malformed or older than the one in `repo.json`.
 
 ## Troubleshooting
 

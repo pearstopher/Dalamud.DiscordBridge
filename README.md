@@ -6,6 +6,18 @@ A Dalamud plugin for FFXIV that relays your in-game chat to one or more Discord 
 
 Two-way chat (showing Discord messages in game) is in development. See [docs/design/discord-to-game.md](docs/design/discord-to-game.md).
 
+## Install
+
+In game: `/xlsettings` → **Experimental** → **Custom Plugin Repositories**, add
+
+```
+https://raw.githubusercontent.com/pearstopher/ffxiv-plugins/main/pluginmaster.json
+```
+
+then install **Discord Chat Pears** from `/xlplugins` (available after the first release).
+
+## Use
+
 - In game: `/dcp` opens the setup window.
 - In Discord: `xl!help` lists the bot commands.
 - Setup guide (upstream, still accurate for the outbound relay): https://github.com/reiichi001/Dalamud.DiscordBridge/wiki/Setup-Guide
