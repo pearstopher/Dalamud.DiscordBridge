@@ -10,7 +10,12 @@ namespace Dalamud.DiscordBridge.Tests;
 /// </summary>
 public class DalamudConfigFormatTests
 {
-    /// <summary>The settings Dalamud's PluginConfigurations uses to save and load plugin configs.</summary>
+    /// <summary>
+    /// The settings Dalamud's PluginConfigurations uses to save and load plugin configs. A copy, because Dalamud's own
+    /// store can't run outside the game (PluginConfigurations.Save/LoadForType hang waiting for Dalamud services, and
+    /// its serializer methods are internal). The in-game self-test config.dalamud-format checks the real thing by
+    /// saving and reloading through Dalamud itself.
+    /// </summary>
     internal static readonly JsonSerializerSettings DalamudSettings = new()
     {
         TypeNameAssemblyFormatHandling = TypeNameAssemblyFormatHandling.Simple,
