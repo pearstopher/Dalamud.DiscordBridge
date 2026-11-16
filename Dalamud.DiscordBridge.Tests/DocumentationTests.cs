@@ -97,7 +97,9 @@ public class DocumentationTests
         if (command is "help" or "selftesthere" or "test")
             return;
 
-        Assert.Matches(new Regex($@"AddField\(\$""\{{this\.plugin\.Config\.DiscordBotPrefix\}}{command}[ ""]"), HandlerSource);
+        // The command's name in the title of some help field (a field may list two, e.g. "pause / resume").
+        var helpTitles = Regex.Matches(HandlerSource, @"\.AddField\(\$""([^""]*)""").Select(m => m.Groups[1].Value);
+        Assert.Contains(helpTitles, title => Regex.IsMatch(title, $@"\{{this\.plugin\.Config\.DiscordBotPrefix\}}{command}( |$)"));
     }
 
     [Theory]

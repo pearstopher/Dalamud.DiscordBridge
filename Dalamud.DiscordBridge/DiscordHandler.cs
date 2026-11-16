@@ -439,6 +439,14 @@ namespace Dalamud.DiscordBridge
                 return true;
             }
 
+            // Paused (#54): nothing goes into the game; 💤 says why.
+            if (this.plugin.Config.Paused)
+            {
+                if (this.plugin.Config.InboundReactions)
+                    await this.ReactAsync(message.Channel.Id, message.Id, PauseStatus.PausedReaction);
+                return true;
+            }
+
             var draft = Snapshot(message, config.InboundChatType!.Value, isOwner);
 
             // "!fc hello", "!e note", "!t Bob Smith@World hi": a one-message override that beats replies and the default.
@@ -578,17 +586,35 @@ namespace Dalamud.DiscordBridge
         internal async Task AnswerPingAsync(SocketMessage message)
         {
             var loggedIn = await Service.Framework.RunOnFrameworkThread(() => Service.State.IsLoggedIn);
+            var paused = this.plugin.Config.Paused;
             try
             {
-                await message.AddReactionAsync(new Emoji(InboundRules.PingReaction(loggedIn)));
+                await message.AddReactionAsync(new Emoji(PauseStatus.PingReaction(paused, loggedIn)));
             }
             catch (Exception ex)
             {
                 // Usually a missing Add Reactions permission: answer in text so the test still works.
                 Logger.Debug(ex, "Could not react to ping; replying instead.");
-                await message.Channel.SendMessageAsync(InboundRules.PingText(loggedIn),
+                await message.Channel.SendMessageAsync(PauseStatus.PingText(paused, loggedIn, this.plugin.Config.DiscordBotPrefix),
                     messageReference: new MessageReference(message.Id),
                     allowedMentions: RelayMentions);
+            }
+        }
+
+        /// <summary>Tell the bridged channels that relaying was paused or resumed (#54), if status posts are on.</summary>
+        internal async Task AnnouncePauseChangeAsync(bool paused, string source)
+        {
+            if (!this.plugin.Config.PostStatusMessages || this.State != DiscordState.Ready)
+                return;
+
+            try
+            {
+                await this.AnnounceStatusAsync(PauseStatus.ChangeTitle(paused),
+                    PauseStatus.ChangeText(paused, source, this.plugin.Config.DiscordBotPrefix), (uint)(paused ? EmbedColorError : EmbedColorFine));
+            }
+            catch (Exception ex)
+            {
+                Logger.Warning(ex, "Could not post the pause change.");
             }
         }
 
@@ -602,7 +628,8 @@ namespace Dalamud.DiscordBridge
                     Service.State.IsLoggedIn && !string.IsNullOrEmpty(Service.PlayerState.CharacterName)
                         ? $"{Service.PlayerState.CharacterName}＠{Service.PlayerState.HomeWorld.Value.Name}"
                         : null);
-                await this.AnnounceStatusAsync(StatusAnnouncer.OnlineTitle, StatusAnnouncer.OnlineText(PluginVersion, character), EmbedColorFine);
+                await this.AnnounceStatusAsync(StatusAnnouncer.OnlineTitle,
+                    StatusAnnouncer.OnlineText(PluginVersion, character, this.plugin.Config.Paused ? this.plugin.Config.DiscordBotPrefix : null), EmbedColorFine);
             }
             catch (Exception ex)
             {

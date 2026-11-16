@@ -37,6 +37,8 @@ Save, then install **Discord Chat Pears** from `/xlplugins`.
 
 **Is it running?** When the plugin starts, the bot posts 🟢 *Online* in your bridged channels, and 🔴 *Offline* when it stops (game closed, plugin disabled). While it's off, nothing reads Discord, so messages get no reaction at all. To check any time, type **`xl!ping`**: the bot reacts ✅ (running, logged in) or ⏸️ (running, not logged in), and nothing appears in game. `xl!togglestatus` turns the posts off. A crash posts nothing.
 
+**Pause:** click the plugin's icon in the game's server info bar (arrow = running, `||` = paused, cross = not connected), or type `xl!pause` / `xl!resume` in Discord. While paused nothing is relayed either way, your settings stay exactly as they were, and the pause lasts across restarts.
+
 `xl!help` lists the Discord commands. Full references: **[docs/COMMANDS.md](docs/COMMANDS.md)** (every command, `!` override, reaction and tag) and **[docs/SETTINGS.md](docs/SETTINGS.md)** (every setting and its default). The `/dcp` window has the on/off switches.
 
 ## Safety and Dalamud's rules

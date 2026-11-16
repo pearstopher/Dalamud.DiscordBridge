@@ -38,9 +38,11 @@ namespace Dalamud.DiscordBridge
 
         /// <param name="version">Plugin version, e.g. "2.1.0.0".</param>
         /// <param name="character">"Name＠World" if a character is logged in, otherwise null.</param>
-        internal static string OnlineText(string version, string? character) =>
+        /// <param name="pausedPrefix">Command prefix if the bridge starts paused (#54); null when not paused.</param>
+        internal static string OnlineText(string version, string? character, string? pausedPrefix = null) =>
             $"{Constant.PluginName} v{version} is running"
-            + (string.IsNullOrWhiteSpace(character) ? " (not logged in to a character yet)." : $" (logged in as **{character}**).");
+            + (string.IsNullOrWhiteSpace(character) ? " (not logged in to a character yet)." : $" (logged in as **{character}**).")
+            + (pausedPrefix == null ? string.Empty : $"\n⏸️ **Paused:** nothing is relayed until `{pausedPrefix}resume`.");
 
         internal static string OfflineText(string version) =>
             $"{Constant.PluginName} v{version} stopped (game closed or plugin unloaded). "

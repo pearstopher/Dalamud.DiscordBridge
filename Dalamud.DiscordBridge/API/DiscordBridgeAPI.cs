@@ -20,6 +20,9 @@ namespace Dalamud.DiscordBridge.API
         public void SendMessage(string pluginName, string avatarUrl, string message)
         {
             this.CheckInitialized();
+            if (this.plugin.Config.Paused)
+                return; // paused (#54): nothing goes to Discord
+
             this.plugin.Discord.MessageQueue.Enqueue(new QueuedChatEvent
             {
                 Sender = pluginName,

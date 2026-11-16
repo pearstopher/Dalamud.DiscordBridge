@@ -291,6 +291,18 @@ namespace Dalamud.DiscordBridge.SelfTests
                         ? SelfTestResult.Pass($"Posted to {StatusAnnouncer.TargetChannels(plugin.Config.ChannelConfigs).Count} channel(s); check they show it once.")
                         : SelfTestResult.Fail("Discord connected but no online post was attempted this load."))),
 
+            new DelegateSelfTest("ui.server-info-bar", "UI", "The server info bar entry exists and shows the current state (#54)",
+                async _ =>
+                {
+                    var (text, shown) = await Service.Framework.RunOnFrameworkThread(() => plugin.DtrSnapshot);
+                    var expected = PauseStatus.StateOf(plugin.Discord.State == DiscordState.Ready, plugin.Config.Paused);
+                    if (text == null)
+                        return SelfTestResult.Fail("no server info bar entry");
+                    return shown == expected && text == PauseStatus.Glyph(expected)
+                        ? SelfTestResult.Pass($"{expected} ({(text == "||" ? "||" : "game icon")})")
+                        : SelfTestResult.Fail($"shows {shown?.ToString() ?? "nothing"}, expected {expected}");
+                }),
+
             new DelegateSelfTest("discord.round-trip", "Discord", "Post to the self-test channel and see it come back through the gateway",
                 token => DiscordRoundTrip(plugin, token), TimeSpan.FromSeconds(30)),
 

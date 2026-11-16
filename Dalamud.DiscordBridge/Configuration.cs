@@ -36,6 +36,12 @@ namespace Dalamud.DiscordBridge
         public bool ForceEmbedFallbackMode { get; set; } = false;
         public bool SenderInMessage { get; set; } = false;
 
+        /// <summary>
+        /// Pause (#54): nothing is relayed either way until resumed. Kept across restarts. Changed with xl!pause /
+        /// xl!resume, the server info bar icon, or /dcp; use <c>DiscordBridgePlugin.SetPaused</c> so everyone is told.
+        /// </summary>
+        public bool Paused { get; set; } = false;
+
         /// <summary>Post "online" / "offline" in every bridged channel when the plugin loads and unloads (#34).</summary>
         public bool PostStatusMessages { get; set; } = true;
 
