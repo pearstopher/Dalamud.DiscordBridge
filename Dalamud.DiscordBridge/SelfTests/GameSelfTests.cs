@@ -259,8 +259,9 @@ namespace Dalamud.DiscordBridge.SelfTests
 
             var tag = NewTag();
             var watch = WatchChat(plugin, text => text.Contains(tag));
-            var result = await plugin.InboundDisplayService.ShowAsync(FakeMessage(XivChatType.FreeCompany, isOwner: false),
-                                                                      $"{tag} display test", asEcho);
+            // Tell-styled and clearly labelled: this line is printed locally only (IChatGui.Print), never sent.
+            var fake = FakeMessage(XivChatType.TellOutgoing, isOwner: false) with { TellTarget = "local test" };
+            var result = await plugin.InboundDisplayService.ShowAsync(fake, $"{tag} display test (only visible to you)", asEcho);
             if (result != InboundResult.Shown)
                 return SelfTestResult.Fail($"display returned {result}");
 
