@@ -9,7 +9,7 @@ namespace Dalamud.DiscordBridge.Tests;
 /// </summary>
 public class DocumentationTests
 {
-    private static readonly string Root = FindRoot();
+    internal static readonly string Root = FindRoot();
 
     private static string FindRoot()
     {

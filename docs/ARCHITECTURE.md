@@ -45,6 +45,7 @@ All source is in `Dalamud.DiscordBridge/`.
 | `SelfTests/` | Dev-only in-game self-tests: `SelfTestFramework.cs` (pure runner with timeouts, JSON/text reports), `GameSelfTests.cs` (the tests), `SelfTestService.cs` (button / `/dcptest` / auto-run after load, writes `selftest-results.json`). Hooks: `DiscordBridgePlugin.ChatObserver`, `DiscordHandler.MessageObserved`. |
 | `BuildInfo.cs` | Build configuration/time/path for the `… loaded (Debug build, built …, from …)` line logged at startup (see DEVELOPMENT.md). |
 | `DiscordChatPears.json` | Plugin manifest metadata (name, author, description, tags). The InternalName comes from `<AssemblyName>DiscordChatPears` in the csproj. |
+| `ChannelLookup.cs` | Pure (#39): classifies a failed channel lookup (`Found`/`NotFound`/`Error`). Only a definitive "Unknown Channel" removes a channel's settings; outages and missing access keep them (`WarnOnce` logs once per session). |
 | `ConfigImport.cs` | One-time, read-only import of the official Discord Chat Bridge config (`pluginConfigs/Dalamud.DiscordBridge.json`) on first run, stripping its `$type` metadata. |
 
 ## Lifecycle

@@ -104,6 +104,9 @@ namespace Dalamud.DiscordBridge
 
         private LodestoneClient lodestoneClient;
 
+        /// <summary>Channels already warned about this session (#39).</summary>
+        private readonly WarnOnce unreachableChannels = new();
+
         public DiscordHandler(DiscordBridgePlugin plugin)
         {
             this.plugin = plugin;
@@ -1543,11 +1546,11 @@ namespace Dalamud.DiscordBridge
 
             foreach (var channelConfig in applicableChannels)
             {
-                var (channel, route) = await ResolveDeliveryAsync(channelConfig.Key, forceEmbed: false);
+                var (channel, route, lookup) = await ResolveDeliveryWithLookupAsync(channelConfig.Key, forceEmbed: false);
 
                 if (channel == null)
                 {
-                    Logger.Error("Could not find channel {0} for {1}", channelConfig.Key, chatType);
+                    this.HandleUnreachableChannel(channelConfig.Key, lookup);
                     continue;
                 }
 
@@ -1615,7 +1618,16 @@ namespace Dalamud.DiscordBridge
         /// <returns>The channel, or null if it no longer exists or can't be accessed, and the route to use.</returns>
         internal async Task<(IMessageChannel? Channel, DeliveryRoute Route)> ResolveDeliveryAsync(ulong channelId, bool forceEmbed)
         {
+            var (channel, route, _) = await this.ResolveDeliveryWithLookupAsync(channelId, forceEmbed);
+            return (channel, route);
+        }
+
+        /// <summary>Like <see cref="ResolveDeliveryAsync"/>, plus whether a missing channel is definitely gone (#39).</summary>
+        internal async Task<(IMessageChannel? Channel, DeliveryRoute Route, ChannelLookupResult Lookup)> ResolveDeliveryWithLookupAsync(ulong channelId, bool forceEmbed)
+        {
             IMessageChannel? channel = this.socketClient.GetChannel(channelId) as IMessageChannel;
+            var threw = false;
+            int? errorCode = null;
             if (channel == null)
             {
                 try
@@ -1624,12 +1636,17 @@ namespace Dalamud.DiscordBridge
                 }
                 catch (Exception ex)
                 {
-                    Logger.Warning(ex, "Could not fetch channel {0}.", channelId);
+                    threw = true;
+                    errorCode = (int?)(ex as Discord.Net.HttpException)?.DiscordCode;
+                    Logger.Debug(ex, "Could not fetch channel {0}.", channelId);
                 }
             }
 
+            var lookup = ChannelLookup.Classify(channel != null, threw, errorCode);
             if (channel == null)
-                return (null, DeliveryRoute.Embed);
+                return (null, DeliveryRoute.Embed, lookup);
+
+            this.unreachableChannels.Reset(channelId);
 
             var isDirectMessage = channel is IDMChannel;
             var hasManageWebhooks = false;
@@ -1640,7 +1657,28 @@ namespace Dalamud.DiscordBridge
                 hasManageWebhooks = self?.GetPermissions(guildText).Has(ChannelPermission.ManageWebhooks) ?? false;
             }
 
-            return (channel, ChooseRoute(isDirectMessage, channel is ITextChannel, forceEmbed, hasManageWebhooks));
+            return (channel, ChooseRoute(isDirectMessage, channel is ITextChannel, forceEmbed, hasManageWebhooks), lookup);
+        }
+
+        /// <summary>
+        /// A configured channel couldn't be reached. Forget it only if Discord says it was deleted (#39); otherwise keep
+        /// the config and warn once per session, so an outage never wipes anyone's setup.
+        /// </summary>
+        private void HandleUnreachableChannel(ulong channelId, ChannelLookupResult lookup)
+        {
+            if (ChannelLookup.ShouldForget(lookup))
+            {
+                if (this.plugin.Config.ChannelConfigs.Remove(channelId))
+                {
+                    Logger.Information("Removed channel {0}'s settings: Discord says the channel no longer exists.", channelId);
+                    this.plugin.Config.Save();
+                }
+
+                return;
+            }
+
+            if (this.unreachableChannels.ShouldWarn(channelId))
+                Logger.Warning("Couldn't reach Discord channel {0}; keeping its settings and trying again with the next message.", channelId);
         }
 
         /// <param name="recipient">For outgoing tells: who the tell was to ("Name＠World"), shown in the message.</param>
@@ -1688,8 +1726,6 @@ namespace Dalamud.DiscordBridge
 
             message = this.specialChars.TransformToUnicode(message);
 
-            bool characterSearchFailed = false;
-            
             try
             {
                 switch (chatType)
@@ -1784,8 +1820,6 @@ namespace Dalamud.DiscordBridge
                 {
                     Logger.Error(ex, $"Cannot fetch XIVAPI character search for {senderName} on {senderWorld}");
                 }
-                
-                characterSearchFailed = true;
             }
 
             var displayName = senderName + (string.IsNullOrEmpty(senderWorld) || string.IsNullOrEmpty(senderName)
@@ -1801,22 +1835,11 @@ namespace Dalamud.DiscordBridge
 
             foreach (var channelConfig in applicableChannels)
             {
-                var (channel, route) = await ResolveDeliveryAsync(channelConfig.Key, this.plugin.Config.ForceEmbedFallbackMode);
+                var (channel, route, lookup) = await ResolveDeliveryWithLookupAsync(channelConfig.Key, this.plugin.Config.ForceEmbedFallbackMode);
 
                 if (channel == null)
                 {
-                    Logger.Error("Could not find channel {0} for {1}", channelConfig.Key, chatType);
-
-                    if (!characterSearchFailed)
-                    {
-                        var channelConfigs = this.plugin.Config.ChannelConfigs;
-                        channelConfigs.Remove(channelConfig.Key);
-                        this.plugin.Config.ChannelConfigs = channelConfigs;
-                        
-                        Logger.Info("Removing channel {0}'s config because it no longer exists or cannot be accessed.", channelConfig.Key);
-                        this.plugin.Config.Save();
-                    }
-                    
+                    this.HandleUnreachableChannel(channelConfig.Key, lookup);
                     continue;
                 }
 
@@ -1904,11 +1927,11 @@ namespace Dalamud.DiscordBridge
 
             foreach (var channelConfig in applicableChannels)
             {
-                var (channel, route) = await ResolveDeliveryAsync(channelConfig.Key, forceEmbed: false);
+                var (channel, route, lookup) = await ResolveDeliveryWithLookupAsync(channelConfig.Key, forceEmbed: false);
 
                 if (channel == null)
                 {
-                    Logger.Error("Could not find channel {0} for cfc", channelConfig.Key);
+                    this.HandleUnreachableChannel(channelConfig.Key, lookup);
                     continue;
                 }
 
