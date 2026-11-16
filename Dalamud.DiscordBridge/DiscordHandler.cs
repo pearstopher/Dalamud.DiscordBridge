@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Dalamud.DiscordBridge.Model;
@@ -37,7 +38,7 @@ namespace Dalamud.DiscordBridge
         private readonly DiscordBridgePlugin plugin;
 
         /// <summary>
-        /// Chat types that are set when used the "all" setting.
+        /// Chat types selected by "any": all regular chat ("all" is <see cref="AllChatTypes"/>).
         /// </summary>
         internal static readonly XivChatType[] DefaultChatTypes =
         [
@@ -271,448 +272,138 @@ namespace Dalamud.DiscordBridge
                     return;
                 }
 
+                // Chat-kind list commands (#42): one parser (ChatKindArgs) for tell/p/any/all and typos; every path replies.
                 if (args[0] == this.plugin.Config.DiscordBotPrefix + "setchannel" &&
                     await EnsureOwner(message.Author, message.Channel))
                 {
-                    // Are there parameters?
-                    if (args.Length == 1)
-                    {
-                        await SendGenericEmbed(message.Channel,
-                            $"You need to specify some chat kinds to use.\nCheck the ``{this.plugin.Config.DiscordBotPrefix}help`` command for more information.",
-                            "Error", EmbedColorError);
-
+                    if (await this.TryParseKindsAsync(message, args, 2, "setchannel <kind1,kind2,...>") is not { } types)
                         return;
-                    }
-
-                    var kinds = args[1].Split(',').Select(x => x.ToLower());
-
-                    // Is there any chat type that's not recognized?
-                    if (kinds
-                        .Any(x =>
-                        XivChatTypeExtensions.TypeInfoDict.All(y => y.Value.Slug != x) && x != "any" && x != "all"))
-                    {
-                        Logger.Verbose("Could not find kinds");
-                        await SendGenericEmbed(message.Channel,
-                            $"One or more of the chat kinds you specified could not be found.\nCheck the ``{this.plugin.Config.DiscordBotPrefix}help`` command for more information.",
-                            "Error", EmbedColorError);
-
-                        return;
-                    }
 
                     if (!this.plugin.Config.ChannelConfigs.TryGetValue(message.Channel.Id, out var config))
                         config = new DiscordChannelConfig();
-
-                    foreach (var selectedKind in kinds)
-                    {
-                        Logger.Verbose(selectedKind);
-
-                        if (selectedKind == "all")
-                        {
-                            config.SetUnique(AllChatTypes);
-                        }
-                        else if (selectedKind == "any")
-                        {
-                            config.SetUnique(DefaultChatTypes);
-                        }
-                        else if (selectedKind == "tell")
-                        {
-                            config.SetUnique(XivChatType.TellOutgoing);
-                            config.SetUnique(XivChatType.TellIncoming);
-                        }
-                        else if (selectedKind == "p")
-                        {
-                            config.SetUnique(XivChatType.Party);
-                            config.SetUnique(XivChatType.CrossParty);
-                        }
-                        else
-                        {
-                            var chatType = XivChatTypeExtensions.GetBySlug(selectedKind);
-                            config.SetUnique(chatType);
-                        }
-                    }
-
+                    config.SetUnique(types);
                     this.plugin.Config.ChannelConfigs[message.Channel.Id] = config;
                     this.plugin.Config.Save();
 
                     await SendGenericEmbed(message.Channel,
-                        $"OK! This channel has been set to receive the following chat kinds:\n\n```\n{config.ChatTypes.Select(x => $"{x.GetFancyName()}").Aggregate((x, y) => x + "\n" + y)}```",
+                        $"OK! This channel has been set to receive the following chat kinds:\n\n{ChatKindArgs.FormatList(ChatKindArgs.Names(config.ChatTypes), "(none)")}",
                         "Chat kinds set", EmbedColorFine);
-
                     return;
                 }
 
                 if (args[0] == this.plugin.Config.DiscordBotPrefix + "unsetchannel" &&
                     await EnsureOwner(message.Author, message.Channel))
                 {
-                    // Are there parameters?
-                    if (args.Length == 1)
-                    {
-                        await SendGenericEmbed(message.Channel,
-                            $"You need to specify some chat kinds to use.\nCheck the ``{this.plugin.Config.DiscordBotPrefix}help`` command for more information.",
-                            "Error", EmbedColorError);
-
+                    if (await this.TryParseKindsAsync(message, args, 2, "unsetchannel <kind1,kind2,...>") is not { } types)
                         return;
-                    }
-
-                    var kinds = args[1].Split(',').Select(x => x.ToLower());
-
-                    // Is there any chat type that's not recognized?
-                    if (kinds.Any(x =>
-                        XivChatTypeExtensions.TypeInfoDict.All(y => y.Value.Slug != x) && x != "any" && x != "all"))
-                    {
-                        await SendGenericEmbed(message.Channel,
-                            $"One or more of the chat kinds you specified could not be found.\nCheck the ``{this.plugin.Config.DiscordBotPrefix}help`` command for more information.",
-                            "Error", EmbedColorError);
-
-                        return;
-                    }
 
                     if (!this.plugin.Config.ChannelConfigs.TryGetValue(message.Channel.Id, out var config))
                         config = new DiscordChannelConfig();
-
-                    foreach (var selectedKind in kinds)
-                    {
-                        if (selectedKind == "all")
-                        {
-                            config.UnsetUnique(AllChatTypes);
-                        }
-                        else if (selectedKind == "any")
-                        {
-                            config.UnsetUnique(DefaultChatTypes);
-                        }
-                        else if (selectedKind == "tell")
-                        {
-                            config.UnsetUnique(XivChatType.TellOutgoing);
-                            config.UnsetUnique(XivChatType.TellIncoming);
-                        }
-                        else if (selectedKind == "p")
-                        {
-                            config.UnsetUnique(XivChatType.Party);
-                            config.UnsetUnique(XivChatType.CrossParty);
-                        }
-                        else
-                        {
-                            var chatType = XivChatTypeExtensions.GetBySlug(selectedKind);
-                            config.UnsetUnique(chatType);
-                        }
-                    }
-
+                    config.UnsetUnique(types);
                     this.plugin.Config.ChannelConfigs[message.Channel.Id] = config;
                     this.plugin.Config.Save();
 
-                    if (config.ChatTypes.Count == 0)
-                    {
-                        await SendGenericEmbed(message.Channel,
-                        $"All chat kinds have been removed from this channel.",
-                        "Chat Kinds unset", EmbedColorFine);
-                    }
                     await SendGenericEmbed(message.Channel,
-                        $"OK! This channel will still receive the following chat kinds:\n\n```\n{config.ChatTypes.Select(x => $"{x.GetSlug()} - {x.GetFancyName()}").Aggregate((x, y) => x + "\n" + y)}```",
+                        config.ChatTypes.Count == 0
+                            ? "OK! All chat kinds have been removed from this channel."
+                            : $"OK! This channel will still receive the following chat kinds:\n\n{ChatKindArgs.FormatList(ChatKindArgs.Names(config.ChatTypes), "(none)")}",
                         "Chat kinds unset", EmbedColorFine);
-
                     return;
                 }
 
                 if (args[0] == this.plugin.Config.DiscordBotPrefix + "setprefix" &&
                     await EnsureOwner(message.Author, message.Channel))
                 {
-                    // Are there parameters?
-                    if (args.Length < 3)
-                    {
-                        await SendGenericEmbed(message.Channel,
-                            $"You need to specify some chat kinds and a prefix to use.\nCheck the ``{this.plugin.Config.DiscordBotPrefix}help`` command for more information.",
-                            "Error", EmbedColorError);
-
+                    if (await this.TryParseKindsAsync(message, args, 3, "setprefix <kind1,kind2,...> <prefix|none>") is not { } types)
                         return;
-                    }
 
-                    var kinds = args[1].Split(',').Select(x => x.ToLower());
-
-                    // Is there any chat type that's not recognized?
-                    if (kinds.Any(x =>
-                        XivChatTypeExtensions.TypeInfoDict.All(y => y.Value.Slug != x) && x != "any" && x != "all"))
-                    {
-                        await SendGenericEmbed(message.Channel,
-                            $"One or more of the chat kinds you specified could not be found.\nCheck the ``{this.plugin.Config.DiscordBotPrefix}help`` command for more information.",
-                            "Error", EmbedColorError);
-
-                        return;
-                    }
-
-                    if (args[2] == "none")
-                        args[2] = string.Empty;
-
-                    foreach (var selectedKind in kinds)
-                    {
-                        // Special handling for chat types that share a type
-                        if (selectedKind == "tell")
-                        {
-                            this.plugin.Config.PrefixConfigs[XivChatType.TellOutgoing] = args[2];
-                            this.plugin.Config.PrefixConfigs[XivChatType.TellIncoming] = args[2];
-                        }
-                        else if (selectedKind == "p")
-                        {
-                            this.plugin.Config.PrefixConfigs[XivChatType.Party] = args[2];
-                            this.plugin.Config.PrefixConfigs[XivChatType.CrossParty] = args[2];
-                        }
-                        else
-                        {
-                            var type = XivChatTypeExtensions.GetBySlug(selectedKind);
-                            this.plugin.Config.PrefixConfigs[type] = args[2];
-                        }
-
-                    }
-
+                    var prefix = args[2] == "none" ? string.Empty : args[2];
+                    foreach (var type in types)
+                        this.plugin.Config.PrefixConfigs[type] = prefix;
                     this.plugin.Config.Save();
 
-
                     await SendGenericEmbed(message.Channel,
-                        $"OK! The following prefixes are set:\n\n```\n{this.plugin.Config.PrefixConfigs.Select(x => $"{x.Key.GetFancyName()} - {x.Value}").Aggregate((x, y) => x + "\n" + y)}```",
+                        $"OK! The following prefixes are set:\n\n{ChatKindArgs.FormatList(ChatKindArgs.Describe(this.plugin.Config.PrefixConfigs), "(none)")}",
                         "Prefix set", EmbedColorFine);
-
                     return;
                 }
-
-
 
                 if (args[0] == this.plugin.Config.DiscordBotPrefix + "unsetprefix" &&
                     await EnsureOwner(message.Author, message.Channel))
                 {
-                    // Are there parameters?
-                    if (args.Length < 2)
-                    {
-                        await SendGenericEmbed(message.Channel,
-                            $"You need to specify some chat kinds and a prefix to use.\nCheck the ``{this.plugin.Config.DiscordBotPrefix}help`` command for more information.",
-                            "Error", EmbedColorError);
-
+                    if (await this.TryParseKindsAsync(message, args, 2, "unsetprefix <kind1,kind2,...>") is not { } types)
                         return;
-                    }
 
-                    var kinds = args[1].Split(',').Select(x => x.ToLower());
-
-                    // Is there any chat type that's not recognized?
-                    if (kinds.Any(x =>
-                        XivChatTypeExtensions.TypeInfoDict.All(y => y.Value.Slug != x) && x != "any" && x != "all"))
-                    {
-                        await SendGenericEmbed(message.Channel,
-                            $"One or more of the chat kinds you specified could not be found.\nCheck the ``{this.plugin.Config.DiscordBotPrefix}help`` command for more information.",
-                            "Error", EmbedColorError);
-
-                        return;
-                    }
-
-                    foreach (var selectedKind in kinds)
-                    {
-                        var type = XivChatTypeExtensions.GetBySlug(selectedKind);
-                        // Special handling for chat types that share a type
-                        if (selectedKind == "tell")
-                        {
-                            this.plugin.Config.PrefixConfigs.Remove(XivChatType.TellOutgoing);
-                            this.plugin.Config.PrefixConfigs.Remove(XivChatType.TellIncoming);
-                        }
-                        else if (selectedKind == "p")
-                        {
-                            this.plugin.Config.PrefixConfigs.Remove(XivChatType.Party);
-                            this.plugin.Config.PrefixConfigs.Remove(XivChatType.CrossParty);
-                        }
-                        else
-                        {
-                            this.plugin.Config.PrefixConfigs.Remove(type);
-                        }
-                        
-                    }
-
+                    foreach (var type in types)
+                        this.plugin.Config.PrefixConfigs.Remove(type);
                     this.plugin.Config.Save();
 
-                    if (this.plugin.Config.PrefixConfigs.Count == 0 )
-                    {
-                        await SendGenericEmbed(message.Channel,
-                        $"All prefixes have been removed.",
+                    await SendGenericEmbed(message.Channel,
+                        this.plugin.Config.PrefixConfigs.Count == 0
+                            ? "OK! All prefixes have been removed."
+                            : $"OK! The following prefixes are still set:\n\n{ChatKindArgs.FormatList(ChatKindArgs.Describe(this.plugin.Config.PrefixConfigs), "(none)")}",
                         "Prefix unset", EmbedColorFine);
-                    }
-                    else // this doesn't seem to trigger when there's only one entry left. I don't know why.
-                    {
-                        await SendGenericEmbed(message.Channel,
-                        $"OK! The prefix for {XivChatTypeExtensions.GetBySlug(args[2])} has been removed.\n\n"
-                        + $"The following prefixes are still set:\n\n```\n{this.plugin.Config.PrefixConfigs.Select(x => $"{x.Key.GetFancyName()} - {x.Value}").Aggregate((x, y) => x + "\n" + y)}```",
-                        "Prefix unset", EmbedColorFine);
-                    }
-
                     return;
                 }
 
                 if (args[0] == this.plugin.Config.DiscordBotPrefix + "setchattypename" &&
                     await EnsureOwner(message.Author, message.Channel))
                 {
-                    // Are there parameters?
-                    if (args.Length < 3)
-                    {
-                        await SendGenericEmbed(message.Channel,
-                            $"You need to specify one or more chat kinds and a custom name.\nCheck the ``{this.plugin.Config.DiscordBotPrefix}help`` command for more information.",
-                            "Error", EmbedColorError);
-
+                    if (await this.TryParseKindsAsync(message, args, 3, "setchattypename <kind1,kind2,...> <name|none>") is not { } types)
                         return;
-                    }
 
-                    
-
-                    var kinds = args[1].Split(',').Select(x => x.ToLower());
-                    var chatChannelOverride = string.Join(" ", args.Skip(2)).Trim('"');
-
-                    // Logger.Information($"arg1: {args[1]}; arg2: {chatChannelOverride}");
-
-                    // Is there any chat type that's not recognized?
-                    if (kinds.Any(x =>
-                        XivChatTypeExtensions.TypeInfoDict.All(y => y.Value.Slug != x) && x != "any" && x != "all"))
+                    var customName = string.Join(" ", args.Skip(2)).Trim().Trim('"');
+                    foreach (var type in types)
                     {
-                        await SendGenericEmbed(message.Channel,
-                            $"One or more of the chat kinds you specified could not be found.\nCheck the ``{this.plugin.Config.DiscordBotPrefix}help`` command for more information.",
-                            "Error", EmbedColorError);
-
-                        return;
-                    }
-
-                    if (chatChannelOverride == "none")
-                    {
-                        foreach (var selectedKind in kinds)
-                        {
-                            var type = XivChatTypeExtensions.GetBySlug(selectedKind);
-                            this.plugin.Config.CustomSlugsConfigs[type] = type.GetSlug();
-                        }
-
-                        await SendGenericEmbed(message.Channel,
-                        $"OK! The following custom chat type names have been set:\n\n```\n{this.plugin.Config.CustomSlugsConfigs.Select(x => $"{x.Key.GetFancyName()} - {x.Value}").Aggregate((x, y) => x + "\n" + y)}```",
-                        "Custom chat type set", EmbedColorFine);
-                    }
-                    else
-                    {
-                        foreach (var selectedKind in kinds)
-                        {
-                            // Special handling for chat types that share a type
-                            if (selectedKind == "tell")
-                            {
-                                this.plugin.Config.CustomSlugsConfigs[XivChatType.TellOutgoing] = chatChannelOverride;
-                                this.plugin.Config.CustomSlugsConfigs[XivChatType.TellIncoming] = chatChannelOverride;
-                            }
-                            else if (selectedKind == "p")
-                            {
-                                this.plugin.Config.CustomSlugsConfigs[XivChatType.Party] = chatChannelOverride;
-                                this.plugin.Config.CustomSlugsConfigs[XivChatType.CrossParty] = chatChannelOverride;
-                            }
-                            else
-                            {
-                                var type = XivChatTypeExtensions.GetBySlug(selectedKind);
-                                this.plugin.Config.CustomSlugsConfigs[type] = chatChannelOverride;
-                            }
-                        }
-
-                        await SendGenericEmbed(message.Channel,
-                        $"OK! The following custom chat type names have been set:\n\n```\n{this.plugin.Config.CustomSlugsConfigs.Select(x => $"{x.Key.GetFancyName()} - {x.Value}").Aggregate((x, y) => x + "\n" + y)}```",
-                        "Custom chat type set", EmbedColorFine);
+                        if (customName == "none" || customName.Length == 0)
+                            this.plugin.Config.CustomSlugsConfigs.Remove(type);
+                        else
+                            this.plugin.Config.CustomSlugsConfigs[type] = customName;
                     }
 
                     this.plugin.Config.Save();
 
+                    await SendGenericEmbed(message.Channel,
+                        $"OK! Custom chat kind names:\n\n{ChatKindArgs.FormatList(ChatKindArgs.Describe(this.plugin.Config.CustomSlugsConfigs), "(none: every kind uses its normal name)")}",
+                        "Custom chat type set", EmbedColorFine);
                     return;
                 }
 
                 if (args[0] == this.plugin.Config.DiscordBotPrefix + "unsetchattypename" &&
                     await EnsureOwner(message.Author, message.Channel))
                 {
-                    // Are there parameters?
-                    if (args.Length < 2)
-                    {
-                        await SendGenericEmbed(message.Channel,
-                            $"One or more of the chat kinds you specified could not be found.\nCheck the ``{this.plugin.Config.DiscordBotPrefix}help`` command for more information.",
-                            "Error", EmbedColorError);
-
+                    if (await this.TryParseKindsAsync(message, args, 2, "unsetchattypename <kind1,kind2,...>") is not { } types)
                         return;
-                    }
 
-
-
-                    var kinds = args[1].Split(',').Select(x => x.ToLower());
-
-                    Logger.Information($"Unsetting custom type name for arg1: {args[1]}");
-
-                    // Is there any chat type that's not recognized?
-                    if (kinds.Any(x =>
-                        XivChatTypeExtensions.TypeInfoDict.All(y => y.Value.Slug != x) && x != "any" && x != "all"))
-                    {
-                        await SendGenericEmbed(message.Channel,
-                            $"One or more of the chat kinds you specified could not be found.\nCheck the ``{this.plugin.Config.DiscordBotPrefix}help`` command for more information.",
-                            "Error", EmbedColorError);
-
-                        return;
-                    }
-
-
-                    foreach (var selectedKind in kinds)
-                    {
-                        var type = XivChatTypeExtensions.GetBySlug(selectedKind);
-                        this.plugin.Config.CustomSlugsConfigs[type] = type.GetSlug();
-                    }
-
-                    await SendGenericEmbed(message.Channel,
-                    $"OK! The following custom chat type names have been set:\n\n```\n{this.plugin.Config.CustomSlugsConfigs.Select(x => $"{x.Key.GetFancyName()} - {x.Value}").Aggregate((x, y) => x + "\n" + y)}```",
-                    "Custom chat type unset", EmbedColorFine);
-
-
+                    foreach (var type in types)
+                        this.plugin.Config.CustomSlugsConfigs.Remove(type);
                     this.plugin.Config.Save();
 
+                    await SendGenericEmbed(message.Channel,
+                        $"OK! Custom chat kind names:\n\n{ChatKindArgs.FormatList(ChatKindArgs.Describe(this.plugin.Config.CustomSlugsConfigs), "(none: every kind uses its normal name)")}",
+                        "Custom chat type unset", EmbedColorFine);
                     return;
                 }
 
                 if (args[0] == this.plugin.Config.DiscordBotPrefix + "setduplicatems" &&
                     await EnsureOwner(message.Author, message.Channel))
                 {
-                    // Are there parameters?
-                    if (args.Length != 2)
+                    if (args.Length != 2 || !ChatKindArgs.TryParseDuplicateMs(args[1], out var newDelay))
                     {
                         await SendGenericEmbed(message.Channel,
-                            $"You need to specify a number in milliseconds to use.\nCheck the ``{this.plugin.Config.DiscordBotPrefix}help`` command for more information.",
+                            $"You need to specify a number of milliseconds (0 or `none` turns the feature off).\nFormat: ``{this.plugin.Config.DiscordBotPrefix}setduplicatems 5000``",
                             "Error", EmbedColorError);
-
-                        return;
-                    }
-
-                    // Make sure that it's a number (or assume it is)
-                    if (!int.TryParse(args[1], out int newDelay))
-                    {
-                        await SendGenericEmbed(message.Channel,
-                            $"You need to specify a positive number in milliseconds to use, or 0 to turn the feature off.\nCheck the ``{this.plugin.Config.DiscordBotPrefix}help`` command for more information.",
-                            "Error", EmbedColorError);
-
-                        return;
-                    }
-
-
-                    if (args[1].ToLower() == "none")
-                        newDelay = 0;
-
-                    if (newDelay < 0)
-                    {
-                        await SendGenericEmbed(message.Channel,
-                            $"You need to specify a positive number in milliseconds to use, or 0 to turn the feature off.\nCheck the ``{this.plugin.Config.DiscordBotPrefix}help`` command for more information.",
-                            "Error", EmbedColorError);
-
                         return;
                     }
 
                     this.plugin.Config.DuplicateCheckMS = newDelay;
                     this.plugin.Config.Save();
 
-                    if (newDelay == 0)
-                    {
-                        await SendGenericEmbed(message.Channel,
-                            $"OK! The duplicate chat removal feature has been disabled.", "Duplicate Message Check", EmbedColorFine);
-                    }
-                    else
-                    {
-                        await SendGenericEmbed(message.Channel,
-                            $"OK! Any messages with the same content within the last **{newDelay}** milliseconds will be skipped, preventing duplicate posts.", "Duplicate Message Check", EmbedColorFine);
-                    }
-
+                    await SendGenericEmbed(message.Channel,
+                        newDelay == 0
+                            ? "OK! The duplicate chat removal feature has been disabled."
+                            : $"OK! Any messages with the same content within the last **{newDelay}** milliseconds will be skipped, preventing duplicate posts.",
+                        "Duplicate Message Check", EmbedColorFine);
                     return;
                 }
 
@@ -769,7 +460,7 @@ namespace Dalamud.DiscordBridge
                     this.plugin.Config.Save();
 
                     await SendGenericEmbed(message.Channel,
-                        $"OK! Sending relayed messages in embed fallback mode have been {(this.plugin.Config.ForceDefaultNameAvatar ? "**enabled**.\n\nPlease make sure you have toggled sender names on, or you won't know who said which chat messages!" : "**disabled**.")}",
+                        $"OK! Posting relays with the bot's own name and default avatar is {(this.plugin.Config.ForceDefaultNameAvatar ? "**enabled**.\n\nPlease make sure you have toggled sender names on, or you won't know who said which chat messages!" : "**disabled**: relays show each player's name and portrait.")}",
                         "Default Name and Avatar Mode set", EmbedColorFine);
 
                     if (this.plugin.Config.ForceDefaultNameAvatar && this.socketClient.CurrentUser.Username.ToLower().Contains("discord"))
@@ -917,7 +608,7 @@ namespace Dalamud.DiscordBridge
                     }
 
                     await SendGenericEmbed(message.Channel,
-                        $"OK! This channel has been set to receive the following chat kinds:\n\n```\n{config.ChatTypes.Select(x => $"{x.GetFancyName()}").Aggregate((x, y) => x + "\n" + y)}```\n{inboundLine}",
+                        $"OK! This channel has been set to receive the following chat kinds:\n\n{ChatKindArgs.FormatList(ChatKindArgs.Names(config.ChatTypes), "(none)")}\n{inboundLine}",
                         "Chat kinds set", EmbedColorFine);
 
                     return;
@@ -926,96 +617,48 @@ namespace Dalamud.DiscordBridge
                 if (args[0] == this.plugin.Config.DiscordBotPrefix + "setavatar" &&
                     await EnsureOwner(message.Author, message.Channel))
                 {
-                    // Are there parameters?
                     if (args.Length != 3)
                     {
                         await SendGenericEmbed(message.Channel,
-                            $"You need to specify one or more chat kinds and a custom avatar url.\nCheck the ``{this.plugin.Config.DiscordBotPrefix}help`` command for more information.",
+                            $"Format: ``{this.plugin.Config.DiscordBotPrefix}setavatar <kind1,kind2,...|default> <url|none>``",
                             "Error", EmbedColorError);
-
                         return;
                     }
 
-                    var kinds = args[1].Split(',').Select(x => x.ToLower());
                     var avatarURL = args[2].Replace("<", "").Replace(">", "").Trim();
-
-
-                    if (args[1] == "default" && avatarURL == "none")
+                    var reset = avatarURL == "none";
+                    if (!reset && !ChatKindArgs.IsValidAvatarUrl(avatarURL))
                     {
-                        this.plugin.Config.DefaultAvatarURL = Constant.LogoLink;
-
-                        await SendGenericEmbed(message.Channel,
-                        $"OK! The default/fallback avatar has been reset to default.",
-                        "Custom fallback avatar reset", EmbedColorFine);
-
-                        this.plugin.Config.Save();
+                        await SendGenericEmbed(message.Channel, "The avatar must be a full `https://` link to an image, or `none`.", "Error", EmbedColorError);
                         return;
                     }
+
                     if (args[1] == "default")
                     {
-                        this.plugin.Config.DefaultAvatarURL = avatarURL;
-
-                        await SendGenericEmbed(message.Channel,
-                        $"OK! The default/fallback avatar has been set to ``{avatarURL}``",
-                        "Custom fallback avatar set", EmbedColorFine);
-
+                        this.plugin.Config.DefaultAvatarURL = reset ? Constant.LogoLink : avatarURL;
                         this.plugin.Config.Save();
-                        return;
-                    }
-                    
-
-                    // Is there any chat type that's not recognized?
-                    if (kinds.Any(x =>
-                        XivChatTypeExtensions.TypeInfoDict.All(y => y.Value.Slug != x) && x != "any" && x != "all"))
-                    {
                         await SendGenericEmbed(message.Channel,
-                            $"One or more of the chat kinds you specified could not be found.\nCheck the ``{this.plugin.Config.DiscordBotPrefix}help`` command for more information.",
-                            "Error", EmbedColorError);
-
+                            reset ? "OK! The default/fallback avatar has been reset." : $"OK! The default/fallback avatar has been set to ``{avatarURL}``",
+                            reset ? "Custom fallback avatar reset" : "Custom fallback avatar set", EmbedColorFine);
                         return;
                     }
 
-                    if (avatarURL == "none")
-                    {
-                        foreach (var selectedKind in kinds)
-                        {
-                            var type = XivChatTypeExtensions.GetBySlug(selectedKind);
-                            this.plugin.Config.ChatTypeAvatarURL[type] = Constant.LogoLink;
-                        }
+                    if (await this.TryParseKindsAsync(message, args, 3, "setavatar <kind1,kind2,...|default> <url|none>") is not { } types)
+                        return;
 
-                        await SendGenericEmbed(message.Channel,
-                        $"OK! The following custom chat type names have been set:\n\n```\n{this.plugin.Config.CustomSlugsConfigs.Select(x => $"{x.Key.GetFancyName()} - {x.Value}").Aggregate((x, y) => x + "\n" + y)}```",
-                        "Custom avatar set", EmbedColorFine);
-                    }
-                    else
+                    foreach (var type in types)
                     {
-                        foreach (var selectedKind in kinds)
-                        {
-                            // Special handling for chat types that share a type
-                            if (selectedKind == "tell")
-                            {
-                                this.plugin.Config.ChatTypeAvatarURL[XivChatType.TellOutgoing] = avatarURL;
-                                this.plugin.Config.ChatTypeAvatarURL[XivChatType.TellIncoming] = avatarURL;
-                            }
-                            else if (selectedKind == "p")
-                            {
-                                this.plugin.Config.ChatTypeAvatarURL[XivChatType.Party] = avatarURL;
-                                this.plugin.Config.ChatTypeAvatarURL[XivChatType.CrossParty] = avatarURL;
-                            }
-                            else
-                            {
-                                var type = XivChatTypeExtensions.GetBySlug(selectedKind);
-                                this.plugin.Config.ChatTypeAvatarURL[type] = avatarURL;
-                            }
-                        }
-
-                        await SendGenericEmbed(message.Channel,
-                        $"OK! The following custom chat type names have been set:\n\n```\n{this.plugin.Config.ChatTypeAvatarURL.Select(x => $"{x.Key.GetFancyName()} - {x.Value}").Aggregate((x, y) => x + "\n" + y)}```",
-                        "Custom chat type set", EmbedColorFine);
+                        if (reset)
+                            this.plugin.Config.ChatTypeAvatarURL.Remove(type);
+                        else
+                            this.plugin.Config.ChatTypeAvatarURL[type] = avatarURL;
                     }
 
                     this.plugin.Config.Save();
 
+                    await SendGenericEmbed(message.Channel,
+                        $"OK! Custom avatars:\n\n{ChatKindArgs.FormatList(ChatKindArgs.Describe(this.plugin.Config.ChatTypeAvatarURL), "(none)")}",
+                        "Custom avatar set", EmbedColorFine);
                     return;
                 }
 
@@ -1025,76 +668,32 @@ namespace Dalamud.DiscordBridge
                     if (args.Length != 2)
                     {
                         await SendGenericEmbed(message.Channel,
-                            $"You have entered this command incorrectly. Please try again.",
+                            $"Format: ``{this.plugin.Config.DiscordBotPrefix}unsetavatar <kind1,kind2,...|default>``",
                             "Error", EmbedColorError);
-
                         return;
                     }
 
                     if (args[1] == "default")
                     {
                         this.plugin.Config.DefaultAvatarURL = Constant.LogoLink;
-
-                        await SendGenericEmbed(message.Channel,
-                        $"OK! The default/fallback avatar has been reset.",
-                        "Custom fallback avatar reset", EmbedColorFine);
-
                         this.plugin.Config.Save();
+                        await SendGenericEmbed(message.Channel, "OK! The default/fallback avatar has been reset.", "Custom fallback avatar reset", EmbedColorFine);
                         return;
                     }
 
-                    var kinds = args[1].Split(',').Select(x => x.ToLower());
-
-                    // Logger.Information($"Looking for `{chatTypeSlug}`");
-
-                    // Is there any chat type that's not recognized?
-                    if (kinds.Any(x =>
-                        XivChatTypeExtensions.TypeInfoDict.All(y => y.Value.Slug != x) && x != "any" && x != "all"))
-                    {
-                        await SendGenericEmbed(message.Channel,
-                            $"One or more of the chat kinds you specified could not be found.\nCheck the ``{this.plugin.Config.DiscordBotPrefix}help`` command for more information.",
-                            "Error", EmbedColorError);
-
+                    if (await this.TryParseKindsAsync(message, args, 2, "unsetavatar <kind1,kind2,...|default>") is not { } types)
                         return;
-                    }
 
-                    foreach (var selectedKind in kinds)
-                    {
-                        // Special handling for chat types that share a type
-                        if (selectedKind == "tell")
-                        {
-                            this.plugin.Config.ChatTypeAvatarURL.Remove(XivChatType.TellOutgoing);
-                            this.plugin.Config.ChatTypeAvatarURL.Remove(XivChatType.TellIncoming);
-                        }
-                        else if (selectedKind == "p")
-                        {
-                            this.plugin.Config.ChatTypeAvatarURL.Remove(XivChatType.Party);
-                            this.plugin.Config.ChatTypeAvatarURL.Remove(XivChatType.CrossParty);
-                        }
-                        else
-                        {
-                            var type = XivChatTypeExtensions.GetBySlug(selectedKind);
-                            this.plugin.Config.ChatTypeAvatarURL.Remove(type);
-                        }
-                    }
+                    foreach (var type in types)
+                        this.plugin.Config.ChatTypeAvatarURL.Remove(type);
+                    this.plugin.Config.Save();
 
-                    if (this.plugin.Config.ChatTypeAvatarURL.Count == 0)
-                    {
-                        await SendGenericEmbed(message.Channel,
-                            $"OK! There are no custom avatar overrides set.",
-                            "Custom chat type unset", EmbedColorFine);
-                    }
-                    else
-                    {
-                        await SendGenericEmbed(message.Channel,
-                            $"OK! The following custom chat type names are set:\n\n```\n{this.plugin.Config.ChatTypeAvatarURL.Select(x => $"{x.Key.GetFancyName()} - {x.Value}").Aggregate((x, y) => x + "\n" + y)}```",
-                            "Custom chat type unset", EmbedColorFine);
-                    }
-                    
-
-                    plugin.Config.Save();
+                    await SendGenericEmbed(message.Channel,
+                        this.plugin.Config.ChatTypeAvatarURL.Count == 0
+                            ? "OK! There are no custom avatar overrides set."
+                            : $"OK! Custom avatars still set:\n\n{ChatKindArgs.FormatList(ChatKindArgs.Describe(this.plugin.Config.ChatTypeAvatarURL), "(none)")}",
+                        "Custom avatar unset", EmbedColorFine);
                     return;
-                    
                 }
 
                 if (args[0] == this.plugin.Config.DiscordBotPrefix + "help")
@@ -1109,7 +708,6 @@ namespace Dalamud.DiscordBridge
                         .AddField($"{this.plugin.Config.DiscordBotPrefix}setchannel", "Select, which kinds of chat should arrive in this channel.\n" +
                                                  $"Format: ``{this.plugin.Config.DiscordBotPrefix}setchannel <kind1,kind2,...>``\n\n" +
                                                  $"See [this link for a list of all available chat kinds]({Constant.KindListLink}). ``any`` = all regular chat (incl. your own tells), ``all`` = **every** kind (system messages too).")
-                        //$"The following chat kinds are available:\n```all - All regular chat\n{XivChatTypeExtensions.TypeInfoDict.Select(x => $"{x.Value.Slug} - {x.Value.FancyName}").Aggregate((x, y) => x + "\n" + y)}```")
                         .AddField($"{this.plugin.Config.DiscordBotPrefix}unsetchannel", "Works like the previous command, but removes kinds of chat from the list of kinds that are sent to this channel.")
                         .AddField($"{this.plugin.Config.DiscordBotPrefix}listchannel", "List all chat kinds that are sent to this channel, and its inbound setting.")
                         .AddField($"{this.plugin.Config.DiscordBotPrefix}setinbound <kind|off>", "Show messages posted in this channel in your in-game chat, as the given chat kind. "
@@ -1218,6 +816,29 @@ namespace Dalamud.DiscordBridge
                     allowedMentions: RelayMentions)
                 .ConfigureAwait(false);
             return sent.Id;
+        }
+
+        /// <summary>
+        /// Parse the chat-kind list in <c>args[1]</c> for a command that needs at least <paramref name="minArgs"/> words.
+        /// Replies with the usage or the parse error and returns null on failure (#42).
+        /// </summary>
+        private async Task<IReadOnlyList<XivChatType>?> TryParseKindsAsync(SocketMessage message, string[] args, int minArgs, string usage)
+        {
+            if (args.Length < minArgs)
+            {
+                await SendGenericEmbed(message.Channel,
+                    $"Format: ``{this.plugin.Config.DiscordBotPrefix}{usage}``\nCheck the ``{this.plugin.Config.DiscordBotPrefix}help`` command for more information.",
+                    "Error", EmbedColorError);
+                return null;
+            }
+
+            if (!ChatKindArgs.TryParse(args[1], DefaultChatTypes, AllChatTypes, out var types, out var error))
+            {
+                await SendGenericEmbed(message.Channel, error, "Error", EmbedColorError);
+                return null;
+            }
+
+            return types;
         }
 
         /// <summary>
