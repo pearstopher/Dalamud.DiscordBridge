@@ -57,7 +57,7 @@ public class ChannelLookupTests
     {
         // Regression (#39): a transient lookup failure used to delete the channel's whole config.
         var source = File.ReadAllText(Path.Combine(DocumentationTests.Root, "Dalamud.DiscordBridge", "DiscordHandler.cs"));
-        var removals = System.Text.RegularExpressions.Regex.Matches(source, @"ChannelConfigs\.(Try)?Remove\(").Count;
+        var removals = System.Text.RegularExpressions.Regex.Matches(source, @"RemoveChannel\(").Count;
 
         Assert.Equal(1, removals);
         Assert.Contains("if (ChannelLookup.ShouldForget(lookup))", source);

@@ -53,7 +53,7 @@ namespace Dalamud.DiscordBridge
             if (!this.plugin.Config.ChannelConfigs.TryGetValue(message.Channel.Id, out var config))
                 config = new DiscordChannelConfig();
             config.SetUnique(types);
-            this.plugin.Config.ChannelConfigs[message.Channel.Id] = config;
+            this.plugin.Config.SetChannel(message.Channel.Id, config);
             this.plugin.Config.Save();
 
             await SendGenericEmbed(message.Channel,
@@ -69,7 +69,7 @@ namespace Dalamud.DiscordBridge
             if (!this.plugin.Config.ChannelConfigs.TryGetValue(message.Channel.Id, out var config))
                 config = new DiscordChannelConfig();
             config.UnsetUnique(types);
-            this.plugin.Config.ChannelConfigs[message.Channel.Id] = config;
+            this.plugin.Config.SetChannel(message.Channel.Id, config);
             this.plugin.Config.Save();
 
             await SendGenericEmbed(message.Channel,
@@ -85,8 +85,11 @@ namespace Dalamud.DiscordBridge
                 return;
 
             var prefix = args[2] == "none" ? string.Empty : args[2];
-            foreach (var type in types)
-                this.plugin.Config.PrefixConfigs[type] = prefix;
+            this.plugin.Config.ChangePrefixes(m =>
+            {
+                foreach (var type in types)
+                    m[type] = prefix;
+            });
             this.plugin.Config.Save();
 
             await SendGenericEmbed(message.Channel,
@@ -99,8 +102,11 @@ namespace Dalamud.DiscordBridge
             if (await this.TryParseKindsAsync(message, args, 2, "unsetprefix <kind1,kind2,...>") is not { } types)
                 return;
 
-            foreach (var type in types)
-                this.plugin.Config.PrefixConfigs.TryRemove(type, out _);
+            this.plugin.Config.ChangePrefixes(m =>
+            {
+                foreach (var type in types)
+                    m.Remove(type);
+            });
             this.plugin.Config.Save();
 
             await SendGenericEmbed(message.Channel,
@@ -116,13 +122,16 @@ namespace Dalamud.DiscordBridge
                 return;
 
             var customName = string.Join(" ", args.Skip(2)).Trim().Trim('"');
-            foreach (var type in types)
+            this.plugin.Config.ChangeCustomSlugs(m =>
             {
-                if (customName == "none" || customName.Length == 0)
-                    this.plugin.Config.CustomSlugsConfigs.TryRemove(type, out _);
-                else
-                    this.plugin.Config.CustomSlugsConfigs[type] = customName;
-            }
+                foreach (var type in types)
+                {
+                    if (customName == "none" || customName.Length == 0)
+                        m.Remove(type);
+                    else
+                        m[type] = customName;
+                }
+            });
 
             this.plugin.Config.Save();
 
@@ -136,8 +145,11 @@ namespace Dalamud.DiscordBridge
             if (await this.TryParseKindsAsync(message, args, 2, "unsetchattypename <kind1,kind2,...>") is not { } types)
                 return;
 
-            foreach (var type in types)
-                this.plugin.Config.CustomSlugsConfigs.TryRemove(type, out _);
+            this.plugin.Config.ChangeCustomSlugs(m =>
+            {
+                foreach (var type in types)
+                    m.Remove(type);
+            });
             this.plugin.Config.Save();
 
             await SendGenericEmbed(message.Channel,
@@ -172,7 +184,7 @@ namespace Dalamud.DiscordBridge
 
             config.IsContentFinder = !config.IsContentFinder;
 
-            this.plugin.Config.ChannelConfigs[message.Channel.Id] = config;
+            this.plugin.Config.SetChannel(message.Channel.Id, config);
             this.plugin.Config.Save();
 
             await SendGenericEmbed(message.Channel,
@@ -264,7 +276,7 @@ namespace Dalamud.DiscordBridge
                 config = new DiscordChannelConfig();
 
             config.InboundChatType = target;
-            this.plugin.Config.ChannelConfigs[message.Channel.Id] = config;
+            this.plugin.Config.SetChannel(message.Channel.Id, config);
             this.plugin.Config.Save();
 
             await SendGenericEmbed(message.Channel,
@@ -311,7 +323,7 @@ namespace Dalamud.DiscordBridge
 
             config.InboundPermission = permission;
             config.InboundRoleId = roleId;
-            this.plugin.Config.ChannelConfigs[message.Channel.Id] = config;
+            this.plugin.Config.SetChannel(message.Channel.Id, config);
             this.plugin.Config.Save();
 
             await SendGenericEmbed(message.Channel, $"OK! {InboundRules.Describe(config)}", "Inbound permission set", EmbedColorFine);
@@ -373,13 +385,16 @@ namespace Dalamud.DiscordBridge
             if (await this.TryParseKindsAsync(message, args, 3, "setavatar <kind1,kind2,...|default> <url|none>") is not { } types)
                 return;
 
-            foreach (var type in types)
+            this.plugin.Config.ChangeAvatars(m =>
             {
-                if (reset)
-                    this.plugin.Config.ChatTypeAvatarURL.TryRemove(type, out _);
-                else
-                    this.plugin.Config.ChatTypeAvatarURL[type] = avatarURL;
-            }
+                foreach (var type in types)
+                {
+                    if (reset)
+                        m.Remove(type);
+                    else
+                        m[type] = avatarURL;
+                }
+            });
 
             this.plugin.Config.Save();
 
@@ -409,8 +424,11 @@ namespace Dalamud.DiscordBridge
             if (await this.TryParseKindsAsync(message, args, 2, "unsetavatar <kind1,kind2,...|default>") is not { } types)
                 return;
 
-            foreach (var type in types)
-                this.plugin.Config.ChatTypeAvatarURL.TryRemove(type, out _);
+            this.plugin.Config.ChangeAvatars(m =>
+            {
+                foreach (var type in types)
+                    m.Remove(type);
+            });
             this.plugin.Config.Save();
 
             await SendGenericEmbed(message.Channel,
