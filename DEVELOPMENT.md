@@ -69,8 +69,9 @@ Hidden from `/xlhelp`. Use them to exercise the pipeline without waiting for rea
 | `/dcpdebug <slug>` | Enqueues a fake "Test Message" from "Test Sender" as chat kind `<slug>` (e.g. `/dcpdebug fc`) → relayed to channels subscribed to that kind |
 | `/dcpsaledebug` | Posts a fake retainer sale (Titanium Ore) to Discord and echoes it in game |
 | `/dcpprintlist` | Prints every chat kind `(id) slug - name` to the chat log |
+| `/dcpin <kind> <name> <text>` | Fakes a Discord message arriving in game (e.g. `/dcpin fc Alice hello`). Runs the real converter → display → echo-guard path, with no Discord needed. The line must **not** be relayed back to Discord. |
 
-Planned with the two-way feature: `/dcpin <slug> <name> <text>` (#15) fakes an incoming Discord message, and `/dcpsend <slug> <text>` (#16) tests sending as your character.
+Planned: `/dcpsend <kind> <text>` (#16) tests sending as your character.
 
 ## 7. What to check in game
 

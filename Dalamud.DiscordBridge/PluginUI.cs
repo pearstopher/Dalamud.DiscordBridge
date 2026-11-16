@@ -67,6 +67,34 @@ namespace Dalamud.DiscordBridge
 
             ImGui.Dummy(new Vector2(10, 10));
 
+            ImGui.Text("Discord → game");
+            var config = this.Plugin.Config;
+
+            var showInbound = config.InboundDisplayEnabled;
+            if (ImGui.Checkbox("Show Discord messages in game chat", ref showInbound))
+            {
+                config.InboundDisplayEnabled = showInbound;
+                config.Save();
+            }
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip($"Only for channels set up with {config.DiscordBotPrefix}setinbound. Shown in your chat log only; nobody else sees them.");
+
+            var asEcho = config.InboundDisplayAsEcho;
+            if (ImGui.Checkbox("Show them as Echo instead of the channel's own colour", ref asEcho))
+            {
+                config.InboundDisplayAsEcho = asEcho;
+                config.Save();
+            }
+
+            var reactions = config.InboundReactions;
+            if (ImGui.Checkbox("React on Discord when a message reaches the game", ref reactions))
+            {
+                config.InboundReactions = reactions;
+                config.Save();
+            }
+
+            ImGui.Dummy(new Vector2(10, 10));
+
             if (ImGui.Button("How does this work?"))
             {
                 Process.Start(

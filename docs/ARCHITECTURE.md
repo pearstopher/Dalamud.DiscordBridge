@@ -20,6 +20,8 @@ All source is in `Dalamud.DiscordBridge/`.
 | `SerialWorkQueue.cs` | Generic in-order work queue (one background task, semaphore-signalled, per-item try/catch). Base of `DiscordMessageQueue` and the inbound queue. |
 | `InboundRules.cs` | Pure rules for Discord → game: allowed target chat types and slugs, `setinbound`/`setinboundperm` parsing, owner check (`IsOwner`, also used by `EnsureOwner`), sender permission, and which Discord messages qualify. |
 | `DiscordToGameConverter.cs` | Pure Discord → game text conversion: clean mentions, custom emoji → `:name:`, common Unicode emoji → ASCII stand-ins (others dropped), markdown/spoilers/code/links/timestamps flattened, private-use and control characters removed, attachment/sticker placeholders, `re @Name:` for replies, a leading `/` neutralized to `／`, sanitizer hook (`IGameTextSanitizer`), and UTF-8-safe truncation to 500 bytes. `ConvertName` cleans sender names (≤32 chars). |
+| `InboundDisplay.cs` | Prints converted Discord messages into the local chat log (`IChatGui.Print` on the framework thread, only when logged in). Also `InboundFormat` (pure: entry type/name/text, Echo mode, `[D] {name}` sender label) and the `InboundResult` outcomes. |
+| `InboundEchoGuard.cs` | Loop prevention: lines printed/sent for Discord messages are registered first, and `ChatOnOnChatMessage` swallows the matching echo once (type + text, 10 s window) so it isn't relayed back to Discord. |
 | `Model/InboundDiscordMessage.cs` | Discord-free snapshot of a message to relay into the game (author, owner flag, target chat type, content, attachments, stickers, reply author). |
 | `DuplicationFilter.cs` | `DuplicateFilter`: watches webhook messages in Discord and suppresses/deletes duplicates within `DuplicateCheckMS`. Useful when several players in the same FC/LS each run the plugin into the same channel. |
 | `ContentParser.cs` | Regex parser for the posted format `{prefix}**[{slug}]** {text}`, used by the duplicate filter to compare messages. |
@@ -91,7 +93,12 @@ Discord message ─► DiscordHandler.SocketClientOnMessageReceived     (gateway
      ▼
   DiscordHandler.InboundQueue (SerialWorkQueue, in order)
      ▼
-  processor: DiscordToGameConverter.Convert → (currently logged at Debug) → #15 prints it in the chat log, #16 sends it as the owner.
+  processor: DiscordToGameConverter.Convert → DiscordBridgePlugin.HandleInboundAsync
+     → InboundDisplay.ShowAsync: EchoGuard.Register, then IChatGui.Print as the target type (or Echo), name "[D] Alice"
+     → reaction on the Discord message: ✅ shown · ⏸️ not logged in (InboundRules.ReactionFor; toggle InboundReactions)
+  (#16 adds owner "send as me".)
+
+IChatGui.ChatMessage ─► ChatOnOnChatMessage ─► EchoGuard.TryConsume? drop : relay outbound as usual
 ```
 
 Commands that start with the bot prefix are never relayed. A message that doesn't pass the permission check is dropped silently (logged at Debug).

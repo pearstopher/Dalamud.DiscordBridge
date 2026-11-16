@@ -106,11 +106,16 @@ namespace Dalamud.DiscordBridge
             this.specialChars = new SpecialCharsHandler();
 
             this.MessageQueue = new DiscordMessageQueue(this.plugin);
-            this.InboundQueue = new SerialWorkQueue<InboundDiscordMessage>("Inbound queue", inbound =>
+            this.InboundQueue = new SerialWorkQueue<InboundDiscordMessage>("Inbound queue", async inbound =>
             {
                 var text = this.InboundConverter.Convert(inbound);
                 Logger.Debug("Inbound message {0} from {1} for {2}: \"{3}\"", inbound.MessageId, inbound.AuthorName, inbound.TargetType, text);
-                return Task.CompletedTask;
+
+                var result = await this.plugin.HandleInboundAsync(inbound, text);
+                Logger.Debug("Inbound message {0}: {1}", inbound.MessageId, result);
+
+                if (this.plugin.Config.InboundReactions && InboundRules.ReactionFor(result) is { } emoji)
+                    await this.ReactAsync(inbound.ChannelId, inbound.MessageId, emoji);
             });
 
             Logger.Debug("BEFORE DiscordSocketClient");
@@ -1182,6 +1187,28 @@ namespace Dalamud.DiscordBridge
                 Stickers = message.Stickers.Select(s => s.Name).ToList(),
                 ReplyToAuthor = reply != null ? DisplayNameOf(reply) : null,
             };
+        }
+
+        /// <summary>
+        /// Add a reaction to a Discord message (inbound status feedback). Failures are logged and ignored.
+        /// </summary>
+        internal async Task ReactAsync(ulong channelId, ulong messageId, string emoji)
+        {
+            try
+            {
+                var channel = this.socketClient.GetChannel(channelId) as IMessageChannel
+                              ?? await this.socketClient.GetChannelAsync(channelId) as IMessageChannel;
+                if (channel == null)
+                    return;
+
+                var message = await channel.GetMessageAsync(messageId);
+                if (message != null)
+                    await message.AddReactionAsync(new Emoji(emoji));
+            }
+            catch (Exception ex)
+            {
+                Logger.Warning(ex, "Could not react to Discord message {0}.", messageId);
+            }
         }
 
         /// <summary>Server nickname, else global display name, else username.</summary>
