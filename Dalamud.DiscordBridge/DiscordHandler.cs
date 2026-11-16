@@ -764,7 +764,7 @@ namespace Dalamud.DiscordBridge
                             + "Use ``default`` to reset the fallback for any unconfigured overrides.\n"
                             + $"Format: ``{this.plugin.Config.DiscordBotPrefix}unsetavatar <kind>``")
                         .AddField("Need more help?",
-                            $"You can [read the full step-by-step guide]({Constant.HelpLink}) or [join our Discord server]({Constant.DiscordJoinLink}) to ask for help.")
+                            $"[Read the command guide]({Constant.HelpLink}), or [open an issue]({Constant.IssuesLink}) if something doesn't work.")
                         .WithFooter(footer =>
                         {
                             footer

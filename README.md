@@ -52,7 +52,8 @@ Save, then install **Discord Chat Pears** from `/xlplugins`.
 
 ## More
 
-- Original setup guide (still accurate for the game → Discord part): https://github.com/reiichi001/Dalamud.DiscordBridge/wiki/Setup-Guide
+- **User guide:** [docs/COMMANDS.md](docs/COMMANDS.md) (every command) and [docs/SETTINGS.md](docs/SETTINGS.md) (every setting). Questions and bugs: [Issues](https://github.com/pearstopher/Dalamud.DiscordBridge/issues).
+- The original project's setup guide (game → Discord only, older commands): https://github.com/reiichi001/Dalamud.DiscordBridge/wiki/Setup-Guide
 - How the two-way feature was designed: [docs/design/discord-to-game.md](docs/design/discord-to-game.md)
 - Building, testing in game, releasing: [DEVELOPMENT.md](DEVELOPMENT.md) · Developer docs: [docs/](docs/README.md) · In-game test plan: [docs/IN_GAME_TEST_PLAN.md](docs/IN_GAME_TEST_PLAN.md)
 
