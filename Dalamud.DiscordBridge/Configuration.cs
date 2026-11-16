@@ -45,6 +45,18 @@ namespace Dalamud.DiscordBridge
         /// <summary>React on Discord to show whether a message reached the game (✅ shown, ⏸️ not logged in).</summary>
         public bool InboundReactions { get; set; } = true;
 
+        /// <summary>
+        /// Master switch for "send as me": the owner's Discord messages are said in game by their character in channels
+        /// with <see cref="Model.DiscordChannelConfig.InboundSendAsOwner"/>. Off by default; outside Dalamud's rules.
+        /// </summary>
+        public bool AllowSendAsCharacter { get; set; } = false;
+
+        /// <summary>Minimum time between "send as me" messages.</summary>
+        public int SendIntervalMs { get; set; } = 2000;
+
+        /// <summary>How many "send as me" messages may wait for their turn before more are rejected.</summary>
+        public int SendQueueLimit { get; set; } = 5;
+
 
         public void Initialize(IDalamudPluginInterface pluginInterface)
         {

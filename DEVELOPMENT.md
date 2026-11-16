@@ -70,8 +70,7 @@ Hidden from `/xlhelp`. Use them to exercise the pipeline without waiting for rea
 | `/dcpsaledebug` | Posts a fake retainer sale (Titanium Ore) to Discord and echoes it in game |
 | `/dcpprintlist` | Prints every chat kind `(id) slug - name` to the chat log |
 | `/dcpin <kind> <name> <text>` | Fakes a Discord message arriving in game (e.g. `/dcpin fc Alice hello`). Runs the real converter → display → echo-guard path, with no Discord needed. The line must **not** be relayed back to Discord. |
-
-Planned: `/dcpsend <kind> <text>` (#16) tests sending as your character.
+| `/dcpsend <kind> <text>` | Your character **says** the text in that channel through the real send path (command build, rate limit, sanitize, echo guard), e.g. `/dcpsend e hello` to test safely with Echo. Needs "Allow sending as my character" ticked in `/dcp`. |
 
 ## 7. What to check in game
 

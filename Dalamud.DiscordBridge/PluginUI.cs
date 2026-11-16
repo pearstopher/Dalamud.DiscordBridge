@@ -93,6 +93,17 @@ namespace Dalamud.DiscordBridge
                 config.Save();
             }
 
+            var allowSend = config.AllowSendAsCharacter;
+            if (ImGui.Checkbox("Allow sending as my character", ref allowSend))
+            {
+                config.AllowSendAsCharacter = allowSend;
+                config.Save();
+            }
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip($"Your own Discord messages, in channels where you ran {config.DiscordBotPrefix}togglesend, are said in game by your character.");
+            if (config.AllowSendAsCharacter)
+                ImGui.TextColored(errorColor, "Outside Dalamud's plugin rules: the game server receives chat you didn't type in game. Use at your own risk.");
+
             ImGui.Dummy(new Vector2(10, 10));
 
             if (ImGui.Button("How does this work?"))

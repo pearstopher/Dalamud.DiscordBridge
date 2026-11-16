@@ -144,6 +144,13 @@ namespace Dalamud.DiscordBridge
             return string.IsNullOrEmpty(commandPrefix) || !content.TrimStart().StartsWith(commandPrefix, StringComparison.Ordinal);
         }
 
+        /// <summary>
+        /// "Send as me" applies only to the owner, only with the global switch on, and only in channels that opted in.
+        /// Everyone else (and the owner elsewhere) gets local display.
+        /// </summary>
+        internal static bool ShouldSendAsOwner(bool isOwner, bool globalAllowed, bool channelAllowed)
+            => isOwner && globalAllowed && channelAllowed;
+
         /// <summary>Reaction added to the Discord message for each outcome, or null for none.</summary>
         internal static string? ReactionFor(InboundResult result) => result switch
         {
@@ -167,7 +174,8 @@ namespace Dalamud.DiscordBridge
                 InboundPermission.Role => config.InboundRoleId is { } r ? $"owner + <@&{r}>" : "owner (role not set)",
                 _ => "owner only",
             };
-            return $"Inbound (Discord → game): {target.GetFancyName()} ({who})";
+            var send = config.InboundSendAsOwner ? "; your messages are sent as your character" : string.Empty;
+            return $"Inbound (Discord → game): {target.GetFancyName()} ({who}{send})";
         }
     }
 }
