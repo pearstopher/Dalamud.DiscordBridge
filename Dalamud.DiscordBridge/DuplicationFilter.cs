@@ -38,7 +38,7 @@ namespace Dalamud.DiscordBridge
         /// <param name="displayName">The name of the player who sent the chat message.</param>
         /// <param name="chatText">The relevant text of the chat message.</param>
         /// <returns>Whether the chat was recently sent and should be prevented.</returns>
-        public bool CheckAlreadySent(SocketChannel channel, string slug, string displayName, string chatText)
+        public bool CheckAlreadySent(Discord.IChannel channel, string slug, string displayName, string chatText)
         {
             // Get the first message that duplicates the name and text for consideration.
             var recentMsg = recentMessages.FirstOrDefault(msg =>
