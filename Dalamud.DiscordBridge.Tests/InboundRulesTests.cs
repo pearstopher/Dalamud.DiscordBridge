@@ -170,4 +170,38 @@ public class InboundRulesTests
         Assert.Equal(InboundPermission.Role, copy.InboundPermission);
         Assert.Equal(1234ul, copy.InboundRoleId);
     }
+
+    [Theory]
+    [InlineData("xl!ping", "xl!", true)]
+    [InlineData("xl!test", "xl!", true)]
+    [InlineData("xl!PING", "xl!", false)]
+    [InlineData("xl!pingx", "xl!", false)]
+    [InlineData("ping", "xl!", false)]
+    [InlineData("!ping", "!", true)]
+    [InlineData("ping", "", false)]
+    public void IsPingCommand_MatchesPrefixedPingOrTest(string word, string prefix, bool expected)
+    {
+        Assert.Equal(expected, InboundRules.IsPingCommand(word, prefix));
+    }
+
+    [Theory]
+    [InlineData(true, "✅")]
+    [InlineData(false, "⏸️")]
+    public void PingReaction_DependsOnLogin(bool loggedIn, string expected)
+    {
+        Assert.Equal(expected, InboundRules.PingReaction(loggedIn));
+    }
+
+    [Fact]
+    public void PingText_SaysWhetherLoggedIn()
+    {
+        Assert.Contains("logged in", InboundRules.PingText(true));
+        Assert.Contains("not logged in", InboundRules.PingText(false));
+    }
+
+    [Fact]
+    public void ShouldRelay_PingCommand_NeverRelayed()
+    {
+        Assert.False(InboundRules.ShouldRelay(false, false, "xl!ping", "xl!", XivChatType.Echo));
+    }
 }

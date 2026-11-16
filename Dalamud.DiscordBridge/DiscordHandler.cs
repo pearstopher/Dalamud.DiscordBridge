@@ -252,6 +252,13 @@ namespace Dalamud.DiscordBridge
 
             try
             {
+                // Connection test (#37): anyone, reaction only, nothing in game. No reaction = plugin not running.
+                if (InboundRules.IsPingCommand(args[0], this.plugin.Config.DiscordBotPrefix))
+                {
+                    await this.AnswerPingAsync(message);
+                    return;
+                }
+
                 if (args[0] == this.plugin.Config.DiscordBotPrefix + "setchannel" &&
                     await EnsureOwner(message.Author, message.Channel))
                 {
@@ -1102,6 +1109,7 @@ namespace Dalamud.DiscordBridge
                         .AddField($"{this.plugin.Config.DiscordBotPrefix}setinboundperm <owner|everyone|role @role>", "Choose who can relay messages from this channel into the game. Default: owner only.")
                         .AddField($"{this.plugin.Config.DiscordBotPrefix}toggledefaultnameavatar","Enable or disable sending webhook messages using your configured bot's name and the default bot avatar.\n**WARNING:**This should be combined with enabling the `togglesender` function or you will be removing any distinction between different player messages.")
                         .AddField($"{this.plugin.Config.DiscordBotPrefix}toggledf", "Enable or disable sending duty finder updates to this channel.")
+                        .AddField($"{this.plugin.Config.DiscordBotPrefix}ping", "Connection test, anyone can use it: the bot reacts ✅ (running, logged in) or ⏸️ (running, not logged in). Nothing appears in game. No reaction = the plugin isn't running.")
                         .AddField($"{this.plugin.Config.DiscordBotPrefix}togglestatus", "Enable or disable the 🟢 online / 🔴 offline posts in every bridged channel when the plugin starts and stops (game opened/closed, plugin loaded/unloaded). On by default. A crash posts nothing.")
                         .AddField($"{this.plugin.Config.DiscordBotPrefix}toggleembed", "Enable or disable sending messages as Webhooks (default) or Embeds (Fallback mode)")
                         .AddField($"{this.plugin.Config.DiscordBotPrefix}togglesender", "Enable or disable sending messages with the sender name in the message.")
@@ -1376,6 +1384,23 @@ namespace Dalamud.DiscordBridge
                 ReplyToContent = reply.Content,
                 ReplyToIsRelay = reply.IsRelay,
             };
+        }
+
+        private async Task AnswerPingAsync(SocketMessage message)
+        {
+            var loggedIn = await Service.Framework.RunOnFrameworkThread(() => Service.State.IsLoggedIn);
+            try
+            {
+                await message.AddReactionAsync(new Emoji(InboundRules.PingReaction(loggedIn)));
+            }
+            catch (Exception ex)
+            {
+                // Usually a missing Add Reactions permission: answer in text so the test still works.
+                Logger.Debug(ex, "Could not react to ping; replying instead.");
+                await message.Channel.SendMessageAsync(InboundRules.PingText(loggedIn),
+                    messageReference: new MessageReference(message.Id),
+                    allowedMentions: AllowedMentions.None);
+            }
         }
 
         private static string PluginVersion => Service.Interface.Manifest.AssemblyVersion?.ToString() ?? "?";
