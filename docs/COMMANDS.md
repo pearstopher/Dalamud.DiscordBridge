@@ -24,7 +24,8 @@ Mentions in relayed game text (`<@123>`, `<@&456>`, `@everyone`) show as text an
 | `xl!unsetchannel <kinds>` | Owner | Stop relaying these kinds here (`any`/`all` work too). | `xl!unsetchannel all` |
 | `xl!listchannel` | Owner | Show what this channel receives, plus its inbound (Discord → game) setting. | |
 | `xl!toggledf` | Owner | Post Duty Finder pops in this channel (on/off). | |
-| `xl!ping` (or `xl!test`) | Anyone | **Connection test.** The bot reacts ✅ (plugin running, character logged in) or ⏸️ (running, not logged in). Nothing is shown or sent in game. **No reaction = the plugin (and so the game) isn't running.** If the bot can't add reactions, it replies `Pong: …` instead. | `xl!ping` |
+| `xl!ping` (or `xl!test`) | Anyone | **Connection test.** The bot reacts ✅ (plugin running, character logged in), ⏸️ (running, not logged in) or 💤 (running but paused). Nothing is shown or sent in game. **No reaction = the plugin (and so the game) isn't running.** If the bot can't add reactions, it replies `Pong: …` instead. | `xl!ping` |
+| `xl!pause` / `xl!resume` | Owner | **Global.** Stop all relaying, both ways (chat, FC logins, retainer sales, duty pops, IPC; Discord messages get 💤 and go nowhere), keeping every setting. Lasts across game restarts until `xl!resume`. Same as clicking the plugin's icon in the game's **server info bar** (arrow = running, `\|\|` = paused, cross = not connected: click it to open `/dcp`) or the "Pause relaying" checkbox in `/dcp`. Pausing and resuming are announced in the bridged channels (unless `togglestatus` is off). Commands keep working while paused. | `xl!pause` |
 | `xl!togglestatus` | Owner | **Global.** Post 🟢 *Online* when the plugin starts and 🔴 *Offline* when it stops (game closed normally, plugin disabled or reloaded) in every bridged channel (any channel with chat kinds, duty pops or `setinbound`). On by default. Posted once per plugin load: reconnects and `/dcp` Save don't repost. A crash posts nothing. When the plugin isn't running, nothing reads Discord, so your messages get **no reaction at all**. | |
 | `xl!setprefix <kinds> <prefix>` | Owner | Text/emoji put in front of relayed lines of these kinds. | `xl!setprefix fc 🏠` |
 | `xl!unsetprefix <kinds>` | Owner | Remove those prefixes. | `xl!unsetprefix fc,tell` |
@@ -67,7 +68,7 @@ Mentions in relayed game text (`<@123>`, `<@&456>`, `@everyone`) show as text an
 
 **Shown vs sent:** controlled **only in game**, by "Allow sending as my character" in `/dcp`. Unticked: messages are only *shown* on your screen (`[D]`). Ticked: the **owner's** messages are *sent* through the game (`[S]` on your screen), in every channel with `setinbound`. Everyone else's are always only shown. Sending refuses text starting with `/`, over 500 bytes, or faster than one per 2 s (with a ❌ and a reply saying why).
 
-**Reactions on your Discord message:** 👁️ shown on your screen · ✅ sent through the game · ⏸️ not logged in · ❌ rejected (with a reply) · ⚠️ error. Turn off with "React on Discord…" in `/dcp`.
+**Reactions on your Discord message:** 👁️ shown on your screen · ✅ sent through the game · ⏸️ not logged in · 💤 paused (`xl!resume`) · ❌ rejected (with a reply) · ⚠️ error. Turn off with "React on Discord…" in `/dcp`.
 
 **In game:** `[D]` = shown only to you · `[S]` = really sent by the plugin (only your screen shows the tag) · no tag = normal chat.
 

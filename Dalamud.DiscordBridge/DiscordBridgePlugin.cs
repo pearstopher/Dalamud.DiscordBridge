@@ -3,6 +3,7 @@ using Dalamud.DiscordBridge.Attributes;
 using Dalamud.DiscordBridge.Model;
 using Dalamud.DiscordBridge.SelfTests;
 using Dalamud.Game.Chat;
+using Dalamud.Game.Gui.Dtr;
 using Dalamud.Game.ClientState.Objects.SubKinds;
 using Dalamud.Game.Text;
 using Dalamud.Game.Text.SeStringHandling;
@@ -148,6 +149,12 @@ namespace Dalamud.DiscordBridge
             Service.State.Login += OnLoginEvent;
             Service.State.Logout += OnLogoutEvent;
             Service.State.TerritoryChanged += OnTerritoryChanged;
+            Service.Framework.Update += OnFrameworkUpdate;
+
+            // Server info bar: ▶ / || / ✕, click to pause or resume (#54).
+            this.dtrEntry = Service.DtrBar.Get(Constant.PluginName);
+            this.dtrEntry.OnClick = _ => this.OnDtrClick();
+            this.UpdateDtr();
 
 
             this.commandManager = new PluginCommandManager<DiscordBridgePlugin>(this, command);
@@ -170,6 +177,71 @@ namespace Dalamud.DiscordBridge
             // Lets a developer confirm in /xllog exactly which build the game is running (see DEVELOPMENT.md).
             Logger.Information($"{pluginInterface.Manifest.Name} loaded ({BuildInfo.Describe(pluginInterface.AssemblyLocation.FullName)})");
         }
+
+        private IDtrBarEntry? dtrEntry;
+        private BridgeState? shownState;
+        private DateTime nextDtrCheck;
+
+        /// <summary>
+        /// Pause or resume relaying (#54), saved so it lasts across restarts. Tells the bridged channels (if status
+        /// posts are on) and updates the server info bar.
+        /// </summary>
+        /// <param name="source">Where it was changed, for the Discord post: "Discord", "the server info bar", "/dcp".</param>
+        /// <returns>False if it was already in that state.</returns>
+        internal bool SetPaused(bool paused, string source)
+        {
+            if (this.Config.Paused == paused)
+                return false;
+
+            this.Config.Paused = paused;
+            this.Config.Save();
+            Logger.Information("Relaying {0} from {1}.", paused ? "paused" : "resumed", source);
+            _ = this.Discord.AnnouncePauseChangeAsync(paused, source);
+            _ = Service.Framework.RunOnFrameworkThread(this.UpdateDtr);
+            return true;
+        }
+
+        private void OnDtrClick()
+        {
+            try
+            {
+                var state = PauseStatus.StateOf(this.Discord.State == DiscordState.Ready, this.Config.Paused);
+                if (PauseStatus.ClickOpensSettings(state))
+                    this.ui.Show();
+                else
+                    this.SetPaused(!this.Config.Paused, "the server info bar");
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "Server info bar click failed.");
+            }
+        }
+
+        // The connection can drop or come back at any time; check twice a second and redraw only on a change.
+        private void OnFrameworkUpdate(IFramework framework)
+        {
+            if (DateTime.UtcNow < this.nextDtrCheck)
+                return;
+            this.nextDtrCheck = DateTime.UtcNow.AddMilliseconds(500);
+            this.UpdateDtr();
+        }
+
+        private void UpdateDtr()
+        {
+            if (this.dtrEntry == null)
+                return;
+
+            var state = PauseStatus.StateOf(this.Discord.State == DiscordState.Ready, this.Config.Paused);
+            if (state == this.shownState)
+                return;
+
+            this.shownState = state;
+            this.dtrEntry.Text = PauseStatus.Glyph(state);
+            this.dtrEntry.Tooltip = PauseStatus.Tooltip(state);
+        }
+
+        /// <summary>Self-tests: what the server info bar shows now.</summary>
+        internal (string? Text, BridgeState? State) DtrSnapshot => (this.dtrEntry?.Text?.TextValue, this.shownState);
 
         private void OnTerritoryChanged(uint obj)
         {
@@ -218,6 +290,9 @@ namespace Dalamud.DiscordBridge
 
         private void ClientStateOnCfPop(ContentFinderCondition e)
         {
+            if (this.Config.Paused)
+                return;
+
             this.Discord.MessageQueue.Enqueue(new QueuedContentFinderEvent
             {
                 ContentFinderCondition = e
@@ -234,6 +309,9 @@ namespace Dalamud.DiscordBridge
             if (echoKind == EchoKind.Sent && this.Config.MarkSentInGame)
                 this.ReshowAsSent(message);
             if (echoKind != null) return;
+
+            // Paused (#54): nothing goes to Discord.
+            if (this.Config.Paused) return;
 
             // Nothing subscribed to this kind: drop it here instead of queueing and processing it (#49).
             if (!this.relayFilter.ShouldRelay(this.Config, message.LogKind)) return;
@@ -509,6 +587,8 @@ namespace Dalamud.DiscordBridge
             Service.State.Login -= OnLoginEvent;
             Service.State.Logout -= OnLogoutEvent;
             Service.State.TerritoryChanged -= OnTerritoryChanged;
+            Service.Framework.Update -= OnFrameworkUpdate;
+            this.dtrEntry?.Remove();
 
             this.SelfTests?.Dispose();
 

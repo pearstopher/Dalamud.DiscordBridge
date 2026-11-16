@@ -11,7 +11,7 @@ public class DiscordCommandTableTests
             "setchannel", "unsetchannel", "setprefix", "unsetprefix", "setchattypename", "unsetchattypename",
             "setduplicatems", "toggledf", "togglestatus", "toggleembed", "toggledefaultnameavatar", "togglesender",
             "setcfprefix", "setinbound", "setup", "selftesthere", "setinboundperm", "listchannel", "setavatar",
-            "unsetavatar", "help",
+            "unsetavatar", "pause", "resume", "help",
         ];
 
         Assert.Equal(expected.Order(), DiscordHandler.Commands.Keys.Order());

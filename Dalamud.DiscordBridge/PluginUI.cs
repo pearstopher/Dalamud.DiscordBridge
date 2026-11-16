@@ -165,6 +165,13 @@ namespace Dalamud.DiscordBridge
 
             ImGui.Dummy(new Vector2(10, 10));
 
+            var paused = this.Plugin.Config.Paused;
+            if (ImGui.Checkbox("Pause relaying (both ways)", ref paused))
+                this.Plugin.SetPaused(paused, Constant.MainCommand);
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip($"Nothing goes between the game and Discord until unticked. Same as {this.Plugin.Config.DiscordBotPrefix}pause / {this.Plugin.Config.DiscordBotPrefix}resume or clicking the icon in the server info bar. Lasts across restarts.");
+
+            ImGui.Dummy(new Vector2(10, 10));
             ImGui.Text("Discord → game");
             var config = this.Plugin.Config;
 

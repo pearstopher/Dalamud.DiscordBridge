@@ -44,6 +44,7 @@ Stored under `ChannelConfigs` → channel ID.
 | `CFPrefixConfig` | `setcfprefix` | empty |
 | `SenderInMessage` | `togglesender` | off |
 | `PostStatusMessages` | `togglestatus` | on |
+| `Paused` | `pause` / `resume`, the server info bar icon, or "Pause relaying" in `/dcp` | off |
 | `ForceEmbedFallbackMode` | `toggleembed` | off |
 | `ForceDefaultNameAvatar` | `toggledefaultnameavatar` | off |
 | `DuplicateCheckMS` | `setduplicatems` | 5000 |

@@ -42,8 +42,29 @@ namespace Dalamud.DiscordBridge
             ["listchannel"] = new(true, (h, m, a) => h.ListChannelAsync(m, a)),
             ["setavatar"] = new(true, (h, m, a) => h.SetAvatarAsync(m, a)),
             ["unsetavatar"] = new(true, (h, m, a) => h.UnsetAvatarAsync(m, a)),
+            ["pause"] = new(true, (h, m, a) => h.PauseAsync(m, true)),
+            ["resume"] = new(true, (h, m, a) => h.PauseAsync(m, false)),
             ["help"] = new(false, (h, m, a) => h.HelpAsync(m, a)),
         };
+
+        /// <summary>xl!pause / xl!resume (#54): stop or restart all relaying, kept across restarts.</summary>
+        private async Task PauseAsync(SocketMessage message, bool pause)
+        {
+            if (!this.plugin.SetPaused(pause, "Discord"))
+            {
+                await SendGenericEmbed(message.Channel,
+                    pause ? $"Already paused. ``{this.plugin.Config.DiscordBotPrefix}resume`` to continue." : "Already running.",
+                    pause ? "Paused" : "Running", EmbedColorFine);
+                return;
+            }
+
+            // The change is announced in every bridged channel; answer here only if this channel won't get that post.
+            var announcedHere = this.plugin.Config.PostStatusMessages &&
+                                StatusAnnouncer.TargetChannels(this.plugin.Config.ChannelConfigs).Contains(message.Channel.Id);
+            if (!announcedHere)
+                await SendGenericEmbed(message.Channel, PauseStatus.ChangeText(pause, "Discord", this.plugin.Config.DiscordBotPrefix),
+                    PauseStatus.ChangeTitle(pause), (uint)(pause ? EmbedColorError : EmbedColorFine));
+        }
 
         private async Task SetChannelAsync(SocketMessage message, string[] args)
         {
@@ -462,6 +483,7 @@ namespace Dalamud.DiscordBridge
                 .AddField($"{this.plugin.Config.DiscordBotPrefix}toggledefaultnameavatar","Enable or disable sending webhook messages using your configured bot's name and the default bot avatar.\n**WARNING:**This should be combined with enabling the `togglesender` function or you will be removing any distinction between different player messages.")
                 .AddField($"{this.plugin.Config.DiscordBotPrefix}toggledf", "Enable or disable sending duty finder updates to this channel.")
                 .AddField($"{this.plugin.Config.DiscordBotPrefix}ping", "Connection test, anyone can use it: the bot reacts ✅ (running, logged in) or ⏸️ (running, not logged in). Nothing appears in game. No reaction = the plugin isn't running.")
+                .AddField($"{this.plugin.Config.DiscordBotPrefix}pause / {this.plugin.Config.DiscordBotPrefix}resume", "Stop all relaying (both ways) until resumed, keeping every setting; lasts across restarts. Same as clicking the plugin's icon in the game's server info bar.")
                 .AddField($"{this.plugin.Config.DiscordBotPrefix}togglestatus", "Enable or disable the 🟢 online / 🔴 offline posts in every bridged channel when the plugin starts and stops (game opened/closed, plugin loaded/unloaded). On by default. A crash posts nothing.")
                 .AddField($"{this.plugin.Config.DiscordBotPrefix}toggleembed", "Enable or disable sending messages as Webhooks (default) or Embeds (Fallback mode)")
                 .AddField($"{this.plugin.Config.DiscordBotPrefix}togglesender", "Enable or disable sending messages with the sender name in the message.")

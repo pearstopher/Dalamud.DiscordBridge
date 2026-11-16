@@ -33,6 +33,7 @@ For the Discord round trip, run `xl!selftesthere` once in a **private** channel.
 | `discord.channels` | Every configured channel reachable, webhook permission | B4 (permission part) |
 | `discord.reply-routing` | Relay messages read back from Discord route replies to the right channel/person; GM and retainer replies blocked | D8 (routing part) |
 | `discord.status-online` | The 🟢 online post fired once this load (or the setting is off) | A6 (online part) |
+| `ui.server-info-bar` | The server info bar entry exists and shows the current state (#54) | G1 (icon part) |
 | `discord.round-trip` | Post → gateway → back, Message Content intent working | — |
 | `discord.webhook-reuse` | The channel's webhook client is created once and reused (#40) | F5 (reuse part) |
 | `discord.no-pings` | A relay containing `<@bot>` pings nobody (#41) | F6 (game-text part) |
@@ -116,6 +117,12 @@ The self-tests above cover the reusable-webhook, no-pings, reaction, ping, cache
 - [ ] F5. **Deleted webhook (#40):** Discord channel settings → Integrations → Webhooks → delete "FFXIV Bridge Worker". Say something in a relayed in-game channel: it still arrives, and a new webhook appears.
 - [ ] F6. **Your own prefix still pings (#41):** `xl!setprefix say <@YOUR_USER_ID>` (Discord: right-click yourself → Copy User ID), then `/say hi` in game → you get pinged. `xl!unsetprefix say`, then `/say <@YOUR_USER_ID> hi` → it shows as a mention but **doesn't** ping.
 - [ ] F7. **Busy chat (#49):** with only some kinds subscribed, fight something for a minute: subscribed chat still arrives promptly, and `/xllog` has no new errors.
+
+## G. Pause (#54)
+
+- [ ] G1. The server info bar shows the plugin's arrow icon. Click it: it turns into `||`, the bridged channel gets ⏸️ *Paused*. Say something in a relayed channel: nothing arrives in Discord. Post in Discord: 💤, nothing in game. `xl!ping` → 💤.
+- [ ] G2. Restart the game (or reload the plugin): the icon is still `||`, the 🟢 *Online* post says it's paused. `xl!resume` in Discord: the icon returns to the arrow, ▶️ *Resumed*, relaying works both ways again.
+- [ ] G3. `/dcp` → "Pause relaying" checkbox matches the icon and toggles it too. With the bot disconnected (e.g. bad token), the icon is a cross and clicking it opens `/dcp`.
 
 ## E. Wrap-up
 
