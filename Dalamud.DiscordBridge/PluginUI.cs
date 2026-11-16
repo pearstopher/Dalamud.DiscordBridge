@@ -1,4 +1,6 @@
-﻿using System.Diagnostics;
+﻿using System;
+using System.Diagnostics;
+using System.Threading.Tasks;
 using System.Numerics;
 using Dalamud.Plugin.Services;
 using Dalamud.Bindings.ImGui;
@@ -13,6 +15,10 @@ namespace Dalamud.DiscordBridge
 
         private string token = string.Empty;
         private string username = string.Empty;
+        private bool showToken;
+
+        /// <summary>One reconnect at a time, off the game thread (#44).</summary>
+        private readonly SwapGate reconnect = new();
 
         private static Vector4 errorColor = new(1f, 0f, 0f, 1f);
         private static Vector4 fineColor = new(0.337f, 1f, 0.019f, 1f);
@@ -127,7 +133,10 @@ namespace Dalamud.DiscordBridge
 
             ImGui.Dummy(new Vector2(10, 10));
 
-            ImGui.InputText("Enter your bot token", ref this.token, 100);
+            // Hidden by default so it isn't exposed when streaming or screen sharing (#44).
+            ImGui.InputText("Enter your bot token", ref this.token, 100, this.showToken ? ImGuiInputTextFlags.None : ImGuiInputTextFlags.Password);
+            ImGui.SameLine();
+            ImGui.Checkbox("Show", ref this.showToken);
             ImGui.InputText("Enter your Username(e.g. mydiscorduser)", ref this.username, 50);
 
             ImGui.Dummy(new Vector2(10, 10));
@@ -135,7 +144,7 @@ namespace Dalamud.DiscordBridge
             ImGui.Text("Status: ");
             ImGui.SameLine();
 
-            var message = this.Plugin.Discord.State switch
+            var message = this.reconnect.IsBusy ? "Reconnecting…" : this.Plugin.Discord.State switch
             {
                 DiscordState.None => "Not started",
                 DiscordState.Ready => "Connected!",
@@ -188,7 +197,7 @@ namespace Dalamud.DiscordBridge
                 config.Save();
             }
             if (ImGui.IsItemHovered())
-                ImGui.SetTooltip($"When ticked, your own Discord messages are really sent as your character (shown as [S]); otherwise only shown to you ([D]). Only this checkbox controls it. Channels: {config.DiscordBotPrefix}togglesend, are said in game by your character.");
+                ImGui.SetTooltip("When ticked, your own Discord messages in channels with inbound relay are really sent as your character (shown as [S]); otherwise only shown to you ([D]). Only this checkbox controls it.");
             var markSent = config.MarkSentInGame;
             if (ImGui.Checkbox($"Tag messages sent by the plugin with {SentMarker.Tag(config.SentTag)} on my screen", ref markSent))
             {
@@ -219,17 +228,39 @@ namespace Dalamud.DiscordBridge
 
             ImGui.SameLine();
 
-            if (ImGui.Button("Save"))
+            if (this.reconnect.IsBusy)
+            {
+                ImGui.BeginDisabled();
+                ImGui.Button("Reconnecting…");
+                ImGui.EndDisabled();
+            }
+            else if (ImGui.Button("Save") && this.reconnect.TryBegin())
             {
                 Logger.Verbose("Reloading Discord...");
-
                 this.Plugin.Config.DiscordToken = this.token;
                 this.Plugin.Config.DiscordOwnerName = this.username;
                 this.Plugin.Config.Save();
 
-                this.Plugin.Discord.Dispose();
-                this.Plugin.Discord = new DiscordHandler(this.Plugin);
-                _ = this.Plugin.Discord.Start();
+                // Disposing waits for the queues and the logout: never on the game thread (#44).
+                var old = this.Plugin.Discord;
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        old.Dispose();
+                        var fresh = new DiscordHandler(this.Plugin);
+                        this.Plugin.Discord = fresh;
+                        await fresh.Start();
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.Error(ex, "Could not reconnect to Discord.");
+                    }
+                    finally
+                    {
+                        this.reconnect.End();
+                    }
+                });
             }
 
             ImGui.End();
