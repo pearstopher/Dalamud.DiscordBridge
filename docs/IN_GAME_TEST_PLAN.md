@@ -43,6 +43,7 @@ The steps below are still manual: things that need a second Discord account, oth
 - [ ] A4. With the official Discord Chat Bridge also enabled: our plugin loads, and `/xllog` shows the IPC **warning** (not an error). Disable the official plugin for the rest of the session.
 - [ ] A5. Disable and re-enable Discord Chat Pears in `/xlplugins`: `… unloaded`, then `… loaded`, with no errors (#6).
 - [ ] A6. Status posts (#34): on load, every bridged channel gets one 🟢 *Online* (version, character). `/dcp` → Save: no new post. Disable the plugin: one 🔴 *Offline* per channel, and the unload doesn't stall. Close the game normally: 🔴 *Offline* appears. `xl!togglestatus` off → reload → no posts; turn it back on.
+- [ ] A7. `xl!ping` (#37): logged in → ✅; at the title screen → ⏸️; plugin disabled → no reaction; from a second, non-owner account → reaction, no reply. Nothing appears in game chat.
 
 ## B. Game → Discord regression (#3–#8)
 

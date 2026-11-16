@@ -21,6 +21,15 @@ public class DocumentationTests
 
     private static string Read(params string[] path) => File.ReadAllText(Path.Combine([Root, .. path]));
 
+    [Theory]
+    [InlineData("ping")]
+    [InlineData("test")]
+    public void PingCommand_IsDocumentedAndInHelp(string command)
+    {
+        Assert.Contains($"xl!{command}", Read("docs", "COMMANDS.md"));
+        Assert.Contains("DiscordBotPrefix}ping", HandlerSource);
+    }
+
     private static string HandlerSource => Read("Dalamud.DiscordBridge", "DiscordHandler.cs");
 
     /// <summary>Discord commands: every `DiscordBotPrefix + "name"` the handler reacts to.</summary>

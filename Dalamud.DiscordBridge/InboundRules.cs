@@ -163,6 +163,18 @@ namespace Dalamud.DiscordBridge
             _ => null,
         };
 
+        /// <summary>True for <c>{prefix}ping</c> / <c>{prefix}test</c> (#37): anyone may use it, and it only reacts.</summary>
+        internal static bool IsPingCommand(string firstWord, string commandPrefix) =>
+            !string.IsNullOrEmpty(commandPrefix) &&
+            (firstWord == commandPrefix + "ping" || firstWord == commandPrefix + "test");
+
+        /// <summary>Reaction for <c>ping</c>: ✅ running and logged in, ⏸️ running at the title screen.</summary>
+        internal static string PingReaction(bool loggedIn) => loggedIn ? "✅" : "⏸️";
+
+        /// <summary>Text reply used when the bot can't react (no Add Reactions permission).</summary>
+        internal static string PingText(bool loggedIn) =>
+            loggedIn ? "Pong: running (logged in)." : "Pong: running (not logged in to a character).";
+
         /// <summary>One-line description of a channel's inbound setting, for <c>listchannel</c>/<c>setinbound</c> replies.</summary>
         internal static string Describe(DiscordChannelConfig config)
         {

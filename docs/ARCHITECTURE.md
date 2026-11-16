@@ -134,6 +134,7 @@ All commands are handled in `DiscordHandler.SocketClientOnMessageReceived`, a lo
 | `setchattypename <kinds> <text>` / `unsetchattypename <kind>` | Override the `[slug]` label. |
 | `setcfprefix <prefix\|none>` | Prefix for duty-pop posts. |
 | `toggledf` | Toggle duty-pop notifications for this channel. |
+| `ping` / `test` | Anyone: reacts ✅ (logged in) / ⏸️ (not logged in), nothing in game. Handled before the owner-only commands. |
 | `togglestatus` | Global: online/offline posts on plugin load/unload (`PostStatusMessages`, default on). |
 | `toggleembed` | Global: post as embeds instead of webhooks. |
 | `toggledefaultnameavatar` | Global: webhook uses the bot name/default avatar instead of the player's. |
