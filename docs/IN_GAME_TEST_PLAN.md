@@ -87,6 +87,7 @@ Test with **tells to yourself**, not FC, so nobody else sees test lines. A tell 
   - Reload the plugin, then reply to an *older* relayed tell → still goes to that person (parsed from the message).
 - [ ] D8b. **One-off override (#26):** in a channel whose default is `e`, post `!s hello` → shown in Say. `!t <You>@<World> hi` → a tell to you. `!em waves.` → custom emote. `!fcc oops` → ❌ "unknown channel", nothing in game. `!!! wow` → shown normally in the default. Reply to a tell with `!e private note` → Echo (the override beats the reply).
 - [ ] D9. From the second account (with `setinboundperm everyone`) → shown locally only, never sent.
+- [ ] D9b. **[D] vs [S] (#28):** a shown-only message has `[D]` and a 👁️ reaction. A really-sent one (send-as-me on) shows on **your** screen as `[S]` (e.g. `>> [S] Ane Mora: hi`, `[S] Ane Mora >> hi`) and gets ✅. Untick "Tag messages sent by the plugin" in `/dcp` → sent messages look like normal chat again.
 - [ ] D10. `xl!togglesend` again → back to display-only. Untick "Allow sending as my character".
 
 ## E. Wrap-up

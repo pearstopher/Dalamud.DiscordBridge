@@ -51,6 +51,12 @@ namespace Dalamud.DiscordBridge
         /// </summary>
         public bool AllowSendAsCharacter { get; set; } = false;
 
+        /// <summary>Show messages the plugin sent for real with a tag on your screen (others see the normal message).</summary>
+        public bool MarkSentInGame { get; set; } = true;
+
+        /// <summary>Tag shown on your screen for messages the plugin sent for real.</summary>
+        public string SentTag { get; set; } = "[S]";
+
         /// <summary>Minimum time between "send as me" messages.</summary>
         public int SendIntervalMs { get; set; } = 2000;
 

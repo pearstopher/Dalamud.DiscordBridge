@@ -156,7 +156,7 @@ public class InboundFormatTests
     }
 
     [Theory]
-    [InlineData(InboundResult.Shown, "✅")]
+    [InlineData(InboundResult.Shown, "👁️")]
     [InlineData(InboundResult.Sent, "✅")]
     [InlineData(InboundResult.Queued, "⏳")]
     [InlineData(InboundResult.NotLoggedIn, "⏸️")]

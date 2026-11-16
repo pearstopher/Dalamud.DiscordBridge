@@ -13,6 +13,8 @@ using Lumina.Excel;
 using Lumina.Excel.Sheets;
 using Lumina.Text.ReadOnly;
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace Dalamud.DiscordBridge
@@ -225,9 +227,11 @@ namespace Dalamud.DiscordBridge
             if (message.IsHandled) return; // don't process a message that's been handled.
 
             // A line we printed or sent because of a Discord message: don't relay it back to Discord.
-            var isOwnEcho = this.EchoGuard.TryConsume(message.LogKind, message.Message.TextValue);
-            this.ChatObserver?.Invoke(message.LogKind, message.Message.TextValue, isOwnEcho);
-            if (isOwnEcho) return;
+            var echoKind = this.EchoGuard.Consume(message.LogKind, message.Message.TextValue);
+            this.ChatObserver?.Invoke(message.LogKind, message.Message.TextValue, echoKind != null);
+            if (echoKind == EchoKind.Sent && this.Config.MarkSentInGame)
+                this.ReshowAsSent(message);
+            if (echoKind != null) return;
 
             if (message.LogKind == XivChatType.RetainerSale)
             {
@@ -249,6 +253,39 @@ namespace Dalamud.DiscordBridge
                 });
             }
             
+        }
+
+        /// <summary>
+        /// A line the plugin sent for real: hide the original on this screen only and print a copy tagged [S], so you can
+        /// tell plugin-sent messages apart. Other players receive the normal message. The copy is registered with the
+        /// echo guard so it isn't relayed to Discord either.
+        /// </summary>
+        private void ReshowAsSent(IHandleableChatMessage message)
+        {
+            try
+            {
+                var tag = new TextPayload($"{SentMarker.Tag(this.Config.SentTag)} ");
+                SeString sender = message.Sender;
+                SeString text = message.Message;
+                if (SentMarker.TagGoesOnSender(sender.TextValue))
+                    sender = new SeString(new List<Payload> { tag }.Concat(sender.Payloads).ToList());
+                else
+                    text = new SeString(new List<Payload> { tag }.Concat(text.Payloads).ToList());
+
+                message.PreventOriginal();
+                this.EchoGuard.Register(message.LogKind, text.TextValue);
+                Service.Chat.Print(new XivChatEntry
+                {
+                    Type = message.LogKind,
+                    Name = sender,
+                    Message = text,
+                    Timestamp = message.Timestamp,
+                });
+            }
+            catch (Exception ex)
+            {
+                Logger.Warning(ex, "Could not mark a sent message with the [S] tag.");
+            }
         }
 
         private void OpenConfigUi()
