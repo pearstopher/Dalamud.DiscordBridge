@@ -38,26 +38,37 @@ namespace Dalamud.DiscordBridge
             return returnString.ToString();
         }
 
+        /// <summary>
+        /// Look for the custom emotes <c>xivAtl</c>, <c>xivAtr</c> and <c>xivHq</c> in every guild the bot is in.
+        /// </summary>
         public void TryFindEmote(DiscordSocketClient socketClient)
         {
-            foreach (var guild in socketClient.Guilds)
+            SetEmotes(socketClient.Guilds.SelectMany(g => g.Emotes).Select(e => (e.Name, e.Id)));
+        }
+
+        /// <summary>
+        /// Use any of the known custom emotes found in <paramref name="emotes"/> (first match per name wins) and
+        /// rebuild the mapping. Emotes that aren't found keep their emoji fallback.
+        /// </summary>
+        internal void SetEmotes(IEnumerable<(string Name, ulong Id)> emotes)
+        {
+            string atl = string.Empty, atr = string.Empty, hq = string.Empty;
+
+            foreach (var (name, id) in emotes)
             {
-                foreach (var guildEmote in guild.Emotes)
+                switch (name)
                 {
-                    switch (guildEmote.Name)
-                    {
-                        case "xivAtl": this.atlEmote = $"<:xivAtl:{guildEmote.Id}>";
-                            return;
-                        case "xivAtr": this.atrEmote = $"<:xivAtr:{guildEmote.Id}>";
-                            return;
-                        case "xivHq": this.hqEmote = $"<:xivHq:{guildEmote.Id}>";
-                            return;
-                    }
+                    case "xivAtl" when atl.Length == 0: atl = $"<:xivAtl:{id}>"; break;
+                    case "xivAtr" when atr.Length == 0: atr = $"<:xivAtr:{id}>"; break;
+                    case "xivHq" when hq.Length == 0: hq = $"<:xivHq:{id}>"; break;
                 }
             }
 
             lock (this.dictLock)
             {
+                this.atlEmote = atl;
+                this.atrEmote = atr;
+                this.hqEmote = hq;
                 this.charsDict = BuildDict();
             }
         }

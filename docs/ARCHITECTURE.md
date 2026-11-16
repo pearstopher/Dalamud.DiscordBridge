@@ -120,6 +120,6 @@ All commands are handled in `DiscordHandler.SocketClientOnMessageReceived`, a lo
 | `xivapi.com` | Duty images (`/i/{folder}/{image}.png`), legacy `XivApiClient` | |
 | goatcorp DalamudAssets | Default logo/avatar | `Constant.LogoLink` |
 
-## Known issues (tracked)
+## Known issues
 
-#5 DM channels throw · #8 custom emotes never applied.
+None open from the initial audit (#3–#8 fixed). Check `gh issue list --label bug`.
