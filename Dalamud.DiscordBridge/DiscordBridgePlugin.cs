@@ -32,7 +32,6 @@ namespace Dalamud.DiscordBridge
         // public IPlayerCharacter? cachedLocalPlayer;
         public string cachedPlayerName;
         public string cachedPlayerWorld;
-        private bool startedFromConstructor = false;
 
 
         public DiscordBridgePlugin(IDalamudPluginInterface pluginInterface, ICommandManager command)
@@ -79,7 +78,6 @@ namespace Dalamud.DiscordBridge
             {
                 await this.Discord.Start();
                 await this.Discord.SetIdlePresence();
-                startedFromConstructor = true;
 
                 await Service.Framework.RunOnFrameworkThread(() => {
                     if (Service.State.IsLoggedIn)
@@ -102,8 +100,7 @@ namespace Dalamud.DiscordBridge
             Service.State.Login += OnLoginEvent;
             Service.State.Logout += OnLogoutEvent;
             Service.State.TerritoryChanged += OnTerritoryChanged;
-            Service.Framework.Update += OnFrameworkUpdate;
-            
+
 
             this.commandManager = new PluginCommandManager<DiscordBridgePlugin>(this, command);
 
@@ -114,32 +111,10 @@ namespace Dalamud.DiscordBridge
             }
         }
 
-        private async void OnTerritoryChanged(uint obj)
+        private void OnTerritoryChanged(uint obj)
         {
             cachedPlayerName = Service.PlayerState.CharacterName ?? "";
             cachedPlayerWorld = Service.PlayerState.HomeWorld.Value.Name.ToString() ?? "";
-        }
-
-        private async void OnFrameworkUpdate(IFramework framework)
-        {
-            // I don't like this, but I saw users state that localplayer was coming back null when it shouldn't.
-            // So I'll just update the cache every tick even though that feels excessive.
-            // cachedLocalPlayer = await framework.RunOnFrameworkThread(() => Service.ObjectTable.LocalPlayer);
-            
-            
-            // commenting out since we're switching to playerstate where possible
-            // cachedLocalPlayer = Service.ObjectTable?.LocalPlayer;
-            
-            
-            /* old method
-            await framework.RunOnFrameworkThread( () => {
-                if (Service.State.IsLoggedIn)
-                {
-                    cachedLocalPlayer = Service.ObjectTable.LocalPlayer;
-                }
-            });
-            */
-            
         }
 
         private async void OnLoginEvent()
@@ -184,7 +159,6 @@ namespace Dalamud.DiscordBridge
             await this.Discord.SetIdlePresence();
             // this.Discord.Dispose();
             // this.Discord = new DiscordHandler(this);
-            //startedFromConstructor = false;
         }
 
         private void ClientStateOnCfPop(ContentFinderCondition e)
@@ -294,6 +268,14 @@ namespace Dalamud.DiscordBridge
         {
             if (!disposing) return;
 
+            // Detach game events first so nothing new is enqueued into the handler being torn down.
+            // Every subscription in the constructor must have a matching line here.
+            Service.Chat.ChatMessage -= ChatOnOnChatMessage;
+            Service.State.CfPop -= this.ClientStateOnCfPop;
+            Service.State.Login -= OnLoginEvent;
+            Service.State.Logout -= OnLogoutEvent;
+            Service.State.TerritoryChanged -= OnTerritoryChanged;
+
             this.DiscordBridgeProvider.Dispose();
             
             this.Discord.Dispose();
@@ -305,12 +287,6 @@ namespace Dalamud.DiscordBridge
             Service.Interface.SavePluginConfig(this.Config);
 
             Service.Interface.UiBuilder.Draw -= this.ui.Draw;
-
-            Service.State.CfPop -= this.ClientStateOnCfPop;
-            
-            Service.State.Login -= OnLoginEvent;
-            
-            Service.State.Logout -= OnLogoutEvent;
         }
 
         public void Dispose()

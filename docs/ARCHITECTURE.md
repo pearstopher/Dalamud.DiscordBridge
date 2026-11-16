@@ -39,7 +39,7 @@ All source is in `Dalamud.DiscordBridge/`.
 2. **Login**: caches player name/world, sets online presence, restarts the queue if it was stopped.
 3. **Logout**: stops and clears the queue, sets idle presence.
 4. **Territory change**: refreshes the cached player name/world.
-5. **Dispose**: disposes IPC, `DiscordHandler` (stops the queue, logs out the socket), the command manager, and UI hooks, saves the config, and unsubscribes events. Some events are currently leaked: see #6.
+5. **Dispose**: disposes IPC, `DiscordHandler` (stops the queue, logs out the socket), the command manager, and UI hooks, saves the config, and unsubscribes events.
 
 ## Message flow (chat line → Discord)
 
@@ -122,4 +122,4 @@ All commands are handled in `DiscordHandler.SocketClientOnMessageReceived`, a lo
 
 ## Known issues (tracked)
 
-#5 DM channels throw · #6 leaked event handlers on dispose · #7 duplicate filter compares offsets, not thread-safe · #8 custom emotes never applied.
+#5 DM channels throw · #7 duplicate filter compares offsets, not thread-safe · #8 custom emotes never applied.
