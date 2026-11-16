@@ -140,7 +140,9 @@ namespace Dalamud.DiscordBridge.SelfTests
                         return SelfTestResult.Skip("not logged in");
 
                     var tag = NewTag();
-                    var watch = WatchChat(plugin, text => text.Contains(tag));
+                    var sentTag = SentMarker.Tag(plugin.Config.SentTag);
+                    var watch = WatchChat(plugin, text => text.Contains(tag) && !text.StartsWith(sentTag));
+                    var marked = WatchChat(plugin, text => text.StartsWith(sentTag) && text.Contains(tag));
                     var outcome = await plugin.InboundSenderService.SendAsync(FakeMessage(XivChatType.Echo, isOwner: true), $"{tag} send test");
                     if (outcome.Result != InboundResult.Sent)
                         return SelfTestResult.Fail($"send returned {outcome.Result} ({outcome.Reason})");
@@ -148,9 +150,15 @@ namespace Dalamud.DiscordBridge.SelfTests
                     var (seen, swallowed) = await watch.WaitAsync(TimeSpan.FromSeconds(5), token);
                     if (!seen)
                         return SelfTestResult.Fail("the /e line never appeared in chat");
-                    return swallowed
-                        ? SelfTestResult.Pass("sent, echoed, and not relayed to Discord")
-                        : SelfTestResult.Fail("the echo was NOT swallowed: it would be relayed back to Discord");
+                    if (!swallowed)
+                        return SelfTestResult.Fail("the echo was NOT swallowed: it would be relayed back to Discord");
+
+                    if (!plugin.Config.MarkSentInGame)
+                        return SelfTestResult.Pass("sent, echoed, and not relayed to Discord (sent-tag display is off)");
+                    var (markedSeen, markedSwallowed) = await marked.WaitAsync(TimeSpan.FromSeconds(3), token);
+                    return markedSeen && markedSwallowed
+                        ? SelfTestResult.Pass($"sent, echoed, shown as \"{sentTag} …\", nothing relayed to Discord")
+                        : SelfTestResult.Fail(markedSeen ? $"the {sentTag} copy was relayed to Discord" : $"no {sentTag} copy appeared");
                 }),
 
             new DelegateSelfTest("send.tell-self", "Send as me", "Opt-in: a real tell to yourself through the send path; both copies swallowed (plan D3)",
@@ -179,8 +187,10 @@ namespace Dalamud.DiscordBridge.SelfTests
                         if (outcome.Result != InboundResult.Sent)
                             return SelfTestResult.Fail($"send returned {outcome.Result} ({outcome.Reason})");
 
+                        // Two real copies (outgoing + incoming), plus a tagged re-show of each when [S] marking is on.
+                        var expected = plugin.Config.MarkSentInGame ? 4 : 2;
                         var deadline = DateTime.UtcNow.AddSeconds(8);
-                        while (DateTime.UtcNow < deadline && copies.Count < 2)
+                        while (DateTime.UtcNow < deadline && copies.Count < expected)
                             await Task.Delay(100, token);
                     }
                     finally

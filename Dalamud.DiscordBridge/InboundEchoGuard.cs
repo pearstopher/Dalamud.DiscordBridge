@@ -9,6 +9,13 @@ namespace Dalamud.DiscordBridge
     /// back through IChatGui.ChatMessage, and would otherwise be relayed straight back to Discord. Register each line
     /// before printing/sending it; <see cref="TryConsume"/> then swallows the matching echo once.
     /// </summary>
+    /// <summary>Why a line is expected back: we printed it locally, or we sent it through the game.</summary>
+    internal enum EchoKind
+    {
+        Displayed,
+        Sent,
+    }
+
     internal sealed class InboundEchoGuard
     {
         internal static readonly TimeSpan DefaultWindow = TimeSpan.FromSeconds(10);
@@ -16,7 +23,7 @@ namespace Dalamud.DiscordBridge
         private readonly Func<DateTimeOffset> clock;
         private readonly TimeSpan window;
         private readonly object gate = new();
-        private readonly List<(int Type, string Text, DateTimeOffset At)> pending = [];
+        private readonly List<(int Type, string Text, DateTimeOffset At, EchoKind Kind)> pending = [];
 
         internal InboundEchoGuard(Func<DateTimeOffset>? clock = null, TimeSpan? window = null)
         {
@@ -38,20 +45,19 @@ namespace Dalamud.DiscordBridge
         }
 
         /// <summary>Expect the game to echo <paramref name="text"/> as <paramref name="type"/> shortly.</summary>
-        internal void Register(XivChatType type, string text)
+        internal void Register(XivChatType type, string text, EchoKind kind = EchoKind.Displayed)
         {
             lock (this.gate)
             {
                 this.Expire();
-                this.pending.Add((Normalize(type), Normalize(text), this.clock()));
+                this.pending.Add((Normalize(type), Normalize(text), this.clock(), kind));
             }
         }
 
         /// <summary>
-        /// True if this chat line is an expected echo (and forget it, so a later identical line from a real player
-        /// is still relayed).
+        /// If this chat line is an expected echo, forget it and return why it was expected; otherwise null.
         /// </summary>
-        internal bool TryConsume(XivChatType type, string text)
+        internal EchoKind? Consume(XivChatType type, string text)
         {
             var key = (Normalize(type), Normalize(text));
             lock (this.gate)
@@ -59,12 +65,19 @@ namespace Dalamud.DiscordBridge
                 this.Expire();
                 var index = this.pending.FindIndex(p => p.Type == key.Item1 && p.Text == key.Item2);
                 if (index < 0)
-                    return false;
+                    return null;
 
+                var kind = this.pending[index].Kind;
                 this.pending.RemoveAt(index);
-                return true;
+                return kind;
             }
         }
+
+        /// <summary>
+        /// True if this chat line is an expected echo (and forget it, so a later identical line from a real player
+        /// is still relayed).
+        /// </summary>
+        internal bool TryConsume(XivChatType type, string text) => this.Consume(type, text) != null;
 
         private void Expire()
         {

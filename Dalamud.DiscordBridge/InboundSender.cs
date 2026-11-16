@@ -64,11 +64,11 @@ namespace Dalamud.DiscordBridge
 
                     // The game echoes our own line back as chat from us; don't relay that back to Discord.
                     var isTell = message.TargetType is XivChatType.TellOutgoing or XivChatType.TellIncoming;
-                    this.echoGuard.Register(isTell ? XivChatType.TellOutgoing : message.TargetType, text);
+                    this.echoGuard.Register(isTell ? XivChatType.TellOutgoing : message.TargetType, text, EchoKind.Sent);
 
                     // A tell to yourself also arrives as an incoming tell.
                     if (isTell && IsSelf(message.TellTarget))
-                        this.echoGuard.Register(XivChatType.TellIncoming, text);
+                        this.echoGuard.Register(XivChatType.TellIncoming, text, EchoKind.Sent);
 
                     SendChatBoxLine(line);
                     return new InboundOutcome(InboundResult.Sent);

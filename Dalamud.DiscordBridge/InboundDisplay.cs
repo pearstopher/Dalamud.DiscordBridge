@@ -38,6 +38,15 @@ namespace Dalamud.DiscordBridge
     /// <summary>The chat entry to print for an inbound message.</summary>
     internal readonly record struct InboundEntry(XivChatType Type, string Name, string Message);
 
+    /// <summary>Where the [S] tag goes when re-showing a line we sent (pure, unit tested).</summary>
+    internal static class SentMarker
+    {
+        /// <summary>Lines with a name (chat, tells, emotes) get the tag on the name; nameless lines (Echo) on the text.</summary>
+        internal static bool TagGoesOnSender(string senderText) => !string.IsNullOrWhiteSpace(senderText);
+
+        internal static string Tag(string? configured) => string.IsNullOrWhiteSpace(configured) ? "[S]" : configured.Trim();
+    }
+
     /// <summary>Pure formatting of inbound chat entries (unit tested).</summary>
     internal static class InboundFormat
     {

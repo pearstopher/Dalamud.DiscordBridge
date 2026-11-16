@@ -154,7 +154,8 @@ namespace Dalamud.DiscordBridge
         /// <summary>Reaction added to the Discord message for each outcome, or null for none.</summary>
         internal static string? ReactionFor(InboundResult result) => result switch
         {
-            InboundResult.Shown or InboundResult.Sent => "✅",
+            InboundResult.Shown => "👁️",
+            InboundResult.Sent => "✅",
             InboundResult.Queued => "⏳",
             InboundResult.NotLoggedIn => "⏸️",
             InboundResult.Rejected => "❌",

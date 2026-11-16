@@ -189,6 +189,15 @@ namespace Dalamud.DiscordBridge
             }
             if (ImGui.IsItemHovered())
                 ImGui.SetTooltip($"Your own Discord messages, in channels where you ran {config.DiscordBotPrefix}togglesend, are said in game by your character.");
+            var markSent = config.MarkSentInGame;
+            if (ImGui.Checkbox($"Tag messages sent by the plugin with {SentMarker.Tag(config.SentTag)} on my screen", ref markSent))
+            {
+                config.MarkSentInGame = markSent;
+                config.Save();
+            }
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip("Only your screen changes; other players see your normal message. [D] = shown only to you, [S] = really sent.");
+
             if (config.AllowSendAsCharacter)
                 ImGui.TextColored(errorColor, "Outside Dalamud's plugin rules: the game server receives chat you didn't type in game. Use at your own risk.");
 

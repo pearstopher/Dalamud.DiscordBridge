@@ -26,6 +26,7 @@ Square Enix's terms prohibit third-party tools in general. These rules are the D
 | `/dcpsend` debug command | ✅ Yes | You type it in game yourself (direct input), like typing the chat line. |
 | Settings import from Discord Chat Bridge (#11) | ✅ Yes | Reads a local config file once. |
 | Discord reactions and replies about inbound messages | ✅ Yes | Discord-only. |
+| `[S]` tag on plugin-sent messages (#28) | ✅ Yes | Local display only: hides the original line on your screen and prints a tagged copy. What the server and other players get is unchanged. |
 | Discord → game: inbound config and routing (`setinbound`, `setinboundperm`, #13) | ✅ Yes | Discord-side only. Messages are queued; nothing reaches the game yet. |
 | Discord → game text conversion (#14) | ✅ Yes | Pure text processing. |
 | **Discord → game: local display** (#15) | ✅ Yes | Printed into your own chat log with `IChatGui.Print`, client-side only. Nobody else sees it, and nothing is sent to the server. |

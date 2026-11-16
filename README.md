@@ -26,11 +26,13 @@ Save, then install **Discord Chat Pears** from `/xlplugins`.
 4. **Discord → game.** In a Discord channel: `xl!setinbound fc`. Messages posted there appear in your chat log exactly like game chat, with a `[D]` tag (e.g. `[FC]<[D] Ane Mora> hi`, `[D] Ane Mora purrs.`, `>> [D] Bob Smith@World: hi`). Your own messages use your character name. **Only you see them.**
    - Kinds: `say, shout, yell, p, alliance, fc, ls1`–`ls8`, `cwls1`–`cwls8`, `nn`, `e` (Echo: only you see it), `customemote`, or `off`.
    - Who can relay: `xl!setinboundperm owner` (default), `everyone`, or `role @SomeRole`.
-   - Discord reacts ✅ when a message reached the game and ⏸️ if you weren't logged in.
+   - Discord reacts 👁️ when a message was shown to you, ✅ when it was really sent, and ⏸️ if you weren't logged in.
    - A channel can be both: `setchannel fc` + `setinbound fc` gives you a two-way FC channel.
 5. **Replies.** Reply (Discord's reply button) to a relayed message and your reply goes to **where that message came from**: the same channel, or for a tell, back to that person. Non-replies use the channel's `setinbound` kind.
 6. **One-off channel override.** Start a message with `!e`, `!s`, `!fc`, `!l1`, `!cwl1`, `!p`, `!em`… to send just that message there, ignoring replies and the default. For a tell: `!t First Last@World message`. Unknown channels (typos) are rejected with ❌ instead of going anywhere.
 7. **Send as me (optional).** In `/dcp`, tick **Allow sending as my character**, then run `xl!togglesend` in that channel. Now **your own** messages there are said in game by your character (`/fc …`, or `/tell Name@World …` when replying to a tell), so the other players see them. Other people's messages are still only shown to you.
+
+**Telling them apart in game:** `[D]` = shown on your screen only (nobody else sees it). `[S]` = really sent by the plugin as your character. Only *your* screen shows the tag; others see your normal message. No tag = normal game chat you typed yourself.
 
 `xl!help` lists every Discord command. The `/dcp` window has the on/off switches.
 
