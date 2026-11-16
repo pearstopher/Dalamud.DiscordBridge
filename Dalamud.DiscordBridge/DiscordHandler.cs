@@ -352,7 +352,7 @@ namespace Dalamud.DiscordBridge
                         return;
 
                     foreach (var type in types)
-                        this.plugin.Config.PrefixConfigs.Remove(type);
+                        this.plugin.Config.PrefixConfigs.TryRemove(type, out _);
                     this.plugin.Config.Save();
 
                     await SendGenericEmbed(message.Channel,
@@ -373,7 +373,7 @@ namespace Dalamud.DiscordBridge
                     foreach (var type in types)
                     {
                         if (customName == "none" || customName.Length == 0)
-                            this.plugin.Config.CustomSlugsConfigs.Remove(type);
+                            this.plugin.Config.CustomSlugsConfigs.TryRemove(type, out _);
                         else
                             this.plugin.Config.CustomSlugsConfigs[type] = customName;
                     }
@@ -393,7 +393,7 @@ namespace Dalamud.DiscordBridge
                         return;
 
                     foreach (var type in types)
-                        this.plugin.Config.CustomSlugsConfigs.Remove(type);
+                        this.plugin.Config.CustomSlugsConfigs.TryRemove(type, out _);
                     this.plugin.Config.Save();
 
                     await SendGenericEmbed(message.Channel,
@@ -666,7 +666,7 @@ namespace Dalamud.DiscordBridge
                     foreach (var type in types)
                     {
                         if (reset)
-                            this.plugin.Config.ChatTypeAvatarURL.Remove(type);
+                            this.plugin.Config.ChatTypeAvatarURL.TryRemove(type, out _);
                         else
                             this.plugin.Config.ChatTypeAvatarURL[type] = avatarURL;
                     }
@@ -702,7 +702,7 @@ namespace Dalamud.DiscordBridge
                         return;
 
                     foreach (var type in types)
-                        this.plugin.Config.ChatTypeAvatarURL.Remove(type);
+                        this.plugin.Config.ChatTypeAvatarURL.TryRemove(type, out _);
                     this.plugin.Config.Save();
 
                     await SendGenericEmbed(message.Channel,
@@ -1182,7 +1182,7 @@ namespace Dalamud.DiscordBridge
         public async Task SendItemSaleEvent(ReadOnlySeString name, string iconurl, uint itemId, string message, XivChatType chatType)
         {
             var applicableChannels =
-                this.plugin.Config.ChannelConfigs.Where(x => ChatTypeGroups.Receives(x.Value, chatType));
+                this.plugin.Config.ChannelConfigs.Where(x => ChatTypeGroups.Receives(x.Value, chatType)).ToList(); // snapshot before awaiting (#46)
 
             if (!applicableChannels.Any())
                 return;
@@ -1314,7 +1314,7 @@ namespace Dalamud.DiscordBridge
         {
             if (ChannelLookup.ShouldForget(lookup))
             {
-                if (this.plugin.Config.ChannelConfigs.Remove(channelId))
+                if (this.plugin.Config.ChannelConfigs.TryRemove(channelId, out _))
                 {
                     Logger.Information("Removed channel {0}'s settings: Discord says the channel no longer exists.", channelId);
                     this.plugin.Config.Save();
@@ -1365,7 +1365,7 @@ namespace Dalamud.DiscordBridge
             }
 
             var applicableChannels =
-                this.plugin.Config.ChannelConfigs.Where(x => ChatTypeGroups.Receives(x.Value, chatType));
+                this.plugin.Config.ChannelConfigs.Where(x => ChatTypeGroups.Receives(x.Value, chatType)).ToList(); // snapshot before awaiting (#46)
 
             if (!applicableChannels.Any())
                 return;
@@ -1544,7 +1544,7 @@ namespace Dalamud.DiscordBridge
         public async Task SendContentFinderEvent(QueuedContentFinderEvent cfEvent)
         {
             var applicableChannels =
-                this.plugin.Config.ChannelConfigs.Where(x => x.Value.IsContentFinder);
+                this.plugin.Config.ChannelConfigs.Where(x => x.Value.IsContentFinder).ToList(); // snapshot before awaiting (#46)
 
             if (!applicableChannels.Any())
                 return;

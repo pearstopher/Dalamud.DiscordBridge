@@ -37,13 +37,18 @@ namespace Dalamud.DiscordBridge.Model
             SetUnique(new []{type});
         }
 
+        // Copy-on-write (#46): the relay queue may be reading ChatTypes while a command changes it, so changes build a
+        // new list and swap it in instead of modifying the one being read.
         public void SetUnique(IEnumerable<XivChatType> types)
         {
+            var updated = new List<XivChatType>(ChatTypes);
             foreach (var xivChatType in types)
             {
-                if (!ChatTypes.Contains(xivChatType))
-                    ChatTypes.Add(xivChatType);
+                if (!updated.Contains(xivChatType))
+                    updated.Add(xivChatType);
             }
+
+            ChatTypes = updated;
         }
 
         public void UnsetUnique(XivChatType type)
@@ -53,10 +58,13 @@ namespace Dalamud.DiscordBridge.Model
 
         public void UnsetUnique(IEnumerable<XivChatType> types)
         {
+            var updated = new List<XivChatType>(ChatTypes);
             foreach (var xivChatType in types)
             {
-                ChatTypes.Remove(xivChatType);
+                updated.Remove(xivChatType);
             }
+
+            ChatTypes = updated;
         }
     }
 

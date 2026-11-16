@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System.Collections.Concurrent;
+using System.Collections.Generic;
 using Dalamud.Configuration;
 using Dalamud.DiscordBridge.Model;
 using Dalamud.Game.Text;
@@ -20,12 +21,14 @@ namespace Dalamud.DiscordBridge
         public string DiscordBotPrefix { get; set; } = "xl!";
 
         public string DefaultAvatarURL = Constant.LogoLink;
-        public Dictionary<XivChatType, string> ChatTypeAvatarURL { get; set; } = [];
+        // Concurrent (#46): commands (Discord gateway), the relay queue and the UI read and write these at the same time.
+        // Same JSON shape as a plain Dictionary, so older configs load unchanged.
+        public ConcurrentDictionary<XivChatType, string> ChatTypeAvatarURL { get; set; } = new();
 
-        public Dictionary<ulong, DiscordChannelConfig> ChannelConfigs { get; set; } = [];
-        public Dictionary<XivChatType, string> PrefixConfigs { get; set; } = [];
+        public ConcurrentDictionary<ulong, DiscordChannelConfig> ChannelConfigs { get; set; } = new();
+        public ConcurrentDictionary<XivChatType, string> PrefixConfigs { get; set; } = new();
 
-        public Dictionary<XivChatType, string> CustomSlugsConfigs { get; set; } = [];
+        public ConcurrentDictionary<XivChatType, string> CustomSlugsConfigs { get; set; } = new();
         public string CFPrefixConfig { get; set; } = "";
         public bool ForceDefaultNameAvatar { get; set; } = false;
         public bool ForceEmbedFallbackMode { get; set; } = false;
@@ -83,9 +86,13 @@ namespace Dalamud.DiscordBridge
             this.pluginInterface = pluginInterface;
         }
 
+        [JsonIgnore] private readonly object saveLock = new();
+
+        /// <summary>Write the config file. Serialized (#46): two threads saving at once could collide on the file.</summary>
         public void Save()
         {
-            this.pluginInterface.SavePluginConfig(this);
+            lock (this.saveLock)
+                this.pluginInterface.SavePluginConfig(this);
         }
     }
 }
