@@ -15,7 +15,7 @@ All source is in `Dalamud.DiscordBridge/`.
 | `Configuration.cs` | `IPluginConfiguration` persisted by Dalamud as JSON. Bot token, owner, command prefix, per-channel subscriptions, prefixes, custom slugs, avatars, display toggles, duplicate window. |
 | `Model/DiscordChannelConfig.cs` | Per-Discord-channel settings: subscribed `ChatTypes`, cached `WebhookId`, `IsContentFinder` (duty pop notifications). `IsBidirectional` exists but isn't used. |
 | `Model/Queued*Event.cs` | Queue payloads. `QueuedXivEvent` (abstract base), `QueuedChatEvent`, `QueuedRetainerItemSaleEvent`, `QueuedContentFinderEvent`. |
-| `DiscordMessageQueue.cs` | `ConcurrentQueue<QueuedXivEvent>` drained by a dedicated thread. Resolves sender name/world from SeString payloads, flattens SeString to Discord markdown, and dispatches to the right `DiscordHandler.Send*` method. |
+| `DiscordMessageQueue.cs` | `ConcurrentQueue<QueuedXivEvent>` drained in order by one background task (semaphore-signalled, no busy-wait). Resolves sender name/world from SeString payloads, flattens SeString to Discord markdown, and dispatches to the right `DiscordHandler.Send*` method. |
 | `DiscordHandler.cs` | Owns the `DiscordSocketClient`. Login/start, presence, **all Discord text commands** (`SocketClientOnMessageReceived`), `SendChatEvent` / `SendItemSaleEvent` / `SendContentFinderEvent`, webhook get-or-create, Lodestone avatar lookups (NetStone) with an in-memory cache. |
 | `DuplicationFilter.cs` | `DuplicateFilter`: watches webhook messages in Discord and suppresses/deletes duplicates within `DuplicateCheckMS`. Useful when several players in the same FC/LS each run the plugin into the same channel. |
 | `ContentParser.cs` | Regex parser for the posted format `{prefix}**[{slug}]** {text}`, used by the duplicate filter to compare messages. |
@@ -97,7 +97,7 @@ All commands are handled in `DiscordHandler.SocketClientOnMessageReceived`, a lo
 | Context | What runs there | Rules |
 |---|---|---|
 | Game/framework thread | Dalamud event callbacks, ImGui `Draw`, slash commands | Must return quickly. Never block on network I/O. Game state (`IClientState`, `IObjectTable`, `IPlayerState`, Excel sheets) is safest read here; use `Service.Framework.RunOnFrameworkThread` from elsewhere. |
-| Queue thread | `DiscordMessageQueue.RunMessageQueue` (`async void` on a `Thread`; continues on the thread pool after awaits) | Serial processing keeps message order. Every event is wrapped in try/catch so one failure doesn't kill the loop (one bug violates this: #4). |
+| Queue task | `DiscordMessageQueue.RunAsync`: one background task that sleeps on a `SemaphoreSlim` until `Enqueue` signals it, and is cancelled by `Stop()` | Serial processing keeps message order. Each event is processed in its own try/catch, so one failure never ends the loop. `Start()` is idempotent, and `Stop()` waits up to 2 s for an in-flight event. |
 | Discord.Net gateway | `Ready`, `MessageReceived` handlers (commands, duplicate filter) | Don't block the gateway. Shared state touched here and on the queue thread needs synchronization (#7). |
 
 `Configuration` is mutated from both the gateway (commands) and the queue (webhook ID caching, removing dead channels) without locking. Be careful when adding new mutation points.
@@ -122,4 +122,4 @@ All commands are handled in `DiscordHandler.SocketClientOnMessageReceived`, a lo
 
 ## Known issues (tracked)
 
-#4 queue thread can die / busy-spins · #5 DM channels throw · #6 leaked event handlers on dispose · #7 duplicate filter compares offsets, not thread-safe · #8 custom emotes never applied.
+#5 DM channels throw · #6 leaked event handlers on dispose · #7 duplicate filter compares offsets, not thread-safe · #8 custom emotes never applied.
