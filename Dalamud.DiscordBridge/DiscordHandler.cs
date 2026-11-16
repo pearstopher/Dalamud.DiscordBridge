@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Concurrent;
 using System.Linq;
 using System.Threading.Tasks;
@@ -172,6 +172,10 @@ namespace Dalamud.DiscordBridge
             this.specialChars.TryFindEmote(this.socketClient);
 
             Logger.Verbose("DiscordHandler READY!!");
+
+            // Ready also fires on every gateway reconnect; the plugin-level gate makes this post once per load.
+            if (this.plugin.Status.TryBeginOnline() && this.plugin.Config.PostStatusMessages)
+                _ = Task.Run(this.AnnounceOnlineAsync);
             
             return Task.CompletedTask;
         }
@@ -711,6 +715,21 @@ namespace Dalamud.DiscordBridge
                     return;
                 }
 
+                if (args[0] == this.plugin.Config.DiscordBotPrefix + "togglestatus" &&
+                    await EnsureOwner(message.Author, message.Channel))
+                {
+                    this.plugin.Config.PostStatusMessages = !this.plugin.Config.PostStatusMessages;
+                    this.plugin.Config.Save();
+
+                    await SendGenericEmbed(message.Channel,
+                        this.plugin.Config.PostStatusMessages
+                            ? "OK! The bot will post 🟢 online / 🔴 offline in every bridged channel when the plugin starts and stops."
+                            : "OK! The bot won't post online / offline messages any more.",
+                        "Status messages", EmbedColorFine);
+
+                    return;
+                }
+
                 if (args[0] == this.plugin.Config.DiscordBotPrefix + "toggleembed" &&
                     await EnsureOwner(message.Author, message.Channel))
                 {
@@ -1083,6 +1102,7 @@ namespace Dalamud.DiscordBridge
                         .AddField($"{this.plugin.Config.DiscordBotPrefix}setinboundperm <owner|everyone|role @role>", "Choose who can relay messages from this channel into the game. Default: owner only.")
                         .AddField($"{this.plugin.Config.DiscordBotPrefix}toggledefaultnameavatar","Enable or disable sending webhook messages using your configured bot's name and the default bot avatar.\n**WARNING:**This should be combined with enabling the `togglesender` function or you will be removing any distinction between different player messages.")
                         .AddField($"{this.plugin.Config.DiscordBotPrefix}toggledf", "Enable or disable sending duty finder updates to this channel.")
+                        .AddField($"{this.plugin.Config.DiscordBotPrefix}togglestatus", "Enable or disable the 🟢 online / 🔴 offline posts in every bridged channel when the plugin starts and stops (game opened/closed, plugin loaded/unloaded). On by default. A crash posts nothing.")
                         .AddField($"{this.plugin.Config.DiscordBotPrefix}toggleembed", "Enable or disable sending messages as Webhooks (default) or Embeds (Fallback mode)")
                         .AddField($"{this.plugin.Config.DiscordBotPrefix}togglesender", "Enable or disable sending messages with the sender name in the message.")
                         .AddField($"{this.plugin.Config.DiscordBotPrefix}setduplicatems", "Set time in milliseconds that the bot will check to see if any past messages were the same. Default is 5000 ms.")
@@ -1356,6 +1376,65 @@ namespace Dalamud.DiscordBridge
                 ReplyToContent = reply.Content,
                 ReplyToIsRelay = reply.IsRelay,
             };
+        }
+
+        private static string PluginVersion => Service.Interface.Manifest.AssemblyVersion?.ToString() ?? "?";
+
+        private async Task AnnounceOnlineAsync()
+        {
+            try
+            {
+                var character = await Service.Framework.RunOnFrameworkThread(() =>
+                    Service.State.IsLoggedIn && !string.IsNullOrEmpty(Service.PlayerState.CharacterName)
+                        ? $"{Service.PlayerState.CharacterName}＠{Service.PlayerState.HomeWorld.Value.Name}"
+                        : null);
+                await this.AnnounceStatusAsync(StatusAnnouncer.OnlineTitle, StatusAnnouncer.OnlineText(PluginVersion, character), EmbedColorFine);
+            }
+            catch (Exception ex)
+            {
+                Logger.Warning(ex, "Could not post the online status message.");
+            }
+        }
+
+        /// <summary>
+        /// Posts the offline message on plugin unload (#34). Blocks the calling thread for at most
+        /// <paramref name="timeout"/>, so unloading never hangs; failures are logged and ignored.
+        /// </summary>
+        internal void AnnounceOffline(TimeSpan timeout)
+        {
+            if (this.State != DiscordState.Ready || !this.plugin.Status.TryBeginOffline() || !this.plugin.Config.PostStatusMessages)
+                return;
+
+            try
+            {
+                var text = StatusAnnouncer.OfflineText(PluginVersion);
+                // Task.Run: never resume on the framework thread we're blocking.
+                if (!Task.Run(() => this.AnnounceStatusAsync(StatusAnnouncer.OfflineTitle, text, EmbedColorError)).Wait(timeout))
+                    Logger.Warning("Offline status message timed out after {0} ms.", timeout.TotalMilliseconds);
+            }
+            catch (Exception ex)
+            {
+                Logger.Warning(ex, "Could not post the offline status message.");
+            }
+        }
+
+        private async Task AnnounceStatusAsync(string title, string text, uint color)
+        {
+            var sends = StatusAnnouncer.TargetChannels(this.plugin.Config.ChannelConfigs).Select(async channelId =>
+            {
+                try
+                {
+                    var channel = this.socketClient.GetChannel(channelId) as IMessageChannel
+                                  ?? await this.socketClient.GetChannelAsync(channelId) as IMessageChannel;
+                    if (channel != null)
+                        await SendGenericEmbed(channel, text, title, color);
+                }
+                catch (Exception ex)
+                {
+                    Logger.Debug(ex, "Status message not posted to channel {0}.", channelId);
+                }
+            });
+            await Task.WhenAll(sends);
         }
 
         /// <summary>

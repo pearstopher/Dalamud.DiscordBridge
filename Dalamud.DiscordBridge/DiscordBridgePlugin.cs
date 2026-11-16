@@ -40,6 +40,9 @@ namespace Dalamud.DiscordBridge
         /// </summary>
         internal Action<XivChatType, string, bool>? ChatObserver;
 
+        /// <summary>Once-per-load gate for the online/offline posts; survives DiscordHandler recreation (#34).</summary>
+        internal readonly StatusAnnouncer Status = new();
+
         /// <summary>Converts inbound Discord messages to game-safe text.</summary>
         internal readonly DiscordToGameConverter InboundConverter = new();
 
@@ -493,7 +496,9 @@ namespace Dalamud.DiscordBridge
             this.SelfTests?.Dispose();
 
             this.DiscordBridgeProvider.Dispose();
-            
+
+            // Only on a real unload; DiscordHandler.Dispose also runs when /dcp Save recreates the handler.
+            this.Discord.AnnounceOffline(TimeSpan.FromSeconds(3));
             this.Discord.Dispose();
 
             this.commandManager.Dispose();

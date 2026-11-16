@@ -21,6 +21,7 @@ Square Enix's terms prohibit third-party tools in general. These rules are the D
 | XIVAPI icon URLs | ✅ Yes | Public web assets. |
 | IPC `DiscordBridge.SendMessage` | ✅ Yes | Other plugins post to Discord. No game interaction. |
 | Discord configuration commands | ✅ Yes | Discord-only. |
+| Online/offline status posts (#34) | ✅ Yes | Discord-only: the bot posts when the plugin loads and unloads. No game interaction. |
 | Debug commands (`/dcpdebug`, `/dcpsaledebug`, `/dcpprintlist`, `/dcpin`) | ✅ Yes | Local only. |
 | Developer self-tests (`/dcptest`, dev builds only) | ✅ Yes (except opt-in `send.tell-self`: ⚠️ sends one real tell, to yourself only) | Local checks. The default send test uses `/e` (Echo), which never reaches the server. The optional Discord round trip posts and deletes one message in the owner's chosen channel. |
 | `/dcpsend` debug command | ✅ Yes | You type it in game yourself (direct input), like typing the chat line. |

@@ -24,6 +24,7 @@ All source is in `Dalamud.DiscordBridge/`.
 | `InboundSender.cs` | "Send as me": types the owner's converted message into the chat box (`UIModule.ProcessChatBoxEntry`, framework thread) after `Utf8String.SanitizeString` must leave it unchanged. Registers the echo with the guard and returns an `InboundOutcome` (result + reason). |
 | `GameChatCommand.cs` | Pure: chat type → command (`/s /sh /y /p /a /fc /l1-8 /cwl1-8 /e /em`), builds `"/fc text"` and rejects unsupported channels, empty text, leading `/`, line breaks, >500 bytes. Also `SendRateLimiter` (≥2 s apart, ≤5 waiting). |
 | `ChatTypeGroups.cs` | Pure chat-type groups: `Receives` (a channel gets a type it's subscribed to, plus GM messages of the matching player channel: GM tell ↔ tells, GM FC ↔ FC, GM LS1–8 ↔ LS1–8, GM say/shout/yell/party/NN), and `PlayerChat` (the `setup` preset). |
+| `StatusAnnouncer.cs` | Pure helpers for the 🟢 online / 🔴 offline posts (#34): target channels (any chat kinds, duty pops or inbound), text, and a once-per-load gate held by the plugin (`DiscordBridgePlugin.Status`), so gateway reconnects and `/dcp` Save never repost. |
 | `SanePreset.cs` | The `setup` command (pure): player chat both ways for one channel, notifications off, Echo inbound default, display options reset. Never touches identity, customizations, other channels or the send-as-me opt-in. |
 | `ChatContentFormat.cs` | Pure formatting of relayed lines for Discord: `{prefix}**[{slug}]** {body}`, the body with sender and `→ Recipient` for outgoing tells, and cleaning raw tell-recipient text. Parsed back by `ContentParser`. |
 | `ChannelOverride.cs` | Pure parser for one-message overrides typed in Discord (`!e`, `!fc`, `!l1`/`!ls1`, `!cwl1`, `!em`, `!t First Last@World …`). Precedence: override > reply routing > `setinbound` default. Unknown `!word` → ❌, not relayed. |
@@ -53,10 +54,11 @@ All source is in `Dalamud.DiscordBridge/`.
    - The IPC provider and `DiscordHandler` are created. `DiscordHandler` creates the socket client, `SpecialCharsHandler`, `DiscordMessageQueue`, and `DuplicateFilter`.
    - `Task.Run` performs `Discord.Start()` (login, start the queue thread, create the Lodestone client) and sets idle presence. If already logged in, it caches the player name/world on the framework thread.
    - The UI draw hook, the chat/CF/login/logout/territory/framework events, and the slash commands are registered.
+   - On the **first** Discord `Ready` of this load, if `PostStatusMessages`, the bot posts 🟢 *Online* (version, logged-in character) as an embed in every channel from `StatusAnnouncer.TargetChannels`.
 2. **Login**: caches player name/world, sets online presence, restarts the queue if it was stopped.
 3. **Logout**: stops and clears the queue, sets idle presence.
 4. **Territory change**: refreshes the cached player name/world.
-5. **Dispose**: disposes IPC, `DiscordHandler` (stops the queue, logs out the socket), the command manager, and UI hooks, saves the config, and unsubscribes events.
+5. **Dispose**: disposes IPC, posts 🔴 *Offline* (`DiscordHandler.AnnounceOffline`, only if online was posted this load; blocks unload for at most 3 s), disposes `DiscordHandler` (stops the queue, logs out the socket), the command manager, and UI hooks, saves the config, and unsubscribes events.
 
 ## Message flow (chat line → Discord)
 
@@ -132,6 +134,7 @@ All commands are handled in `DiscordHandler.SocketClientOnMessageReceived`, a lo
 | `setchattypename <kinds> <text>` / `unsetchattypename <kind>` | Override the `[slug]` label. |
 | `setcfprefix <prefix\|none>` | Prefix for duty-pop posts. |
 | `toggledf` | Toggle duty-pop notifications for this channel. |
+| `togglestatus` | Global: online/offline posts on plugin load/unload (`PostStatusMessages`, default on). |
 | `toggleembed` | Global: post as embeds instead of webhooks. |
 | `toggledefaultnameavatar` | Global: webhook uses the bot name/default avatar instead of the player's. |
 | `togglesender` | Global: put `Name＠World:` in the message text. |

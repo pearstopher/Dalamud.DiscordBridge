@@ -31,6 +31,9 @@ namespace Dalamud.DiscordBridge
         public bool ForceEmbedFallbackMode { get; set; } = false;
         public bool SenderInMessage { get; set; } = false;
 
+        /// <summary>Post "online" / "offline" in every bridged channel when the plugin loads and unloads (#34).</summary>
+        public bool PostStatusMessages { get; set; } = true;
+
         // Discord → game (inbound). Which channels relay in is per channel (DiscordChannelConfig.InboundChatType).
 
         /// <summary>Global kill switch for showing Discord messages in the chat log.</summary>
