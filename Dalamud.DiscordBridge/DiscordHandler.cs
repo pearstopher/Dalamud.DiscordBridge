@@ -301,14 +301,6 @@ namespace Dalamud.DiscordBridge
             if (!args[0].StartsWith(this.plugin.Config.DiscordBotPrefix))
                 return;
 
-            /*
-            // this is only needed for debugging purposes.
-            foreach (var s in args)
-            {
-                Logger.Verbose(s);
-            }
-            */
-
             Logger.Verbose("Received command: {0}", args[0]);
 
             try

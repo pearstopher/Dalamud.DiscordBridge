@@ -483,9 +483,6 @@ namespace Dalamud.DiscordBridge
 
         public static XivChatTypeInfo GetInfo(this XivChatType type)
         {
-            // if (type == XivChatType.TellOutgoing)
-            //     type = XivChatType.TellIncoming;
-
             if (TypeInfoDict.TryGetValue((XivChatType)((int)type & 0x7F), out var info))
                 return info;
 
