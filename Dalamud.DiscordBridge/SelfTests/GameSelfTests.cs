@@ -355,8 +355,11 @@ namespace Dalamud.DiscordBridge.SelfTests
 
             var me = string.IsNullOrEmpty(plugin.cachedPlayerName) ? "Test Player＠World" : $"{plugin.cachedPlayerName}＠{plugin.cachedPlayerWorld}";
             var tag = NewTag();
-            var cases = new (string Content, ReplyTarget Expected)[]
+            var cases = new (string Content, ReplyTarget? Expected)[]
             {
+                // null = must be blocked (GM, retainer sale): never routed, never the default.
+                ($"**[gmtell]** {tag} reply test GM", null),
+                ($"**[retainersale]** {tag} reply test R", null),
                 ($"**[say]** {tag} reply test A", new ReplyTarget(XivChatType.Say, null)),
                 ($"**[ls1]** {tag} reply test B", new ReplyTarget(XivChatType.Ls1, null)),
                 ($"**[tell]** → Bob Smith＠Gilgamesh: {tag} reply test C", new ReplyTarget(XivChatType.TellOutgoing, "Bob Smith＠Gilgamesh")),
@@ -387,16 +390,19 @@ namespace Dalamud.DiscordBridge.SelfTests
                     };
 
                     // Parsed from the message itself (as after a reload)...
-                    var parsed = ReplyRouting.Resolve(draft, new RelayedMessageIndex(), plugin.Config.CustomSlugsConfigs);
-                    // ...and from the in-memory index (as right after relaying).
-                    var index = new RelayedMessageIndex();
-                    index.Record(posted[i], cases[i].Expected);
-                    var indexed = ReplyRouting.Resolve(draft, index, plugin.Config.CustomSlugsConfigs);
+                    var parsed = ReplyRouting.Decide(draft, new RelayedMessageIndex(), plugin.Config.CustomSlugsConfigs);
+                    if (!Matches(parsed, cases[i].Expected))
+                        failures.Add($"case {i + 1} parsed → {parsed.Kind} {parsed.Target?.ToString() ?? parsed.Reason} (relay={fields.IsRelay}, author='{fields.Author}', content='{fields.Content}')");
 
-                    if (parsed != cases[i].Expected)
-                        failures.Add($"{(char)('A' + i)} parsed → {parsed?.ToString() ?? "default"} (relay={fields.IsRelay}, author='{fields.Author}', content='{fields.Content}')");
-                    if (indexed != cases[i].Expected)
-                        failures.Add($"{(char)('A' + i)} indexed → {indexed?.ToString() ?? "default"}");
+                    // ...and from the in-memory index (as right after relaying), for routable cases.
+                    if (cases[i].Expected is { } expected)
+                    {
+                        var index = new RelayedMessageIndex();
+                        index.Record(posted[i], expected);
+                        var indexed = ReplyRouting.Decide(draft, index, plugin.Config.CustomSlugsConfigs);
+                        if (!Matches(indexed, expected))
+                            failures.Add($"case {i + 1} indexed → {indexed.Kind} {indexed.Target?.ToString() ?? indexed.Reason}");
+                    }
                 }
             }
             finally
@@ -408,9 +414,12 @@ namespace Dalamud.DiscordBridge.SelfTests
             }
 
             return failures.Count == 0
-                ? SelfTestResult.Pass($"{cases.Length} relay messages in #{channel.Name} route replies correctly (parsed and indexed)")
+                ? SelfTestResult.Pass($"{cases.Length} relay messages in #{channel.Name}: replies routed correctly, GM and retainer replies blocked")
                 : SelfTestResult.Fail(string.Join(" | ", failures));
         }
+
+        private static bool Matches(ReplyDecision decision, ReplyTarget? expected)
+            => expected is { } e ? decision.Kind == ReplyKind.Route && decision.Target == e : decision.Kind == ReplyKind.Blocked;
 
         private static InboundDiscordMessage FakeMessage(XivChatType target, bool isOwner) => new()
         {

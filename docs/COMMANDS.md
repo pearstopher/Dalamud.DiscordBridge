@@ -48,8 +48,9 @@ Kinds are chat-type names such as `say`, `fc`, `ls1`, `cwls1`, `p`, `tell`, `e` 
    | `!t First Last@World text` / `!tell …` | A tell to that person (`@World` optional) |
 
    An unknown `!word` (typo) gets ❌ plus a reply, and goes nowhere. Text like `!!!` or `! hi` is a normal message.
-2. **Reply** (Discord's reply button) to a relayed message → back where it came from: the same channel, or for a tell, that person. A custom emote → custom emote. Standard emotes and system messages fall through to the default.
-3. **Default:** the channel's `setinbound` kind.
+2. **Reply** (Discord's reply button) to a relayed message → back where it came from: the same channel, or for a tell, that person. A custom emote → custom emote.
+   **Replies only work for channels you can talk in.** A reply to a relay from a **GM channel** (GM tell/say/shout/yell/party/FC/linkshell/novice network), a **retainer sale**, a system/loot/battle/NPC message, a standard emote, or anything whose channel can't be determined is **blocked**: ❌ plus a reply saying why. Nothing is shown or sent, and it never falls back to the default. To answer anyway, start the message with a `!channel` prefix. There is no `!` prefix for GM channels, and the plugin never sends to them.
+3. **Default:** the channel's `setinbound` kind (for messages that aren't replies, or replies to someone's Discord message rather than a relay).
 
 **Shown vs sent:** without send-as-me, messages are only *shown* on your screen (`[D]`). With send-as-me on, the **owner's** messages are *sent* through the game (`[S]` on your screen). Everyone else's are always only shown. Sending refuses text starting with `/`, over 500 bytes, or faster than one per 2 s (with a ❌ and a reply saying why).
 
