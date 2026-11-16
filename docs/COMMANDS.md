@@ -4,6 +4,12 @@ Everything you can type, in Discord and in game. Discord commands use the bot pr
 
 Kinds are chat-type names such as `say`, `fc`, `ls1`, `cwls1`, `p`, `tell`, `e` (Echo), `customemote`. In game, `/dcpprintlist` prints the full list.
 
+## Discord: one-command setup
+
+| Command | Who | What it does |
+|---|---|---|
+| `xl!setup` | Owner | **Start here.** Sane settings for this channel in one go. **Game → Discord:** all player chat (say, shout, yell, tells, party, alliance, PvP team, FC, LS1–8, CWLS1–8, Novice Network, emotes; GM messages in those come along). This *replaces* the list, so retainer sales, system/loot/battle/NPC messages, Echo relays and Duty Finder pops are **off**. **Discord → game:** default Echo, owner only (replies and `!` prefixes reach every player channel). **Display:** shown in game, reactions and `[S]` tags on; Echo mode, sender-in-message, embed fallback, bot-name override off; duplicate window 5000 ms. **Never touched:** token, owner, prefix, your per-kind prefixes/names/avatars, other channels, and send-as-me (stays opt-in). Safe to run again. |
+
 ## Discord: game → Discord (what gets relayed to this channel)
 
 | Command | Who | What it does | Example |
