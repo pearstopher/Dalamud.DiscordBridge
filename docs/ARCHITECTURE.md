@@ -13,10 +13,13 @@ All source is in `Dalamud.DiscordBridge/`.
 | `DiscordBridgePlugin.cs` | `IDalamudPlugin` entry point. Loads/sanitizes config, creates every component, subscribes to Dalamud events, registers `/dcp` and debug commands, and caches the local player's name/world. Holds the static `DiscordBridgePlugin.Plugin` instance. |
 | `Service.cs` | Static Dalamud service locator (`[PluginService]` properties: `Interface`, `State`, `PlayerState`, `ObjectTable`, `Chat`, `Data`, `Logger`, `Framework`), filled by `pluginInterface.Create<Service>()`. |
 | `Configuration.cs` | `IPluginConfiguration` persisted by Dalamud as JSON. Bot token, owner, command prefix, per-channel subscriptions, prefixes, custom slugs, avatars, display toggles, duplicate window. |
-| `Model/DiscordChannelConfig.cs` | Per-Discord-channel settings: subscribed `ChatTypes`, cached `WebhookId`, `IsContentFinder` (duty pop notifications). `IsBidirectional` exists but isn't used. |
+| `Model/DiscordChannelConfig.cs` | Per-Discord-channel settings: subscribed `ChatTypes` (outbound), cached `WebhookId`, `IsContentFinder` (duty pop notifications), and inbound: `InboundChatType` (null = off), `InboundPermission` (`OwnerOnly`/`Role`/`Everyone`), `InboundRoleId`. `IsBidirectional` is obsolete and never used. |
 | `Model/Queued*Event.cs` | Queue payloads. `QueuedXivEvent` (abstract base), `QueuedChatEvent`, `QueuedRetainerItemSaleEvent`, `QueuedContentFinderEvent`. |
 | `DiscordMessageQueue.cs` | `ConcurrentQueue<QueuedXivEvent>` drained in order by one background task (semaphore-signalled, no busy-wait). Resolves sender name/world from SeString payloads, flattens SeString to Discord markdown, and dispatches to the right `DiscordHandler.Send*` method. |
 | `DiscordHandler.cs` | Owns the `DiscordSocketClient`. Login/start, presence, **all Discord text commands** (`SocketClientOnMessageReceived`), `SendChatEvent` / `SendItemSaleEvent` / `SendContentFinderEvent`, webhook get-or-create, Lodestone avatar lookups (NetStone) with an in-memory cache. |
+| `SerialWorkQueue.cs` | Generic in-order work queue (one background task, semaphore-signalled, per-item try/catch). Base of `DiscordMessageQueue` and the inbound queue. |
+| `InboundRules.cs` | Pure rules for Discord → game: allowed target chat types and slugs, `setinbound`/`setinboundperm` parsing, owner check (`IsOwner`, also used by `EnsureOwner`), sender permission, and which Discord messages qualify. |
+| `Model/InboundDiscordMessage.cs` | Discord-free snapshot of a message to relay into the game (author, owner flag, target chat type, content, attachments, stickers, reply author). |
 | `DuplicationFilter.cs` | `DuplicateFilter`: watches webhook messages in Discord and suppresses/deletes duplicates within `DuplicateCheckMS`. Useful when several players in the same FC/LS each run the plugin into the same channel. |
 | `ContentParser.cs` | Regex parser for the posted format `{prefix}**[{slug}]** {text}`, used by the duplicate filter to compare messages. |
 | `SpecialCharsHandler.cs` | Maps FFXIV private-use glyphs (U+E020–U+E0DB: HQ, auto-translate brackets, boxed letters/numbers, time icons…) to Unicode/emoji or custom guild emotes (`xivAtl`, `xivAtr`, `xivHq`). |
@@ -75,6 +78,23 @@ Content-finder pops go to channels with `IsContentFinder` as an embed (duty name
 
 Other plugins can call IPC `DiscordBridge.SendMessage`, which enqueues a `QueuedChatEvent` with `ChatType = IpcChatType` (99). For that type, `SendChatEvent` omits the `**[slug]**` tag and the world.
 
+## Inbound flow (Discord → game)
+
+```
+Discord message ─► DiscordHandler.SocketClientOnMessageReceived     (gateway)
+     │  ignore bots/webhooks (our own relays are webhooks)
+     ▼
+  TryRouteInbound: channel has InboundChatType, isn't a command (InboundRules.ShouldRelay),
+                   author passes InboundRules.IsAllowedSender (owner always; else role/everyone)
+     │  snapshot → InboundDiscordMessage
+     ▼
+  DiscordHandler.InboundQueue (SerialWorkQueue, in order)
+     ▼
+  processor: currently logs at Debug. #14 converts the text, #15 prints it in the chat log, #16 sends it as the owner.
+```
+
+Commands that start with the bot prefix are never relayed. A message that doesn't pass the permission check is dropped silently (logged at Debug).
+
 ## Discord commands
 
 All commands are handled in `DiscordHandler.SocketClientOnMessageReceived`, a long `if (args[0] == prefix + "name" && await EnsureOwner(...))` chain. The prefix is `Configuration.DiscordBotPrefix`, default `xl!`. Messages from bots and webhooks are ignored. `EnsureOwner` matches `DiscordOwnerName` against `username#discriminator`, bare `username` (new-style accounts, discriminator `0000`), or a numeric user ID.
@@ -82,7 +102,9 @@ All commands are handled in `DiscordHandler.SocketClientOnMessageReceived`, a lo
 | Command | Effect |
 |---|---|
 | `setchannel <kinds>` / `unsetchannel <kinds>` | Add/remove chat types for this channel. `any` = `DefaultChatTypes`, `tell` = in+out, `p` = party+cross-party. |
-| `listchannel` | Show this channel's chat types. |
+| `listchannel` | Show this channel's chat types and inbound setting. |
+| `setinbound <kind\|off>` | Relay messages posted in this channel into the game as `<kind>` (`say, shout, yell, p, alliance, fc, ls1–8, cwls1–8, nn, e`). |
+| `setinboundperm <owner\|everyone\|role @role>` | Who may relay from this channel (default owner only; the owner is always allowed). |
 | `setprefix <kinds> <prefix>` / `unsetprefix <kind>` | Per-type text/emoji prefix. |
 | `setchattypename <kinds> <text>` / `unsetchattypename <kind>` | Override the `[slug]` label. |
 | `setcfprefix <prefix\|none>` | Prefix for duty-pop posts. |

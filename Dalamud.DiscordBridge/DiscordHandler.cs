@@ -88,6 +88,12 @@ namespace Dalamud.DiscordBridge
         /// </summary>
         public readonly DiscordMessageQueue MessageQueue;
 
+        /// <summary>
+        /// Discord messages waiting to be relayed into the game (Discord → FFXIV), processed in order.
+        /// The processor is replaced by the inbound display/send pipeline; by default it only logs.
+        /// </summary>
+        public readonly SerialWorkQueue<InboundDiscordMessage> InboundQueue;
+
         private LodestoneClient lodestoneClient;
 
         public DiscordHandler(DiscordBridgePlugin plugin)
@@ -97,6 +103,11 @@ namespace Dalamud.DiscordBridge
             this.specialChars = new SpecialCharsHandler();
 
             this.MessageQueue = new DiscordMessageQueue(this.plugin);
+            this.InboundQueue = new SerialWorkQueue<InboundDiscordMessage>("Inbound queue", inbound =>
+            {
+                Logger.Debug("Inbound message {0} from {1} queued for {2}.", inbound.MessageId, inbound.AuthorName, inbound.TargetType);
+                return Task.CompletedTask;
+            });
 
             Logger.Debug("BEFORE DiscordSocketClient");
             this.socketClient = new DiscordSocketClient(new DiscordSocketConfig
@@ -133,6 +144,7 @@ namespace Dalamud.DiscordBridge
             }
 
             this.MessageQueue.Start();
+            this.InboundQueue.Start();
 
             lodestoneClient = await LodestoneClient.GetClientAsync();
 
@@ -179,6 +191,17 @@ namespace Dalamud.DiscordBridge
         {
             if (message.Author.IsBot || message.Author.IsWebhook)
                 return;
+
+            try
+            {
+                if (TryRouteInbound(message))
+                    return;
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "Could not route Discord message into the game.");
+                return;
+            }
 
             var args = message.Content.Split();
 
@@ -726,6 +749,52 @@ namespace Dalamud.DiscordBridge
                     return;
                 }
 
+                if (args[0] == this.plugin.Config.DiscordBotPrefix + "setinbound" &&
+                    await EnsureOwner(message.Author, message.Channel))
+                {
+                    if (!InboundRules.TryParseTarget(args.Length > 1 ? args[1] : null, out var target, out var error))
+                    {
+                        await SendGenericEmbed(message.Channel, error, "Error", EmbedColorError);
+                        return;
+                    }
+
+                    if (!this.plugin.Config.ChannelConfigs.TryGetValue(message.Channel.Id, out var config))
+                        config = new DiscordChannelConfig();
+
+                    config.InboundChatType = target;
+                    this.plugin.Config.ChannelConfigs[message.Channel.Id] = config;
+                    this.plugin.Config.Save();
+
+                    await SendGenericEmbed(message.Channel,
+                        $"OK! {InboundRules.Describe(config)}\n\n" +
+                        (target == null
+                            ? "Messages in this channel won't be shown in game."
+                            : $"Messages posted here will be shown in your in-game chat. Use ``{this.plugin.Config.DiscordBotPrefix}setinboundperm`` to choose who can relay."),
+                        "Inbound relay set", EmbedColorFine);
+                    return;
+                }
+
+                if (args[0] == this.plugin.Config.DiscordBotPrefix + "setinboundperm" &&
+                    await EnsureOwner(message.Author, message.Channel))
+                {
+                    if (!InboundRules.TryParsePermission(args.Skip(1).ToArray(), out var permission, out var roleId, out var error))
+                    {
+                        await SendGenericEmbed(message.Channel, error, "Error", EmbedColorError);
+                        return;
+                    }
+
+                    if (!this.plugin.Config.ChannelConfigs.TryGetValue(message.Channel.Id, out var config))
+                        config = new DiscordChannelConfig();
+
+                    config.InboundPermission = permission;
+                    config.InboundRoleId = roleId;
+                    this.plugin.Config.ChannelConfigs[message.Channel.Id] = config;
+                    this.plugin.Config.Save();
+
+                    await SendGenericEmbed(message.Channel, $"OK! {InboundRules.Describe(config)}", "Inbound permission set", EmbedColorFine);
+                    return;
+                }
+
                 if (args[0] == this.plugin.Config.DiscordBotPrefix + "listchannel" &&
                     await EnsureOwner(message.Author, message.Channel))
                 {
@@ -737,16 +806,18 @@ namespace Dalamud.DiscordBridge
                         return;
                     }
 
-                    if (config == null || config.ChatTypes.Count == 0) 
+                    var inboundLine = InboundRules.Describe(config);
+
+                    if (config.ChatTypes.Count == 0)
                     {
                         await SendGenericEmbed(message.Channel,
-                            $"There are no channel kinds set for this channel right now.\nPlease use the ``{this.plugin.Config.DiscordBotPrefix}setchannel`` command to do this.",
+                            $"There are no channel kinds set for this channel right now.\nPlease use the ``{this.plugin.Config.DiscordBotPrefix}setchannel`` command to do this.\n\n{inboundLine}",
                             "Error", EmbedColorFine);
                         return;
                     }
 
                     await SendGenericEmbed(message.Channel,
-                        $"OK! This channel has been set to receive the following chat kinds:\n\n```\n{config.ChatTypes.Select(x => $"{x.GetFancyName()}").Aggregate((x, y) => x + "\n" + y)}```",
+                        $"OK! This channel has been set to receive the following chat kinds:\n\n```\n{config.ChatTypes.Select(x => $"{x.GetFancyName()}").Aggregate((x, y) => x + "\n" + y)}```\n{inboundLine}",
                         "Chat kinds set", EmbedColorFine);
 
                     return;
@@ -939,7 +1010,11 @@ namespace Dalamud.DiscordBridge
                                                  $"See [this link for a list of all available chat kinds]({Constant.KindListLink}) or type ``any`` to enable it for all regular chat messages.")
                         //$"The following chat kinds are available:\n```all - All regular chat\n{XivChatTypeExtensions.TypeInfoDict.Select(x => $"{x.Value.Slug} - {x.Value.FancyName}").Aggregate((x, y) => x + "\n" + y)}```")
                         .AddField($"{this.plugin.Config.DiscordBotPrefix}unsetchannel", "Works like the previous command, but removes kinds of chat from the list of kinds that are sent to this channel.")
-                        .AddField($"{this.plugin.Config.DiscordBotPrefix}listchannel", "List all chat kinds that are sent to this channel.")
+                        .AddField($"{this.plugin.Config.DiscordBotPrefix}listchannel", "List all chat kinds that are sent to this channel, and its inbound setting.")
+                        .AddField($"{this.plugin.Config.DiscordBotPrefix}setinbound <kind|off>", "Show messages posted in this channel in your in-game chat, as the given chat kind.\n"
+                            + $"Kinds: {InboundRules.AllowedSlugList}\n"
+                            + $"Format: ``{this.plugin.Config.DiscordBotPrefix}setinbound fc``")
+                        .AddField($"{this.plugin.Config.DiscordBotPrefix}setinboundperm <owner|everyone|role @role>", "Choose who can relay messages from this channel into the game. Default: owner only.")
                         .AddField($"{this.plugin.Config.DiscordBotPrefix}toggledefaultnameavatar","Enable or disable sending webhook messages using your configured bot's name and the default bot avatar.\n**WARNING:**This should be combined with enabling the `togglesender` function or you will be removing any distinction between different player messages.")
                         .AddField($"{this.plugin.Config.DiscordBotPrefix}toggledf", "Enable or disable sending duty finder updates to this channel.")
                         .AddField($"{this.plugin.Config.DiscordBotPrefix}toggleembed", "Enable or disable sending messages as Webhooks (default) or Embeds (Fallback mode)")
@@ -1043,24 +1118,71 @@ namespace Dalamud.DiscordBridge
         private async Task<bool> EnsureOwner(IUser user, IMessageChannel? errorMessageChannel = null)
         {
             Logger.Verbose("EnsureOwner: " + user.Username + "#" + user.Discriminator);
-            if (user.Username + "#" + user.Discriminator == this.plugin.Config.DiscordOwnerName) 
+            if (IsOwner(user))
                 return true;
 
-            // bandaid for Discord's username changes.
-            if (user.Username == this.plugin.Config.DiscordOwnerName && user.Discriminator == "0000")
-                return true;
-
-            if (ulong.TryParse(this.plugin.Config.DiscordOwnerName, out ulong parsed))
-                if (user.Id == parsed)
-                    return true;
-
-            if (errorMessageChannel == null) 
+            if (errorMessageChannel == null)
                 return false;
 
             await SendGenericEmbed(errorMessageChannel, $"You are not allowed to run commands for this bot.\n\nIf this is your bot, please use the \"{Constant.MainCommand}\" command in-game to enter your username or Discord User ID number.", "Error", EmbedColorError);
 
             return false;
         }
+
+        private bool IsOwner(IUser user)
+            => InboundRules.IsOwner(user.Username, user.Discriminator, user.Id, this.plugin.Config.DiscordOwnerName);
+
+        /// <summary>
+        /// If this message is in a channel with inbound relay enabled (and isn't a command), queue it for the game.
+        /// </summary>
+        /// <returns>True if the message was handled here (queued, or rejected by permissions) and isn't a command.</returns>
+        private bool TryRouteInbound(SocketMessage message)
+        {
+            if (!this.plugin.Config.ChannelConfigs.TryGetValue(message.Channel.Id, out var config))
+                return false;
+
+            if (!InboundRules.ShouldRelay(message.Author.IsBot, message.Author.IsWebhook, message.Content,
+                                          this.plugin.Config.DiscordBotPrefix, config.InboundChatType))
+                return false;
+
+            var isOwner = IsOwner(message.Author);
+            var roleIds = (message.Author as SocketGuildUser)?.Roles.Select(r => r.Id) ?? [];
+
+            if (!InboundRules.IsAllowedSender(config.InboundPermission, isOwner, roleIds, config.InboundRoleId))
+            {
+                Logger.Debug("Inbound: {0} isn't allowed to relay from channel {1}.", message.Author.Username, message.Channel.Id);
+                return true;
+            }
+
+            this.InboundQueue.Enqueue(Snapshot(message, config.InboundChatType!.Value, isOwner));
+            return true;
+        }
+
+        private static InboundDiscordMessage Snapshot(SocketMessage message, XivChatType target, bool isOwner)
+        {
+            var reply = (message as SocketUserMessage)?.ReferencedMessage?.Author;
+
+            return new InboundDiscordMessage
+            {
+                ChannelId = message.Channel.Id,
+                MessageId = message.Id,
+                AuthorId = message.Author.Id,
+                AuthorName = DisplayNameOf(message.Author),
+                IsOwner = isOwner,
+                TargetType = target,
+                Content = message.Content ?? string.Empty,
+                CleanContent = message.CleanContent ?? string.Empty,
+                Attachments = message.Attachments
+                    .Select(a => new InboundAttachment(a.Filename, a.ContentType?.StartsWith("image/") ?? false))
+                    .ToList(),
+                Stickers = message.Stickers.Select(s => s.Name).ToList(),
+                ReplyToAuthor = reply != null ? DisplayNameOf(reply) : null,
+            };
+        }
+
+        /// <summary>Server nickname, else global display name, else username.</summary>
+        private static string DisplayNameOf(IUser user)
+            => (user as IGuildUser)?.DisplayName ?? user.GlobalName ?? user.Username;
 
         public async Task SendItemSaleEvent(ReadOnlySeString name, string iconurl, uint itemId, string message, XivChatType chatType)
         {
@@ -1521,6 +1643,7 @@ namespace Dalamud.DiscordBridge
             {
                 Logger.Verbose("Discord DISPOSE!!");
                 this.MessageQueue?.Stop();
+                this.InboundQueue?.Stop();
                 this.socketClient?.LogoutAsync().GetAwaiter().GetResult();
                 this.socketClient?.Dispose();
             }
