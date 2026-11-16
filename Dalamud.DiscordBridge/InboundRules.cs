@@ -22,7 +22,7 @@ namespace Dalamud.DiscordBridge
             XivChatType.Ls5, XivChatType.Ls6, XivChatType.Ls7, XivChatType.Ls8,
             XivChatType.CrossLinkShell1, XivChatType.CrossLinkShell2, XivChatType.CrossLinkShell3, XivChatType.CrossLinkShell4,
             XivChatType.CrossLinkShell5, XivChatType.CrossLinkShell6, XivChatType.CrossLinkShell7, XivChatType.CrossLinkShell8,
-            XivChatType.NoviceNetwork, XivChatType.Echo,
+            XivChatType.NoviceNetwork, XivChatType.Echo, XivChatType.CustomEmote,
         ];
 
         /// <summary>Slugs users can type for <see cref="AllowedTargets"/>, e.g. "fc, ls1, cwls1, p, e".</summary>

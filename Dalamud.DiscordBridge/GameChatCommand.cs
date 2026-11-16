@@ -26,6 +26,7 @@ namespace Dalamud.DiscordBridge
             [XivChatType.CrossLinkShell5] = "/cwl5", [XivChatType.CrossLinkShell6] = "/cwl6",
             [XivChatType.CrossLinkShell7] = "/cwl7", [XivChatType.CrossLinkShell8] = "/cwl8",
             [XivChatType.Echo] = "/e",
+            [XivChatType.CustomEmote] = "/em",
         };
 
         private static readonly System.Text.RegularExpressions.Regex TellTargetPattern =

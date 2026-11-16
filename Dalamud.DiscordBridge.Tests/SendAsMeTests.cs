@@ -18,6 +18,7 @@ public class GameChatCommandTests
     [InlineData(XivChatType.CrossLinkShell1, "/cwl1")]
     [InlineData(XivChatType.CrossLinkShell8, "/cwl8")]
     [InlineData(XivChatType.Echo, "/e")]
+    [InlineData(XivChatType.CustomEmote, "/em")]
     public void PrefixFor_SupportedChannels(XivChatType type, string prefix)
     {
         Assert.Equal(prefix, GameChatCommand.PrefixFor(type));

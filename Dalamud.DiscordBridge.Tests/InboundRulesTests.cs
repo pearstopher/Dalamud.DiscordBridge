@@ -15,6 +15,7 @@ public class InboundRulesTests
     [InlineData("say", XivChatType.Say)]
     [InlineData("e", XivChatType.Echo)]
     [InlineData("nn", XivChatType.NoviceNetwork)]
+    [InlineData("customemote", XivChatType.CustomEmote)]
     public void TryParseTarget_AllowedSlug_ReturnsType(string slug, XivChatType expected)
     {
         Assert.True(InboundRules.TryParseTarget(slug, out var target, out _));

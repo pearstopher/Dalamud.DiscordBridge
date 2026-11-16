@@ -22,7 +22,7 @@ All source is in `Dalamud.DiscordBridge/`.
 | `DiscordToGameConverter.cs` | Pure Discord → game text conversion: clean mentions, custom emoji → `:name:`, common Unicode emoji → ASCII stand-ins (others dropped), markdown/spoilers/code/links/timestamps flattened, private-use and control characters removed, attachment/sticker placeholders, `re @Name:` for replies, a leading `/` kept as-is (display never runs commands; send rejects it), sanitizer hook (`IGameTextSanitizer`), and UTF-8-safe truncation to 500 bytes. `ConvertName` cleans sender names (≤32 chars). |
 | `InboundDisplay.cs` | Prints converted Discord messages into the local chat log (`IChatGui.Print` on the framework thread, only when logged in). Also `InboundFormat` (pure: entry type/name/text, Echo mode, `[D] {name}` sender label) and the `InboundResult` outcomes. |
 | `InboundSender.cs` | "Send as me": types the owner's converted message into the chat box (`UIModule.ProcessChatBoxEntry`, framework thread) after `Utf8String.SanitizeString` must leave it unchanged. Registers the echo with the guard and returns an `InboundOutcome` (result + reason). |
-| `GameChatCommand.cs` | Pure: chat type → command (`/s /sh /y /p /a /fc /l1-8 /cwl1-8 /e`), builds `"/fc text"` and rejects unsupported channels, empty text, leading `/`, line breaks, >500 bytes. Also `SendRateLimiter` (≥2 s apart, ≤5 waiting). |
+| `GameChatCommand.cs` | Pure: chat type → command (`/s /sh /y /p /a /fc /l1-8 /cwl1-8 /e /em`), builds `"/fc text"` and rejects unsupported channels, empty text, leading `/`, line breaks, >500 bytes. Also `SendRateLimiter` (≥2 s apart, ≤5 waiting). |
 | `ReplyRouting.cs` | Discord replies → in-game target. `RelayedMessageIndex` (bounded, in memory, on the plugin) records each outbound relay's Discord message ID → chat type / tell partner. `ReplyRouting.Resolve` uses it, or parses an older relay's `**[slug]**`, `→ Name:` and webhook name. Tells become `/tell Name@World`. |
 | `InboundEchoGuard.cs` | Loop prevention: lines printed/sent for Discord messages are registered first, and `ChatOnOnChatMessage` swallows the matching echo once (type + text, 10 s window) so it isn't relayed back to Discord. |
 | `Model/InboundDiscordMessage.cs` | Discord-free snapshot of a message to relay into the game (author, owner flag, target chat type, content, attachments, stickers, reply author). |
@@ -117,7 +117,7 @@ All commands are handled in `DiscordHandler.SocketClientOnMessageReceived`, a lo
 |---|---|
 | `setchannel <kinds>` / `unsetchannel <kinds>` | Add/remove chat types for this channel. `any` = `DefaultChatTypes`, `tell` = in+out, `p` = party+cross-party. |
 | `listchannel` | Show this channel's chat types and inbound setting. |
-| `setinbound <kind\|off>` | Relay messages posted in this channel into the game as `<kind>` (`say, shout, yell, p, alliance, fc, ls1–8, cwls1–8, nn, e`). |
+| `setinbound <kind\|off>` | Relay messages posted in this channel into the game as `<kind>` (`say, shout, yell, p, alliance, fc, ls1–8, cwls1–8, nn, e, customemote`). |
 | `togglesend` | Opt-in per channel: the owner's own messages are **sent** as their character (needs the global "Allow sending as my character" switch too). |
 | `setinboundperm <owner\|everyone\|role @role>` | Who may relay from this channel (default owner only; the owner is always allowed). |
 | `setprefix <kinds> <prefix>` / `unsetprefix <kind>` | Per-type text/emoji prefix. |
