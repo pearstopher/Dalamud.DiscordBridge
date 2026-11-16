@@ -116,7 +116,7 @@ All commands are handled in `DiscordHandler.SocketClientOnMessageReceived`, a lo
 
 | Command | Effect |
 |---|---|
-| `setchannel <kinds>` / `unsetchannel <kinds>` | Add/remove chat types for this channel. `any` = `DefaultChatTypes`, `tell` = in+out, `p` = party+cross-party. |
+| `setchannel <kinds>` / `unsetchannel <kinds>` | Add/remove chat types for this channel. `any` = `DefaultChatTypes` (regular chat incl. both tell directions), `all` = `AllChatTypes` (every known kind), `tell` = in+out, `p` = party+cross-party. |
 | `listchannel` | Show this channel's chat types and inbound setting. |
 | `setinbound <kind\|off>` | Relay messages posted in this channel into the game as `<kind>` (`say, shout, yell, p, alliance, fc, ls1–8, cwls1–8, nn, e, customemote`). |
 | `togglesend` | Opt-in per channel: the owner's own messages are **sent** as their character (needs the global "Allow sending as my character" switch too). |

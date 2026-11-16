@@ -22,7 +22,7 @@ Save, then install **Discord Chat Pears** from `/xlplugins`.
 
 1. **Create a bot.** At https://discord.com/developers/applications → **New Application** → **Bot**, reset and copy the **token**. Under **Privileged Gateway Intents**, turn on **Message Content Intent**.
 2. **Connect it.** In game, type `/dcp`, paste the token and your Discord username (or user ID), and click **Save**. When the status says **Connected!**, click **Join my server** and add the bot to your server.
-3. **Game → Discord.** In a Discord channel: `xl!setchannel fc,ls1` (any chat kinds, or `any`). Your FC and LS1 chat now appears there. `xl!listchannel` shows what a channel receives.
+3. **Game → Discord.** In a Discord channel: `xl!setchannel fc,ls1` (any chat kinds), `xl!setchannel any` (all regular chat), or `xl!setchannel all` (**every** kind, including system messages). Your FC and LS1 chat now appears there. `xl!listchannel` shows what a channel receives.
 4. **Discord → game.** In a Discord channel: `xl!setinbound fc`. Messages posted there appear in your chat log exactly like game chat, with a `[D]` tag (e.g. `[FC]<[D] Ane Mora> hi`, `[D] Ane Mora purrs.`, `>> [D] Bob Smith@World: hi`). Your own messages use your character name. **Only you see them.**
    - Kinds: `say, shout, yell, p, alliance, fc, ls1`–`ls8`, `cwls1`–`cwls8`, `nn`, `e` (Echo: only you see it), `customemote`, or `off`.
    - Who can relay: `xl!setinboundperm owner` (default), `everyone`, or `role @SomeRole`.
