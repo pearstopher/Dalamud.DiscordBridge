@@ -95,6 +95,19 @@ namespace Dalamud.DiscordBridge
         }
 
         /// <summary>
+        /// A webhook message the filter may compare and delete (#43): in a configured channel, and in the relay format
+        /// <c>{prefix}**[slug]** text</c>. Other bots' webhooks (GitHub, RSS…) are never touched.
+        /// </summary>
+        internal static bool IsCandidate(bool channelConfigured, string? content)
+        {
+            if (!channelConfigured || string.IsNullOrEmpty(content))
+                return false;
+
+            var parsed = new ContentParser(content);
+            return parsed.Slug.Length > 0 && parsed.Text.Length > 0;
+        }
+
+        /// <summary>
         /// True if <paramref name="left"/> was posted after <paramref name="right"/>. Compares instants, not UTC offsets.
         /// </summary>
         internal static bool IsNewer(DateTimeOffset left, DateTimeOffset right) => left > right;
@@ -108,8 +121,9 @@ namespace Dalamud.DiscordBridge
 
         private async Task OnMessageReceived(SocketMessage message)
         {
-            // The message should be from a webhook and have a content string.
-            if (!message.Author.IsWebhook || message.Content.IsNullOrEmpty())
+            // Only relays in channels the bridge uses (#43): never other integrations' webhooks or unrelated channels.
+            if (!message.Author.IsWebhook ||
+                !IsCandidate(this.plugin.Config.ChannelConfigs.ContainsKey(message.Channel.Id), message.Content))
                 return;
 
             lock (this.recentLock)

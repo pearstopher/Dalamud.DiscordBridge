@@ -46,4 +46,17 @@ public class DuplicateFilterTests
     {
         Assert.False(DuplicateFilter.IsDuplicate(1, "Alice＠Cactuar", "**[fc]** hello", channel, author, content));
     }
+
+    [Theory]
+    [InlineData(true, "**[fc]** hello", true)]
+    [InlineData(true, "🍐 **[ls1]** Ane Mora: hi", true)]
+    [InlineData(false, "**[fc]** hello", false)]                         // channel the bridge doesn't use
+    [InlineData(true, "New commit pushed to master", false)]              // GitHub-style webhook
+    [InlineData(true, "**Build passed** in 2m", false)]                   // bold but not a relay
+    [InlineData(true, "", false)]
+    [InlineData(true, null, false)]
+    public void IsCandidate_OnlyRelaysInConfiguredChannels(bool configured, string? content, bool expected)
+    {
+        Assert.Equal(expected, DuplicateFilter.IsCandidate(configured, content));
+    }
 }
