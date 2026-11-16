@@ -14,14 +14,18 @@ namespace Dalamud.DiscordBridge
     {
         internal const XivChatType InboundDefault = XivChatType.Echo;
 
+        /// <summary>What setup relays: all player chat, plus FC member login/logout (#53).</summary>
+        internal static readonly IReadOnlyList<XivChatType> Kinds = [.. ChatTypeGroups.PlayerChat, FcLoginNotice.ChatType];
+
         /// <summary>Apply the preset to <paramref name="channelId"/> and the global display options. Returns a summary.</summary>
         internal static IReadOnlyList<string> Apply(Configuration config, ulong channelId)
         {
             if (!config.ChannelConfigs.TryGetValue(channelId, out var channel))
                 channel = new DiscordChannelConfig();
 
-            // Game → Discord: exactly player chat (replaces notifications such as retainer sales and system messages).
-            channel.ChatTypes = new List<XivChatType>(ChatTypeGroups.PlayerChat);
+            // Game → Discord: player chat plus FC members logging in/out (replaces notifications such as retainer sales
+            // and system messages).
+            channel.ChatTypes = new List<XivChatType>(Kinds);
             channel.IsContentFinder = false;
 
             // Discord → game: silent Echo default, owner only. Replies and !overrides reach every player channel.
@@ -43,7 +47,7 @@ namespace Dalamud.DiscordBridge
 
             return
             [
-                $"**Game → Discord:** all player chat ({ChatTypeGroups.PlayerChat.Count} kinds: say, shout, yell, tells, party, alliance, PvP team, FC, LS1–8, CWLS1–8, Novice Network, emotes). GM messages in those channels come along.",
+                $"**Game → Discord:** all player chat ({ChatTypeGroups.PlayerChat.Count} kinds: say, shout, yell, tells, party, alliance, PvP team, FC, LS1–8, CWLS1–8, Novice Network, emotes), plus 🟢/⚫ when Free Company members log in or out. GM messages in those channels come along.",
                 "**Turned off here:** retainer sales, system, loot, battle and NPC messages, Echo relays, Duty Finder pops.",
                 "**Discord → game:** default Echo (only you see it), owner only. Replies go back to the message's channel or person; start with !s, !fc, !t Name@World… to pick one.",
                 "**Display:** messages shown in game, 👁️/✅ reactions, [S] tags on; Echo mode, sender-in-message, embed fallback and bot-name override off; duplicate window 5000 ms.",

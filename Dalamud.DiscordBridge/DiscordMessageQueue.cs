@@ -68,6 +68,38 @@ namespace Dalamud.DiscordBridge
             return text.Length > 0 ? text : null;
         }
 
+        private static int fcLoginFormatLogged;
+
+        /// <summary>
+        /// Who an FC login/logout line is about (#53): the player link in the message or sender, else the name at the
+        /// start of the text; the world from the link, else your home world (FC members share it).
+        /// </summary>
+        /// <param name="flattenedText">The line as relayed text; defaults to the message's plain text.</param>
+        internal static (string Name, string World, string Text) ResolveFcLogin(SeString message, SeString sender, string? homeWorld, string? flattenedText = null)
+        {
+            // Record the real format once per session, so it can be checked in /xllog (Debug).
+            if (System.Threading.Interlocked.Exchange(ref fcLoginFormatLogged, 1) == 0)
+                Logger?.Debug("FC login line format: message [{0}], sender [{1}]",
+                    string.Join(", ", message.Payloads.Select(p => p.Type)), string.Join(", ", sender.Payloads.Select(p => p.Type)));
+
+            var link = message.Payloads.OfType<PlayerPayload>().FirstOrDefault()
+                       ?? sender.Payloads.OfType<PlayerPayload>().FirstOrDefault();
+            string? linkWorld = null;
+            if (link != null)
+            {
+                try
+                {
+                    linkWorld = link.World.Value.Name.ExtractText();
+                }
+                catch (Exception ex)
+                {
+                    Logger?.Debug(ex, "FC login line: couldn't read the player link's world.");
+                }
+            }
+
+            return FcLoginNotice.Resolve(link?.PlayerName, linkWorld, flattenedText ?? message.TextValue, homeWorld);
+        }
+
         /// <summary>XIVAPI asset URL for an item icon (folder and file are zero-padded to 6 digits).</summary>
         internal static string ItemIconUrl(uint icon)
         {
@@ -194,6 +226,10 @@ namespace Dalamud.DiscordBridge
                 else if (x is ITextProvider provider)
                     messageText += provider.Text;
             });
+
+            // FC member logged in/out (#53): post under the member's name and portrait, with 🟢/⚫.
+            if (FcLoginNotice.Is(chatEvent.ChatType))
+                (senderName, senderWorld, messageText) = ResolveFcLogin(chatEvent.Message, chatEvent.Sender, plugin.cachedPlayerWorld, messageText);
 
             await plugin.Discord.SendChatEvent(messageText, senderName ?? "Invalid SenderName", senderWorld ?? string.Empty, chatEvent.ChatType, chatEvent.AvatarUrl, recipient);
         }

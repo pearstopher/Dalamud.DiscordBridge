@@ -15,7 +15,9 @@ public class SanePresetTests
         SanePreset.Apply(config, Channel);
 
         var channel = config.ChannelConfigs[Channel];
-        Assert.Equal(ChatTypeGroups.PlayerChat, channel.ChatTypes);
+        Assert.Equal(SanePreset.Kinds, channel.ChatTypes);
+        Assert.All(ChatTypeGroups.PlayerChat, t => Assert.Contains(t, channel.ChatTypes));
+        Assert.Contains(FcLoginNotice.ChatType, channel.ChatTypes); // FC members logging in/out (#53)
         Assert.Equal(XivChatType.Echo, channel.InboundChatType);
         Assert.Equal(InboundPermission.OwnerOnly, channel.InboundPermission);
         Assert.False(channel.IsContentFinder);
