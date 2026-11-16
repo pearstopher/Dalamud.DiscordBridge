@@ -166,6 +166,16 @@ namespace Dalamud.DiscordBridge
             });
             Logger.Debug("AFTER DiscordSocketClient");
             this.socketClient.Ready += SocketClientOnReady;
+            this.socketClient.Connected += () =>
+            {
+                this.ChangeState(DiscordStateEvent.Connected);
+                return Task.CompletedTask;
+            };
+            this.socketClient.Disconnected += _ =>
+            {
+                this.ChangeState(DiscordStateEvent.Disconnected);
+                return Task.CompletedTask;
+            };
             this.socketClient.MessageReceived += SocketClientOnMessageReceived;
             
             this.duplicateFilter = new DuplicateFilter(this.plugin, this.socketClient);
@@ -189,7 +199,16 @@ namespace Dalamud.DiscordBridge
             }
             catch (Exception ex)
             {
-                Logger.Error(ex, "Token invalid, cannot start bot.");
+                // A rejected token shows as such in /dcp; anything else (network) is logged and retried on next Save.
+                if (ex is Discord.Net.HttpException { HttpCode: System.Net.HttpStatusCode.Unauthorized })
+                {
+                    this.ChangeState(DiscordStateEvent.LoginRejected);
+                    Logger.Error(ex, "Discord rejected the bot token.");
+                }
+                else
+                {
+                    Logger.Error(ex, "Could not log in to Discord.");
+                }
             }
 
             this.MessageQueue.Start();
@@ -200,9 +219,17 @@ namespace Dalamud.DiscordBridge
             Logger.Debug("DiscordHandler START!!");
         }
 
+        private void ChangeState(DiscordStateEvent e)
+        {
+            var before = this.State;
+            this.State = DiscordStates.Next(before, e);
+            if (this.State != before)
+                Logger.Debug("Discord state {0} → {1} ({2}).", before, this.State, e);
+        }
+
         private Task SocketClientOnReady()
         {
-            this.State = DiscordState.Ready;
+            this.ChangeState(DiscordStateEvent.Ready);
             this.specialChars.TryFindEmote(this.socketClient);
 
             Logger.Verbose("DiscordHandler READY!!");
@@ -1697,7 +1724,17 @@ namespace Dalamud.DiscordBridge
                 Logger.Verbose("Discord DISPOSE!!");
                 this.MessageQueue?.Stop();
                 this.InboundQueue?.Stop();
-                this.socketClient?.LogoutAsync().GetAwaiter().GetResult();
+                // At most 3 s (#48): a stuck gateway must never hang unloading.
+                try
+                {
+                    if (this.socketClient != null && !Task.Run(this.socketClient.LogoutAsync).Wait(TimeSpan.FromSeconds(3)))
+                        Logger.Warning("Discord logout timed out after 3 s; continuing.");
+                }
+                catch (Exception ex)
+                {
+                    Logger.Warning(ex, "Discord logout failed; continuing.");
+                }
+
                 this.socketClient?.Dispose();
                 this.webhooks.Dispose();
             }
