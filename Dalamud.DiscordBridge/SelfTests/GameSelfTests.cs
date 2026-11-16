@@ -56,6 +56,25 @@ namespace Dalamud.DiscordBridge.SelfTests
                         : SelfTestResult.Fail($"Unexpected item data: name '{name}', icon {icon}");
                 }),
 
+            new DelegateSelfTest("outbound.tell-recipient", "Game → Discord", "Outgoing tell recipient is read from a player link as Name＠World (plan B10)",
+                async _ =>
+                {
+                    if (!await LoggedIn())
+                        return SelfTestResult.Skip("not logged in");
+
+                    var (expected, actual) = await Service.Framework.RunOnFrameworkThread(() =>
+                    {
+                        var name = Service.PlayerState.CharacterName ?? string.Empty;
+                        var world = Service.PlayerState.HomeWorld;
+                        var sender = new Dalamud.Game.Text.SeStringHandling.SeString(
+                            new Dalamud.Game.Text.SeStringHandling.Payloads.PlayerPayload(name, world.RowId));
+                        return ($"{name}＠{world.Value.Name.ExtractText()}", DiscordMessageQueue.TellRecipient(sender));
+                    });
+                    return actual == expected
+                        ? SelfTestResult.Pass(actual)
+                        : SelfTestResult.Fail($"expected '{expected}', got '{actual}'");
+                }),
+
             new DelegateSelfTest("ipc.api-version", "IPC", "DiscordBridge.APIVersion IPC answers",
                 async _ =>
                 {
