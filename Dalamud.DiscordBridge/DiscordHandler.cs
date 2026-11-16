@@ -1428,7 +1428,8 @@ namespace Dalamud.DiscordBridge
             return (channel, ChooseRoute(isDirectMessage, channel is ITextChannel, forceEmbed, hasManageWebhooks));
         }
 
-        public async Task SendChatEvent(string message, string senderName, string senderWorld, XivChatType chatType, string avatarUrl = "")
+        /// <param name="recipient">For outgoing tells: who the tell was to ("Name＠World"), shown in the message.</param>
+        public async Task SendChatEvent(string message, string senderName, string senderWorld, XivChatType chatType, string avatarUrl = "", string? recipient = null)
         {
             // set fields for true chat messages or custom via ipc
             if (chatType != XivChatTypeExtensions.IpcChatType)
@@ -1594,9 +1595,8 @@ namespace Dalamud.DiscordBridge
                     continue;
                 }
 
-                var messageContent = senderInMessage ? $"{displayName}: {message}" : message;
-
-                messageContent = chatType != XivChatTypeExtensions.IpcChatType ? $"{prefix}**[{chatTypeText}]** {messageContent}" : $"{prefix} {messageContent}";
+                var body = ChatContentFormat.Body(message, senderInMessage, displayName, recipient);
+                var messageContent = ChatContentFormat.Content(prefix, chatTypeText, chatType == XivChatTypeExtensions.IpcChatType, body);
 
 
                 if (route == DeliveryRoute.DirectMessage)
@@ -1617,7 +1617,8 @@ namespace Dalamud.DiscordBridge
                 {
                     var webhookClient = await GetOrCreateWebhookClient((ITextChannel)channel);
 
-                    if (duplicateFilter.CheckAlreadySent(channel, slug: chatTypeText, displayName, chatText: message))
+                    // Compare against the body actually posted (it includes the sender/recipient when shown).
+                    if (duplicateFilter.CheckAlreadySent(channel, slug: chatTypeText, displayName, chatText: body))
                     {
                         continue;
                     }

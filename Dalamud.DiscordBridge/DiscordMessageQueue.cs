@@ -52,6 +52,22 @@ namespace Dalamud.DiscordBridge
             }
         }
 
+        /// <summary>
+        /// The recipient of an outgoing tell from the message's sender field: "Name＠World" from the player link, or the
+        /// cleaned raw text when there's no link. Null if nothing usable.
+        /// </summary>
+        internal static string? TellRecipient(SeString sender)
+        {
+            if (sender.Payloads.FirstOrDefault(p => p.Type == PayloadType.Player) is PlayerPayload player)
+            {
+                var world = player.World.Value.Name.ExtractText();
+                return string.IsNullOrEmpty(world) ? player.PlayerName : $"{player.PlayerName}＠{world}";
+            }
+
+            var text = ChatContentFormat.CleanRecipientText(sender.TextValue);
+            return text.Length > 0 ? text : null;
+        }
+
         /// <summary>XIVAPI asset URL for an item icon (folder and file are zero-padded to 6 digits).</summary>
         internal static string ItemIconUrl(uint icon)
         {
@@ -82,6 +98,20 @@ namespace Dalamud.DiscordBridge
                 ? plugin.cachedPlayerName
                 : chatEvent.Sender.ToString();
             var senderWorld = string.Empty;
+
+            // For outgoing tells the game's "sender" is the person the tell was sent to.
+            string? recipient = null;
+            if (chatEvent.ChatType == XivChatType.TellOutgoing)
+            {
+                try
+                {
+                    recipient = TellRecipient(chatEvent.Sender);
+                }
+                catch (Exception ex)
+                {
+                    Logger?.Warning(ex, "Could not read the tell recipient.");
+                }
+            }
 
             try
             {
@@ -164,7 +194,7 @@ namespace Dalamud.DiscordBridge
                     messageText += provider.Text;
             });
 
-            await plugin.Discord.SendChatEvent(messageText, senderName ?? "Invalid SenderName", senderWorld ?? string.Empty, chatEvent.ChatType, chatEvent.AvatarUrl);
+            await plugin.Discord.SendChatEvent(messageText, senderName ?? "Invalid SenderName", senderWorld ?? string.Empty, chatEvent.ChatType, chatEvent.AvatarUrl, recipient);
         }
     }
 }

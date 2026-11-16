@@ -19,6 +19,7 @@ For the Discord round trip, run `xl!selftesthere` once in a **private** channel.
 | `env.discord-ready` | Bot connected | A3 (status) |
 | `env.owner` | Owner configured | — |
 | `data.item-sheet` | Item sheet and icon URL for retainer sales | B3 (data part) |
+| `outbound.tell-recipient` | Tell recipient read as Name＠World | B10 (extraction part) |
 | `ipc.api-version` | IPC answers, and who owns it | A4 |
 | `lodestone.portrait` | NetStone still finds your portrait | B1 (portrait part) |
 | `inbound.display.loop-guard` | A shown line appears and is **not** relayed back | C1, C10 |
@@ -49,6 +50,7 @@ The steps below are still manual: things that need a second Discord account, oth
 - [ ] B6. DM the bot `xl!setchannel say`, then `/say dm test` → an embed arrives in the DM (#5). Reload the plugin and repeat: it still works, and the DM config wasn't deleted.
 - [ ] B7. (If you have custom emotes `xivAtl`, `xivAtr`, `xivHq` in the server) An auto-translate phrase and an HQ item link show the custom emotes (#8).
 - [ ] B8. (Two players running the plugin into one channel) A shared FC line appears once, and the **older** copy is the one kept (#7).
+- [ ] B10. Send someone a tell → Discord shows `**[tell]** → Them＠World: text` from you. A tell you receive looks as before (#19).
 - [ ] B9. Idle for a minute with the plugin loaded: no unusual CPU use from the game (#4).
 
 ## C. Discord → game: display (#13–#15)
