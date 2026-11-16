@@ -47,9 +47,9 @@ namespace Dalamud.DiscordBridge
                 "**Turned off here:** retainer sales, system, loot, battle and NPC messages, Echo relays, Duty Finder pops.",
                 "**Discord → game:** default Echo (only you see it), owner only. Replies go back to the message's channel or person; start with !s, !fc, !t Name@World… to pick one.",
                 "**Display:** messages shown in game, 👁️/✅ reactions, [S] tags on; Echo mode, sender-in-message, embed fallback and bot-name override off; duplicate window 5000 ms.",
-                channel.InboundSendAsOwner && config.AllowSendAsCharacter
-                    ? "**Send as me:** ON here (unchanged). Your messages are really sent as your character ([S])."
-                    : "**Send as me:** off (unchanged). To really send as your character: tick \"Allow sending as my character\" in /dcp and run togglesend here.",
+                config.AllowSendAsCharacter
+                    ? "**Send as me:** ON (set in game). Your messages are really sent as your character ([S])."
+                    : "**Send as me:** off (set in game). To really send as your character, tick \"Allow sending as my character\" in /dcp.",
                 "**Not changed:** token, owner, command prefix, your prefixes/names/avatars per chat kind, other channels.",
             ];
         }

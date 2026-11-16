@@ -50,7 +50,7 @@
    ```
 2. **`EnsureOwner` is mandatory** for anything that changes state or reveals configuration.
 3. Command names are lowercase with no separators (`togglesender`). Check that the name doesn't prefix-collide with an existing command.
-4. Add a `.AddField(...)` line to the `help` embed. Embeds allow at most 25 fields, and there are 21 today. If you'd go past 25, split help into pages or categories as part of the issue.
+4. Add a `.AddField(...)` line to the `help` embed. Embeds allow at most 25 fields, and there are 20 today. If you'd go past 25, split help into pages or categories as part of the issue.
 5. Put argument parsing and validation in a pure helper and unit test it.
 
 ### Add an in-game slash command

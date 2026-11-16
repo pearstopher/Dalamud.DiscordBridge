@@ -105,7 +105,7 @@ Discord message ─► DiscordHandler.SocketClientOnMessageReceived     (gateway
   processor: DiscordToGameConverter.Convert → DiscordBridgePlugin.HandleInboundAsync
      → InboundDisplay.ShowAsync: EchoGuard.Register, then IChatGui.Print as the target type (or Echo), name "[D] Alice"
      → reaction on the Discord message: ✅ shown · ⏸️ not logged in (InboundRules.ReactionFor; toggle InboundReactions)
-  If InboundRules.ShouldSendAsOwner(owner && AllowSendAsCharacter && channel.InboundSendAsOwner):
+  If InboundRules.ShouldSendAsOwner(owner && AllowSendAsCharacter)   ← the in-game /dcp checkbox is the only switch
      → convert untruncated → GameChatCommand.TryBuild → SendRateLimiter → InboundSender (sanitize check,
        EchoGuard.Register, ProcessChatBoxEntry) → ✅ sent · ❌ + reply "Not sent to game: <reason>"
 
@@ -127,7 +127,6 @@ All commands are handled in `DiscordHandler.SocketClientOnMessageReceived`, a lo
 | `listchannel` | Show this channel's chat types and inbound setting. |
 | `setinbound <kind\|off>` | Relay messages posted in this channel into the game as `<kind>` (`say, shout, yell, p, alliance, fc, ls1–8, cwls1–8, nn, e, customemote`). |
 | `selftesthere [off]` | Developer builds: use this channel for the Discord round-trip and reply-routing self-tests (not in `help`). |
-| `togglesend` | Opt-in per channel: the owner's own messages are **sent** as their character (needs the global "Allow sending as my character" switch too). |
 | `setinboundperm <owner\|everyone\|role @role>` | Who may relay from this channel (default owner only; the owner is always allowed). |
 | `setprefix <kinds> <prefix>` / `unsetprefix <kind>` | Per-type text/emoji prefix. |
 | `setchattypename <kinds> <text>` / `unsetchattypename <kind>` | Override the `[slug]` label. |

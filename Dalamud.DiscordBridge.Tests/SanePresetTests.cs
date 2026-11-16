@@ -112,7 +112,6 @@ public class SanePresetTests
         var other = new DiscordChannelConfig { InboundChatType = XivChatType.FreeCompany };
         other.SetUnique(XivChatType.RetainerSale);
         config.ChannelConfigs[7] = other;
-        config.ChannelConfigs[Channel] = new DiscordChannelConfig { InboundSendAsOwner = true };
 
         var summary = SanePreset.Apply(config, Channel);
 
@@ -125,7 +124,6 @@ public class SanePresetTests
         Assert.Equal("https://example.com/a.png", config.ChatTypeAvatarURL[XivChatType.Say]);
         Assert.Equal([XivChatType.RetainerSale], config.ChannelConfigs[7].ChatTypes);
         Assert.Equal(XivChatType.FreeCompany, config.ChannelConfigs[7].InboundChatType);
-        Assert.True(config.ChannelConfigs[Channel].InboundSendAsOwner);
         Assert.Contains(summary, line => line.Contains("Send as me:** ON"));
     }
 

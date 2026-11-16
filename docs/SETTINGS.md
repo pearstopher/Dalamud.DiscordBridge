@@ -13,7 +13,7 @@ On first load, settings are imported once from the official Discord Chat Bridge 
 | Show Discord messages in game chat | `InboundDisplayEnabled` | on | Master switch for showing Discord messages in your chat log (channels still need `setinbound`). |
 | Show them as Echo instead of the channel's own colour | `InboundDisplayAsEcho` | off | Print every inbound message as a labelled Echo line, `[FC] [D] Name: text`, instead of mimicking the channel. |
 | React on Discord when a message reaches the game | `InboundReactions` | on | 👁️ / ✅ / ⏸️ / ❌ reactions on your Discord messages. |
-| Allow sending as my character | `AllowSendAsCharacter` | **off** | Master switch for send-as-me (also needs `xl!togglesend` per channel). Outside Dalamud's rules. |
+| Allow sending as my character | `AllowSendAsCharacter` | **off** | The only switch for send-as-me: when ticked, your own Discord messages are really sent as your character in every channel with inbound relay. Not controllable from Discord. Outside Dalamud's rules. |
 | Tag messages sent by the plugin with [S] on my screen | `MarkSentInGame` | on | Re-shows plugin-sent messages on your screen with `SentTag`. Others see the normal message. |
 | *Developer builds:* Run self-tests after each load | `DevRunSelfTestsOnLoad` | off | Run the in-game self-tests whenever the plugin (re)loads, once logged in and connected. |
 | *Developer builds:* Self-tests may send a tell to myself | `DevSelfTestTellSelf` | off | Enables `send.tell-self` (one real tell to your own character). |
@@ -29,7 +29,7 @@ Stored under `ChannelConfigs` → channel ID.
 | `InboundChatType` | `setinbound` | off | Default in-game kind for messages posted here (null = Discord → game off). |
 | `InboundPermission` | `setinboundperm` | `OwnerOnly` | `OwnerOnly`, `Role`, or `Everyone`. |
 | `InboundRoleId` | `setinboundperm role @role` | none | Role allowed when `InboundPermission` is `Role`. |
-| `InboundSendAsOwner` | `togglesend` | off | Owner's messages here are sent as your character (if `AllowSendAsCharacter`). |
+| `InboundSendAsOwner` | — | — | Obsolete (sending is controlled only by `AllowSendAsCharacter`). Kept so old configs load. |
 | `WebhookId` | (automatic) | — | The webhook the plugin created in this channel. |
 | `IsBidirectional` | — | — | Obsolete, never used. Kept so old configs load. |
 
