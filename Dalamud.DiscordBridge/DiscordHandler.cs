@@ -94,8 +94,6 @@ namespace Dalamud.DiscordBridge
         /// </summary>
         public readonly SerialWorkQueue<InboundDiscordMessage> InboundQueue;
 
-        /// <summary>Converts inbound Discord messages to game-safe text.</summary>
-        internal DiscordToGameConverter InboundConverter { get; set; } = new();
 
         private LodestoneClient lodestoneClient;
 
@@ -108,14 +106,15 @@ namespace Dalamud.DiscordBridge
             this.MessageQueue = new DiscordMessageQueue(this.plugin);
             this.InboundQueue = new SerialWorkQueue<InboundDiscordMessage>("Inbound queue", async inbound =>
             {
-                var text = this.InboundConverter.Convert(inbound);
-                Logger.Debug("Inbound message {0} from {1} for {2}: \"{3}\"", inbound.MessageId, inbound.AuthorName, inbound.TargetType, text);
+                var outcome = await this.plugin.HandleInboundAsync(inbound);
+                Logger.Debug("Inbound message {0} from {1} for {2}: {3} {4}", inbound.MessageId, inbound.AuthorName, inbound.TargetType, outcome.Result, outcome.Reason ?? string.Empty);
 
-                var result = await this.plugin.HandleInboundAsync(inbound, text);
-                Logger.Debug("Inbound message {0}: {1}", inbound.MessageId, result);
-
-                if (this.plugin.Config.InboundReactions && InboundRules.ReactionFor(result) is { } emoji)
+                if (this.plugin.Config.InboundReactions && InboundRules.ReactionFor(outcome.Result) is { } emoji)
                     await this.ReactAsync(inbound.ChannelId, inbound.MessageId, emoji);
+
+                // Tell the owner why a "send as me" message didn't go out.
+                if (outcome.Result is InboundResult.Rejected or InboundResult.Failed && outcome.Reason is { } reason && inbound.IsOwner)
+                    await this.ReplyAsync(inbound.ChannelId, inbound.MessageId, $"Not sent to game: {reason}.");
             });
 
             Logger.Debug("BEFORE DiscordSocketClient");
@@ -783,6 +782,37 @@ namespace Dalamud.DiscordBridge
                     return;
                 }
 
+                if (args[0] == this.plugin.Config.DiscordBotPrefix + "togglesend" &&
+                    await EnsureOwner(message.Author, message.Channel))
+                {
+                    if (!this.plugin.Config.ChannelConfigs.TryGetValue(message.Channel.Id, out var config))
+                        config = new DiscordChannelConfig();
+
+                    config.InboundSendAsOwner = !config.InboundSendAsOwner;
+                    this.plugin.Config.ChannelConfigs[message.Channel.Id] = config;
+                    this.plugin.Config.Save();
+
+                    string text;
+                    if (!config.InboundSendAsOwner)
+                    {
+                        text = "OK! Your messages in this channel will only be **shown** in your chat log again, not sent as your character.";
+                    }
+                    else
+                    {
+                        var target = config.InboundChatType is { } t ? t.GetFancyName() : "(no inbound channel set)";
+                        text = $"OK! Your character will **say** your Discord messages from this channel in **{target}**, so other players will see them.\n\n" +
+                               "⚠️ This is outside Dalamud's plugin rules (the game server receives chat you didn't type in game). Use at your own risk.\n\n" +
+                               "Only your own messages are sent; everyone else's are still just shown to you. Messages are rate-limited and can't run commands.";
+                        if (config.InboundChatType == null)
+                            text += $"\n\nSet a channel first: ``{this.plugin.Config.DiscordBotPrefix}setinbound fc``.";
+                        if (!this.plugin.Config.AllowSendAsCharacter)
+                            text += $"\n\n**Not active yet:** also tick \"Allow sending as my character\" in {Constant.MainCommand} in game.";
+                    }
+
+                    await SendGenericEmbed(message.Channel, text, "Send as me", (uint)(config.InboundSendAsOwner ? EmbedColorError : EmbedColorFine));
+                    return;
+                }
+
                 if (args[0] == this.plugin.Config.DiscordBotPrefix + "setinboundperm" &&
                     await EnsureOwner(message.Author, message.Channel))
                 {
@@ -1024,6 +1054,7 @@ namespace Dalamud.DiscordBridge
                             + $"Kinds: {InboundRules.AllowedSlugList}\n"
                             + $"Format: ``{this.plugin.Config.DiscordBotPrefix}setinbound fc``")
                         .AddField($"{this.plugin.Config.DiscordBotPrefix}setinboundperm <owner|everyone|role @role>", "Choose who can relay messages from this channel into the game. Default: owner only.")
+                        .AddField($"{this.plugin.Config.DiscordBotPrefix}togglesend", $"Opt-in: your character **says** your own messages from this channel in game (others see them). Also needs \"Allow sending as my character\" in {Constant.MainCommand}. Outside Dalamud's rules.")
                         .AddField($"{this.plugin.Config.DiscordBotPrefix}toggledefaultnameavatar","Enable or disable sending webhook messages using your configured bot's name and the default bot avatar.\n**WARNING:**This should be combined with enabling the `togglesender` function or you will be removing any distinction between different player messages.")
                         .AddField($"{this.plugin.Config.DiscordBotPrefix}toggledf", "Enable or disable sending duty finder updates to this channel.")
                         .AddField($"{this.plugin.Config.DiscordBotPrefix}toggleembed", "Enable or disable sending messages as Webhooks (default) or Embeds (Fallback mode)")
@@ -1208,6 +1239,26 @@ namespace Dalamud.DiscordBridge
             catch (Exception ex)
             {
                 Logger.Warning(ex, "Could not react to Discord message {0}.", messageId);
+            }
+        }
+
+        /// <summary>Reply to a Discord message (inbound status feedback). Failures are logged and ignored.</summary>
+        internal async Task ReplyAsync(ulong channelId, ulong messageId, string text)
+        {
+            try
+            {
+                var channel = this.socketClient.GetChannel(channelId) as IMessageChannel
+                              ?? await this.socketClient.GetChannelAsync(channelId) as IMessageChannel;
+                if (channel == null)
+                    return;
+
+                await channel.SendMessageAsync(text,
+                    messageReference: new MessageReference(messageId),
+                    allowedMentions: AllowedMentions.None);
+            }
+            catch (Exception ex)
+            {
+                Logger.Warning(ex, "Could not reply to Discord message {0}.", messageId);
             }
         }
 

@@ -29,7 +29,11 @@ namespace Dalamud.DiscordBridge
         /// <summary>Swallows the game's echo of lines we print/send for Discord messages, so they aren't relayed back.</summary>
         internal readonly InboundEchoGuard EchoGuard = new();
 
+        /// <summary>Converts inbound Discord messages to game-safe text.</summary>
+        internal readonly DiscordToGameConverter InboundConverter = new();
+
         private InboundDisplay inboundDisplay = null!;
+        private InboundSender inboundSender = null!;
 
         private static IPluginLog Logger => Service.Logger;
 
@@ -88,6 +92,7 @@ namespace Dalamud.DiscordBridge
             
             this.DiscordBridgeProvider = new DiscordBridgeProvider(pluginInterface, new DiscordBridgeAPI(this));
             this.inboundDisplay = new InboundDisplay(this.Config, this.EchoGuard);
+            this.inboundSender = new InboundSender(this.Config, this.EchoGuard);
             this.Discord = new DiscordHandler(this);
             // Task t = this.Discord.Start(); // bot won't start if we just have this
 
@@ -286,8 +291,24 @@ namespace Dalamud.DiscordBridge
         /// Handle a converted Discord message destined for the game. Called from the Discord handler's inbound queue
         /// (and by /dcpin). Lives on the plugin so it survives the Discord handler being recreated from the settings window.
         /// </summary>
-        internal Task<InboundResult> HandleInboundAsync(InboundDiscordMessage message, string text)
-            => this.inboundDisplay.ShowAsync(message, text);
+        /// <param name="forceSend">Use the send path regardless of channel setting/owner (for /dcpsend).</param>
+        internal async Task<InboundOutcome> HandleInboundAsync(InboundDiscordMessage message, bool forceSend = false)
+        {
+            var channelSends = this.Config.ChannelConfigs.TryGetValue(message.ChannelId, out var channel) && channel.InboundSendAsOwner;
+
+            if (forceSend || InboundRules.ShouldSendAsOwner(message.IsOwner, this.Config.AllowSendAsCharacter, channelSends))
+            {
+                if (!this.Config.AllowSendAsCharacter)
+                    return new InboundOutcome(InboundResult.Rejected, $"sending as your character is turned off in {Constant.MainCommand}");
+
+                // Untruncated: an over-long message is rejected rather than sent cut off.
+                var full = this.InboundConverter.Convert(message, int.MaxValue);
+                return await this.inboundSender.SendAsync(message, full);
+            }
+
+            var text = this.InboundConverter.Convert(message);
+            return new InboundOutcome(await this.inboundDisplay.ShowAsync(message, text));
+        }
 
         [Command("/dcpin")]
         [HelpMessage("Simulate a Discord message arriving in game: /dcpin <kind> <name> <text…>")]
@@ -319,13 +340,50 @@ namespace Dalamud.DiscordBridge
                 CleanContent = parts[2],
             };
 
-            var text = this.Discord.InboundConverter.Convert(fake);
+            RunInboundDebug("/dcpin", fake, forceSend: false);
+        }
+
+        [Command("/dcpsend")]
+        [HelpMessage("Test 'send as me': your character says the text in a channel: /dcpsend <kind> <text…>")]
+        [DoNotShowInHelp]
+        public void SendDebugCommand(string command, string args)
+        {
+            var parts = args.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length < 2)
+            {
+                Service.Chat.PrintError($"Usage: /dcpsend <kind> <text>. Needs \"Allow sending as my character\" in {Constant.MainCommand}.");
+                return;
+            }
+
+            if (!InboundRules.TryParseTarget(parts[0], out var target, out var error) || target == null)
+            {
+                Service.Chat.PrintError(string.IsNullOrEmpty(error) ? "Pick a chat kind, not off." : error);
+                return;
+            }
+
+            var fake = new InboundDiscordMessage
+            {
+                ChannelId = 0,
+                MessageId = 0,
+                AuthorId = 0,
+                AuthorName = this.cachedPlayerName ?? "you",
+                IsOwner = true,
+                TargetType = target.Value,
+                Content = parts[1],
+                CleanContent = parts[1],
+            };
+
+            RunInboundDebug("/dcpsend", fake, forceSend: true);
+        }
+
+        private void RunInboundDebug(string name, InboundDiscordMessage fake, bool forceSend)
+        {
             _ = Task.Run(async () =>
             {
-                var result = await this.HandleInboundAsync(fake, text);
-                Logger.Information("/dcpin: {0} ({1})", result, text);
-                if (result is not InboundResult.Shown and not InboundResult.Sent)
-                    Service.Chat.PrintError($"/dcpin: {result}");
+                var outcome = await this.HandleInboundAsync(fake, forceSend);
+                Logger.Information("{0}: {1} {2}", name, outcome.Result, outcome.Reason ?? string.Empty);
+                if (outcome.Result is not InboundResult.Shown and not InboundResult.Sent)
+                    Service.Chat.PrintError($"{name}: {outcome.Result}{(outcome.Reason is { } r ? $" ({r})" : string.Empty)}");
             });
         }
 

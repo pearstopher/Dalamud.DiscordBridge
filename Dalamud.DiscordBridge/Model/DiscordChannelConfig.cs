@@ -25,6 +25,12 @@ namespace Dalamud.DiscordBridge.Model
         /// <summary>Role required when <see cref="InboundPermission"/> is <see cref="InboundPermission.Role"/>.</summary>
         public ulong? InboundRoleId { get; set; }
 
+        /// <summary>
+        /// When on (and <c>Configuration.AllowSendAsCharacter</c> is on), the owner's messages in this channel are said in
+        /// game by their character instead of only being shown locally.
+        /// </summary>
+        public bool InboundSendAsOwner { get; set; }
+
         public void SetUnique(XivChatType type)
         {
             SetUnique(new []{type});
