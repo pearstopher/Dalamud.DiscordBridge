@@ -40,6 +40,39 @@ public class SpecialCharsHandlerTests
     }
 
     [Fact]
+    public void SetEmotes_AllThreeFound_AllApplied()
+    {
+        handler.SetEmotes([("other", 1), ("xivAtl", 10), ("xivAtr", 11), ("xivHq", 12)]);
+
+        Assert.Equal("<:xivAtl:10>Hi<:xivAtr:11> Potion<:xivHq:12>", handler.TransformToUnicode("Hi Potion"));
+    }
+
+    [Fact]
+    public void SetEmotes_SomeMissing_KeepsFallbacksForMissing()
+    {
+        handler.SetEmotes([("xivHq", 12)]);
+
+        Assert.Equal("🟩Hi🟥 Potion<:xivHq:12>", handler.TransformToUnicode("Hi Potion"));
+    }
+
+    [Fact]
+    public void SetEmotes_DuplicateNames_FirstWins()
+    {
+        handler.SetEmotes([("xivHq", 1), ("xivHq", 2)]);
+
+        Assert.Equal("<:xivHq:1>", handler.TransformToUnicode(""));
+    }
+
+    [Fact]
+    public void SetEmotes_CalledAgainWithoutEmotes_RevertsToFallbacks()
+    {
+        handler.SetEmotes([("xivHq", 12)]);
+        handler.SetEmotes([]);
+
+        Assert.Equal("❇", handler.TransformToUnicode(""));
+    }
+
+    [Fact]
     public void TransformToUnicode_RepeatedGlyph_ReplacesAll()
     {
         Assert.Equal("ʛ100 ʛ200", handler.TransformToUnicode("100 200"));
