@@ -1158,7 +1158,9 @@ namespace Dalamud.DiscordBridge
                 if (channel == null)
                     return;
 
-                var message = await channel.GetMessageAsync(messageId);
+                // The message was just received, so it's normally in the gateway's cache: react without fetching it (#50).
+                var message = (channel as ISocketMessageChannel)?.GetCachedMessage(messageId)
+                              ?? await channel.GetMessageAsync(messageId);
                 if (message != null)
                     await message.AddReactionAsync(new Emoji(emoji));
             }
