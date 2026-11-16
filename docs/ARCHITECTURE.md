@@ -49,6 +49,7 @@ All source is in `Dalamud.DiscordBridge/`.
 | `MentionPolicy.cs` | Pure (#41): relays never ping, except the users/roles/`@everyone` written in the owner's own prefix (`DiscordHandler.MentionsForPrefix`). |
 | `SwapGate.cs` | One `/dcp` Save reconnect at a time (#44). |
 | `AvatarCache.cs` | Lodestone portraits (#47): hits kept for the session, "not found" remembered 1 h, failures/timeouts 5 min; each lookup capped at 5 s (`DiscordHandler.LookupAvatarAsync`). |
+| `RelayFilter.cs` | Game-thread check (#49): drops chat lines no channel would receive before they're queued. Same rule as `SendChatEvent` (outgoing tells as tells, GM lines with their player channel), cached per `Configuration.Revision` (bumped by every `Save()`). |
 | `ChatKindArgs.cs` | Pure (#42): parses the chat-kind list of `setchannel`/`unsetchannel`/`setprefix`/`unsetprefix`/`setchattypename`/`unsetchattypename`/`setavatar`/`unsetavatar` (`tell`, `p`, `any`, `all`, typos named in the error), formats list replies (truncated to fit an embed), validates avatar URLs and `setduplicatems`. |
 | `ClientCache.cs` / `WebhookRules.cs` | One cached `DiscordWebhookClient` per channel (#40), disposed on eviction and shutdown; a deleted webhook ("Unknown Webhook") is recreated once and the send retried; the config is saved only when the webhook ID changes. |
 | `ConfigImport.cs` | One-time, read-only import of the official Discord Chat Bridge config (`pluginConfigs/Dalamud.DiscordBridge.json`) on first run, stripping its `$type` metadata. |
@@ -71,7 +72,7 @@ All source is in `Dalamud.DiscordBridge/`.
 
 ```
 Game chat ─► IChatGui.ChatMessage ─► DiscordBridgePlugin.ChatOnOnChatMessage   (game thread)
-               │  skip if IsHandled
+               │  skip if IsHandled; echo guard; skip kinds no channel wants (RelayFilter, #49)
                │  RetainerSale → QueuedRetainerItemSaleEvent, else QueuedChatEvent
                ▼
          DiscordMessageQueue.Enqueue (ConcurrentQueue)
