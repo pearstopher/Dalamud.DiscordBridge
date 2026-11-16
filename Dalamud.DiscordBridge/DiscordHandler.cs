@@ -17,7 +17,7 @@ namespace Dalamud.DiscordBridge
 {
     public class DiscordHandler : IDisposable
     {
-        static readonly IPluginLog Logger = Service.Logger;
+        private static IPluginLog Logger => Service.Logger;
 
         private readonly DuplicateFilter duplicateFilter;
         

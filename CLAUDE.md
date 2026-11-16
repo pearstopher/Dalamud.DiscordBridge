@@ -45,7 +45,9 @@ dotnet test Dalamud.DiscordBridge.sln -c Release --no-build    # all tests green
 - Output: `Dalamud.DiscordBridge/bin/x64/Release/` (DLL). Packaged zip: `bin/x64/Release/Dalamud.DiscordBridge/latest.zip`.
 - Claude can't run FFXIV. Behaviour that needs the game gets manual test steps in the issue and the `needs-in-game-test` label.
 - **Warning baseline: 16 warnings** (all nullable-reference warnings). Lower this number whenever a change reduces it. Don't add new warnings. Fix existing ones only when you're already touching that code.
-- The upstream GitHub Actions workflows (`build.yml` on `buildme` branch, `release.yml` on tags) are stale (net472/msbuild). Don't push tags or a `buildme` branch.
+- CI: `.github/workflows/build.yml` builds and tests on push to `master`, on demand, and daily. After pushing, check it with `gh run list --limit 3`; fix a red run before starting the next issue. Don't push tags (releases are the owner's call; see #12).
+- In-game dev testing (loading the dev DLL, test Discord server, debug commands, reading `/xllog`): [DEVELOPMENT.md](DEVELOPMENT.md). Put in-game steps in issues in terms of that guide.
+- This plugin is **not bound by Dalamud's plugin rules** (custom-repo distribution, owner decision in #9), but every feature must get a row in [docs/DALAMUD_RULES.md](docs/DALAMUD_RULES.md). Rule-breaking features must be opt-in and off by default.
 
 ## Project docs
 
@@ -56,6 +58,9 @@ Read these before implementing anything:
 - [docs/CODING_STANDARDS.md](docs/CODING_STANDARDS.md) — style and conventions
 - [docs/TESTING.md](docs/TESTING.md) — testing strategy and requirements
 - [docs/ADDING_FEATURES.md](docs/ADDING_FEATURES.md) — the checklist for adding a feature
+- [docs/DALAMUD_RULES.md](docs/DALAMUD_RULES.md) — per-feature Dalamud-rules compliance
+- [docs/design/discord-to-game.md](docs/design/discord-to-game.md) — design and decision for the two-way (Discord → game) feature
+- [DEVELOPMENT.md](DEVELOPMENT.md) — building, loading in game, debug commands, CI
 
 ## Git conventions
 

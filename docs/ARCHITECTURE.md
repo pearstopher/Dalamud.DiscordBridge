@@ -26,6 +26,7 @@ All source is in `Dalamud.DiscordBridge/`.
 | `API/` | IPC for other plugins: `DiscordBridge.APIVersion` (returns `1`) and `DiscordBridge.SendMessage(pluginName, avatarUrl, message)`. |
 | `XivApi/` | Legacy XIVAPI client and result models. Mostly unused now (avatars come from NetStone; item icons are built as `beta.xivapi.com` asset URLs). |
 | `Constant.cs` | Help/wiki/Discord/logo URLs. |
+| `BuildInfo.cs` | Build configuration/time/path for the `… loaded (Debug build, built …, from …)` line logged at startup (see DEVELOPMENT.md). |
 | `Dalamud.DiscordBridge.json` | Plugin manifest metadata (name, author, description, tags). |
 
 ## Lifecycle

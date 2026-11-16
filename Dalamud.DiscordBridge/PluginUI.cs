@@ -7,7 +7,7 @@ namespace Dalamud.DiscordBridge
 {
     public class PluginUI(DiscordBridgePlugin plugin)
     {
-        static readonly IPluginLog Logger = Service.Logger;
+        private static IPluginLog Logger => Service.Logger;
         private readonly DiscordBridgePlugin Plugin = plugin;
         private bool isVisible;
 

@@ -13,7 +13,7 @@ namespace Dalamud.DiscordBridge.XivApi
 
         private static readonly ConcurrentDictionary<string, JObject> CachedResponses = new();
 
-        static readonly IPluginLog Logger = Service.Logger;
+        private static IPluginLog Logger => Service.Logger;
 
         /// <summary>
         /// Returns the searched character, or null if not found.
