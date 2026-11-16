@@ -470,14 +470,32 @@ namespace Dalamud.DiscordBridge.SelfTests
                     return SelfTestResult.Warn("the message wasn't in the gateway cache; reactions fall back to fetching it");
 
                 await plugin.Discord.ReactAsync(channel!.Id, seen.Id, "✅");
-                var fetched = await channel.GetMessageAsync(seen.Id);
-                return fetched?.Reactions.Any(r => r.Key.Name == "✅" && r.Value.IsMe) == true
+                return await WaitForOwnReaction(channel, seen.Id, "✅", token)
                     ? SelfTestResult.Pass("reacted ✅ using the cached message")
                     : SelfTestResult.Fail("no ✅ reaction on the message (Add Reactions permission?)");
             }
             finally
             {
                 try { await seen.DeleteAsync(); } catch { /* best effort */ }
+            }
+        }
+
+        /// <summary>
+        /// Whether the bot's reaction shows up on the message within 5 s. The message comes from Discord.Net's cache,
+        /// which only learns about the reaction when Discord's "reaction added" event arrives, a moment after the
+        /// reaction call returns. Checking once raced that event and failed now and then.
+        /// </summary>
+        private static async Task<bool> WaitForOwnReaction(IMessageChannel channel, ulong messageId, string emoji, CancellationToken token)
+        {
+            var until = DateTimeOffset.UtcNow.AddSeconds(5);
+            while (true)
+            {
+                var message = await channel.GetMessageAsync(messageId);
+                if (message?.Reactions.Any(r => r.Key.Name == emoji && r.Value.IsMe) == true)
+                    return true;
+                if (DateTimeOffset.UtcNow >= until)
+                    return false;
+                await Task.Delay(250, token);
             }
         }
 
@@ -494,8 +512,7 @@ namespace Dalamud.DiscordBridge.SelfTests
             {
                 var expected = InboundRules.PingReaction(await LoggedIn());
                 await plugin.Discord.AnswerPingAsync(seen);
-                var fetched = await channel!.GetMessageAsync(seen.Id);
-                return fetched?.Reactions.Any(r => r.Key.Name == expected && r.Value.IsMe) == true
+                return await WaitForOwnReaction(channel!, seen.Id, expected, token)
                     ? SelfTestResult.Pass($"reacted {expected}")
                     : SelfTestResult.Fail($"expected a {expected} reaction (or the bot replied 'Pong' instead: missing Add Reactions permission?)");
             }
