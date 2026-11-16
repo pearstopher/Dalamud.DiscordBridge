@@ -48,6 +48,7 @@ All source is in `Dalamud.DiscordBridge/`.
 | `ChannelLookup.cs` | Pure (#39): classifies a failed channel lookup (`Found`/`NotFound`/`Error`). Only a definitive "Unknown Channel" removes a channel's settings; outages and missing access keep them (`WarnOnce` logs once per session). |
 | `MentionPolicy.cs` | Pure (#41): relays never ping, except the users/roles/`@everyone` written in the owner's own prefix (`DiscordHandler.MentionsForPrefix`). |
 | `SwapGate.cs` | One `/dcp` Save reconnect at a time (#44). |
+| `AvatarCache.cs` | Lodestone portraits (#47): hits kept for the session, "not found" remembered 1 h, failures/timeouts 5 min; each lookup capped at 5 s (`DiscordHandler.LookupAvatarAsync`). |
 | `ChatKindArgs.cs` | Pure (#42): parses the chat-kind list of `setchannel`/`unsetchannel`/`setprefix`/`unsetprefix`/`setchattypename`/`unsetchattypename`/`setavatar`/`unsetavatar` (`tell`, `p`, `any`, `all`, typos named in the error), formats list replies (truncated to fit an embed), validates avatar URLs and `setduplicatems`. |
 | `ClientCache.cs` / `WebhookRules.cs` | One cached `DiscordWebhookClient` per channel (#40), disposed on eviction and shutdown; a deleted webhook ("Unknown Webhook") is recreated once and the send retried; the config is saved only when the webhook ID changes. |
 | `ConfigImport.cs` | One-time, read-only import of the official Discord Chat Bridge config (`pluginConfigs/Dalamud.DiscordBridge.json`) on first run, stripping its `$type` metadata. |
@@ -172,7 +173,7 @@ All commands are handled in `DiscordHandler.SocketClientOnMessageReceived`, a lo
 | Service | Used for | Notes |
 |---|---|---|
 | Discord gateway/REST (Discord.Net) | Bot login, commands, webhooks, embeds | Intents: `AllUnprivileged`, `GuildMessages`, `GuildWebhooks`, `MessageContent` (privileged, must be enabled in the Discord developer portal). Invite permission integer `2684742720`. |
-| Lodestone (NetStone) | Player portraits | Network scrape per unseen `name@world`. Cached in a static `ConcurrentDictionary` for the process lifetime. |
+| Lodestone (NetStone) | Player portraits | Network scrape per unseen `name@world`, at most 5 s each. `AvatarCache`: found portraits kept for the session, misses for 1 h, failures for 5 min (#47). |
 | `beta.xivapi.com` asset API | Item icons for retainer sales | URL built directly, no request made by the plugin. |
 | `xivapi.com` | Duty images (`/i/{folder}/{image}.png`), legacy `XivApiClient` | |
 | goatcorp DalamudAssets | Default logo/avatar | `Constant.LogoLink` |
