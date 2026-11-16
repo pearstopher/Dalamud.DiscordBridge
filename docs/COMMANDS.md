@@ -10,9 +10,11 @@ Kinds are chat-type names such as `say`, `fc`, `ls1`, `cwls1`, `p`, `tell`, `e` 
 
 | Command | Who | What it does |
 |---|---|---|
-| `xl!setup` | Owner | **Start here.** Sane settings for this channel in one go. **Game → Discord:** all player chat (say, shout, yell, tells, party, alliance, PvP team, FC, LS1–8, CWLS1–8, Novice Network, emotes; GM messages in those come along). This *replaces* the list, so retainer sales, system/loot/battle/NPC messages, Echo relays and Duty Finder pops are **off**. **Discord → game:** default Echo, owner only (replies and `!` prefixes reach every player channel). **Display:** shown in game, reactions and `[S]` tags on; Echo mode, sender-in-message, embed fallback, bot-name override off; duplicate window 5000 ms. **Never touched:** token, owner, prefix, your per-kind prefixes/names/avatars, other channels, and send-as-me (only the in-game checkbox controls it). Safe to run again. |
+| `xl!setup` | Owner | **Start here.** Sane settings for this channel in one go. **Game → Discord:** all player chat (say, shout, yell, tells, party, alliance, PvP team, FC, LS1–8, CWLS1–8, Novice Network, emotes; GM messages in those come along), plus 🟢/⚫ **FC members logging in/out** (`fclogin`). This *replaces* the list, so retainer sales, system/loot/battle/NPC messages, Echo relays and Duty Finder pops are **off**. **Discord → game:** default Echo, owner only (replies and `!` prefixes reach every player channel). **Display:** shown in game, reactions and `[S]` tags on; Echo mode, sender-in-message, embed fallback, bot-name override off; duplicate window 5000 ms. **Never touched:** token, owner, prefix, your per-kind prefixes/names/avatars, other channels, and send-as-me (only the in-game checkbox controls it). Safe to run again. |
 
 ## Discord: game → Discord (what gets relayed to this channel)
+
+**FC members logging in/out** (`fclogin`): posted as "🟢 Bob Smith has logged in." / "⚫ … has logged out." under the member's name and portrait. Included in `xl!setup`; on its own: `xl!setchannel fclogin` (off: `xl!unsetchannel fclogin`).
 
 Mentions in relayed game text (`<@123>`, `<@&456>`, `@everyone`) show as text and **never ping** anyone (#41). Mentions you put in your own prefix (`setprefix`, `setcfprefix`, e.g. `@here` on duty pops or `<@yourId>` on tells) still ping, and only those.
 

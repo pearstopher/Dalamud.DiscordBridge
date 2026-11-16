@@ -6,6 +6,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using Dalamud.DiscordBridge.Model;
 using Dalamud.Game.Text;
+using Dalamud.Game.Text.SeStringHandling.Payloads;
+using Dalamud.Game.Text.SeStringHandling;
 using Discord;
 using Discord.WebSocket;
 using Lumina.Excel.Sheets;
@@ -60,6 +62,23 @@ namespace Dalamud.DiscordBridge.SelfTests
                     return !string.IsNullOrEmpty(name) && icon > 0 && url.StartsWith("https://")
                         ? SelfTestResult.Pass($"{name}, icon {icon}")
                         : SelfTestResult.Fail($"Unexpected item data: name '{name}', icon {icon}");
+                }),
+
+            new DelegateSelfTest("outbound.fc-login", "Game → Discord", "An FC login line with a real player link resolves to name, world and 🟢 (#53)",
+                async _ =>
+                {
+                    if (!await LoggedIn())
+                        return SelfTestResult.Skip("not logged in");
+
+                    var (name, worldId) = await Service.Framework.RunOnFrameworkThread(() =>
+                        (Service.PlayerState.CharacterName ?? string.Empty, Service.PlayerState.HomeWorld.RowId));
+                    // Built locally, never printed or posted: just run the relay's own resolution on it.
+                    var line = new SeStringBuilder().Add(new PlayerPayload(name, worldId)).AddText(name).Add(RawPayload.LinkTerminator).AddText(" has logged in.").Build();
+                    var (who, world, text) = DiscordMessageQueue.ResolveFcLogin(line, new Dalamud.Game.Text.SeStringHandling.SeString(), plugin.cachedPlayerWorld, line.TextValue);
+
+                    return who == name && world == plugin.cachedPlayerWorld && text == $"🟢 {name} has logged in."
+                        ? SelfTestResult.Pass($"{who}＠{world}: {text}")
+                        : SelfTestResult.Fail($"got {who}＠{world}: {text}");
                 }),
 
             new DelegateSelfTest("outbound.tell-recipient", "Game → Discord", "Outgoing tell recipient is read from a player link as Name＠World (plan B10)",

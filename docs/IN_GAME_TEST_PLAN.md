@@ -20,6 +20,7 @@ For the Discord round trip, run `xl!selftesthere` once in a **private** channel.
 | `config.dalamud-format` | Your real settings survive a save + reload in Dalamud's format (#46) | — |
 | `env.owner` | Owner configured | — |
 | `data.item-sheet` | Item sheet and icon URL for retainer sales | B3 (data part) |
+| `outbound.fc-login` | An FC login line with a real player link resolves to name, world and 🟢 (#53) | B11 (parsing part) |
 | `outbound.tell-recipient` | Tell recipient read as Name＠World | B10 (extraction part) |
 | `ipc.api-version` | IPC answers, and who owns it | A4 |
 | `lodestone.portrait` | NetStone still finds your portrait | B1 (portrait part) |
@@ -64,6 +65,8 @@ The steps below are still manual: things that need a second Discord account, oth
 - [ ] B8. (Two players running the plugin into one channel) A shared FC line appears once, and the **older** copy is the one kept (#7).
 - [ ] B10. Send someone a tell → Discord shows `**[tell]** → Them＠World: text` from you. A tell you receive looks as before (#19).
 - [ ] B9. Idle for a minute with the plugin loaded: no unusual CPU use from the game (#4).
+
+- [ ] B11. **FC logins (#53):** with `fclogin` on (`xl!setup` includes it), when an FC member logs in or out the channel shows "🟢/⚫ Name has logged in/out." under their name and portrait. `/xllog` (Debug) shows `FC login line format: …` once; paste it to Claude if anything looks wrong.
 
 ## C. Discord → game: display (#13–#15)
 
