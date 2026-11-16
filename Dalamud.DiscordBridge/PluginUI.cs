@@ -149,6 +149,7 @@ namespace Dalamud.DiscordBridge
                 DiscordState.None => "Not started",
                 DiscordState.Ready => "Connected!",
                 DiscordState.TokenInvalid => "Token empty or invalid.",
+                DiscordState.Disconnected => "Connection lost, reconnecting…",
                 _ => "Unknown"
             };
 

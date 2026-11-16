@@ -173,48 +173,43 @@ namespace Dalamud.DiscordBridge
             cachedPlayerWorld = Service.PlayerState.HomeWorld.Value.Name.ToString() ?? "";
         }
 
+        // async void is required by the event signature; the body must never throw (#48).
         private async void OnLoginEvent()
         {
-            // Since I'm pulling this on Framework updates now, this might not be needed anymore.
-            // But I'll keep it for now just in case.
-            // cachedLocalPlayer = await Service.Framework.RunOnFrameworkThread(() => Service.ObjectTable.LocalPlayer);
-
-            //cachedLocalPlayer = Service.ObjectTable?.LocalPlayer;
-            cachedPlayerName = Service.PlayerState.CharacterName ?? "";
-            cachedPlayerWorld = Service.PlayerState.HomeWorld.Value.Name.ToString() ?? "";
-
-            await this.Discord.SetOnlinePresence();
-
-            // Annoyance: Sorry to the users who might be affected if this goes badly. I wanted to make a specific person shut up.
-            if (this.Discord.MessageQueue.isStopped())
+            try
             {
-                this.Discord.MessageQueue.Start();
+                cachedPlayerName = Service.PlayerState.CharacterName ?? "";
+                cachedPlayerWorld = Service.PlayerState.HomeWorld.Value.Name.ToString() ?? "";
+
+                await this.Discord.SetOnlinePresence();
+
+                if (this.Discord.MessageQueue.isStopped())
+                    this.Discord.MessageQueue.Start();
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "Error handling login.");
             }
         }
 
+        // async void is required by the event signature; the body must never throw (#48).
         private async void OnLogoutEvent(int type, int code)
         {
-            // Parameters:
-            //   type:
-            //     The type of logout.
-            //
-            //   code:
-            //     The success/failure code
-
-            // Annoyance: Sorry to the users who might be affected if this goes badly. I wanted to make a specific person shut up.
-            if (!this.Discord.MessageQueue.isStopped())
+            try
             {
-                this.Discord.MessageQueue.Stop();
-                this.Discord.MessageQueue.ClearQueue();
+                // Nothing to relay at the title screen: stop and drop what's queued.
+                if (!this.Discord.MessageQueue.isStopped())
+                {
+                    this.Discord.MessageQueue.Stop();
+                    this.Discord.MessageQueue.ClearQueue();
+                }
+
+                await this.Discord.SetIdlePresence();
             }
-
-
-            // cachedLocalPlayer = null;
-
-
-            await this.Discord.SetIdlePresence();
-            // this.Discord.Dispose();
-            // this.Discord = new DiscordHandler(this);
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "Error handling logout.");
+            }
         }
 
         private void ClientStateOnCfPop(ContentFinderCondition e)
