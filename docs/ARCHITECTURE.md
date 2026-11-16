@@ -89,7 +89,7 @@ All commands are handled in `DiscordHandler.SocketClientOnMessageReceived`, a lo
 | `toggledefaultnameavatar` | Global: webhook uses the bot name/default avatar instead of the player's. |
 | `togglesender` | Global: put `Name＠World:` in the message text. |
 | `setduplicatems <ms>` | Duplicate-filter window. |
-| `setavatar <kinds\|default> <url>` / `unsetavatar <kind\|default>` | Per-type fallback avatar. These currently skip the owner check: see #3. |
+| `setavatar <kinds\|default> <url>` / `unsetavatar <kind\|default>` | Per-type fallback avatar. |
 | `help` | Embed listing every command. **Keep it in sync when adding commands.** |
 
 ## Threading model
@@ -122,4 +122,4 @@ All commands are handled in `DiscordHandler.SocketClientOnMessageReceived`, a lo
 
 ## Known issues (tracked)
 
-#3 owner check missing on avatar commands · #4 queue thread can die / busy-spins · #5 DM channels throw · #6 leaked event handlers on dispose · #7 duplicate filter compares offsets, not thread-safe · #8 custom emotes never applied.
+#4 queue thread can die / busy-spins · #5 DM channels throw · #6 leaked event handlers on dispose · #7 duplicate filter compares offsets, not thread-safe · #8 custom emotes never applied.
