@@ -32,10 +32,15 @@ namespace Dalamud.DiscordBridge.SelfTests
                     ? SelfTestResult.Pass($"{plugin.cachedPlayerName}＠{plugin.cachedPlayerWorld}")
                     : SelfTestResult.Fail("Not logged in: log in to a character, then run again. Game tests will be skipped.")),
 
-            new DelegateSelfTest("env.discord-ready", "Environment", "Discord bot connected",
-                _ => Task.FromResult(plugin.Discord.State == DiscordState.Ready
-                    ? SelfTestResult.Pass("Connected")
-                    : SelfTestResult.Fail($"Discord state is {plugin.Discord.State}. Check the token in {Constant.MainCommand}."))),
+            new DelegateSelfTest("env.discord-ready", "Environment", "Discord bot connected, and /dcp's state matches the gateway (#48)",
+                _ => Task.FromResult(plugin.Discord.State != DiscordState.Ready
+                    ? SelfTestResult.Fail($"Discord state is {plugin.Discord.State}. Check the token in {Constant.MainCommand}.")
+                    : plugin.Discord.IsConnected
+                        ? SelfTestResult.Pass("Connected")
+                        : SelfTestResult.Fail("/dcp says Connected but the gateway isn't connected (state machine out of sync)"))),
+
+            new DelegateSelfTest("config.dalamud-format", "Environment", "Your settings survive a save and reload in Dalamud's config format (#46)",
+                _ => Task.FromResult(ConfigRoundTrip(plugin.Config))),
 
             new DelegateSelfTest("env.owner", "Environment", "Owner configured (needed for commands and inbound permissions)",
                 _ => Task.FromResult(string.IsNullOrWhiteSpace(plugin.Config.DiscordOwnerName)
@@ -268,6 +273,38 @@ namespace Dalamud.DiscordBridge.SelfTests
 
             new DelegateSelfTest("discord.round-trip", "Discord", "Post to the self-test channel and see it come back through the gateway",
                 token => DiscordRoundTrip(plugin, token), TimeSpan.FromSeconds(30)),
+
+            new DelegateSelfTest("discord.webhook-reuse", "Discord", "The self-test channel's webhook client is created once and reused (#40)",
+                _ => WebhookReuseTest(plugin), TimeSpan.FromSeconds(20)),
+
+            new DelegateSelfTest("discord.no-pings", "Discord", "A relayed line containing a mention doesn't ping anyone (#41)",
+                token => NoPingsTest(plugin, token), TimeSpan.FromSeconds(30)),
+
+            new DelegateSelfTest("discord.reaction", "Discord", "Reacting to a just-received message works from the gateway cache (#50)",
+                token => ReactionTest(plugin, token), TimeSpan.FromSeconds(30)),
+
+            new DelegateSelfTest("discord.ping", "Discord", "xl!ping's reaction matches your login state (#37)",
+                token => PingTest(plugin, token), TimeSpan.FromSeconds(30)),
+
+            new DelegateSelfTest("lodestone.cache", "Lodestone", "A second portrait lookup comes from the cache, instantly (#47)",
+                async _ =>
+                {
+                    if (!plugin.Discord.LodestoneReady)
+                        return SelfTestResult.Skip("Lodestone client not ready yet");
+                    if (string.IsNullOrEmpty(plugin.cachedPlayerName) || string.IsNullOrEmpty(plugin.cachedPlayerWorld))
+                        return SelfTestResult.Skip("not logged in");
+
+                    var first = await plugin.Discord.LookupAvatarAsync(plugin.cachedPlayerName, plugin.cachedPlayerWorld);
+                    var watch = System.Diagnostics.Stopwatch.StartNew();
+                    var second = await plugin.Discord.LookupAvatarAsync(plugin.cachedPlayerName, plugin.cachedPlayerWorld);
+                    watch.Stop();
+
+                    if (first != second)
+                        return SelfTestResult.Fail("the two lookups disagreed");
+                    return watch.ElapsedMilliseconds < 50
+                        ? SelfTestResult.Pass($"{(first == null ? "miss" : "portrait")} cached; second lookup {watch.ElapsedMilliseconds} ms")
+                        : SelfTestResult.Fail($"second lookup took {watch.ElapsedMilliseconds} ms (not cached?)");
+                }, TimeSpan.FromSeconds(20)),
         ];
 
         private static async Task<SelfTestResult> DisplayLoopTest(DiscordBridgePlugin plugin, bool asEcho, CancellationToken token)
@@ -291,6 +328,176 @@ namespace Dalamud.DiscordBridge.SelfTests
             return swallowed
                 ? SelfTestResult.Pass("shown and swallowed by the loop guard")
                 : SelfTestResult.Fail("the printed line was NOT swallowed: it would be relayed back to Discord");
+        }
+
+        /// <summary>Same settings Dalamud uses to save and load plugin configs (type metadata on every object).</summary>
+        private static readonly Newtonsoft.Json.JsonSerializerSettings DalamudJson = new()
+        {
+            TypeNameAssemblyFormatHandling = Newtonsoft.Json.TypeNameAssemblyFormatHandling.Simple,
+            TypeNameHandling = Newtonsoft.Json.TypeNameHandling.Objects,
+        };
+
+        private static SelfTestResult ConfigRoundTrip(Configuration config)
+        {
+            try
+            {
+                var json = Newtonsoft.Json.JsonConvert.SerializeObject(config, DalamudJson);
+                var back = Newtonsoft.Json.JsonConvert.DeserializeObject<Configuration>(json, DalamudJson);
+                if (back == null)
+                    return SelfTestResult.Fail("reloading returned nothing");
+                if (back.ChannelConfigs.Count != config.ChannelConfigs.Count || back.PrefixConfigs.Count != config.PrefixConfigs.Count ||
+                    back.DiscordOwnerName != config.DiscordOwnerName)
+                    return SelfTestResult.Fail("settings changed after a save and reload");
+                if (json.Contains("ConcurrentDictionary"))
+                    return SelfTestResult.Fail("saved with a type older versions can't load");
+                return SelfTestResult.Pass($"{config.ChannelConfigs.Count} channel(s), {config.PrefixConfigs.Count} prefix(es) round-tripped");
+            }
+            catch (Exception ex)
+            {
+                return SelfTestResult.Fail($"{ex.GetType().Name}: {ex.Message}");
+            }
+        }
+
+        /// <summary>The self-test channel, or a Skip result explaining why there isn't one.</summary>
+        private static async Task<(IMessageChannel? Channel, DiscordHandler.DeliveryRoute Route, SelfTestResult? Skip)> SelfTestChannel(DiscordBridgePlugin plugin)
+        {
+            if (plugin.Config.SelfTestChannelId is not { } channelId)
+                return (null, default, SelfTestResult.Skip($"no self-test channel; run {plugin.Config.DiscordBotPrefix}selftesthere in a private channel to enable"));
+            if (plugin.Discord.State != DiscordState.Ready)
+                return (null, default, SelfTestResult.Skip("Discord not connected"));
+
+            var (channel, route) = await plugin.Discord.ResolveDeliveryAsync(channelId, forceEmbed: false);
+            return channel == null
+                ? (null, default, SelfTestResult.Fail($"self-test channel {channelId} not reachable"))
+                : (channel, route, null);
+        }
+
+        /// <summary>Post as the bot and wait for the gateway to deliver it back (so it's in the message cache).</summary>
+        private static async Task<SocketMessage?> PostAndObserve(DiscordBridgePlugin plugin, IMessageChannel channel, string content, CancellationToken token)
+        {
+            var arrived = new TaskCompletionSource<SocketMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
+            void Observer(SocketMessage m)
+            {
+                if (m.Content == content)
+                    arrived.TrySetResult(m);
+            }
+
+            plugin.Discord.MessageObserved += Observer;
+            try
+            {
+                await channel.SendMessageAsync(content, allowedMentions: DiscordHandler.RelayMentions);
+                var finished = await Task.WhenAny(arrived.Task, Task.Delay(TimeSpan.FromSeconds(15), token));
+                return finished == arrived.Task ? arrived.Task.Result : null;
+            }
+            finally
+            {
+                plugin.Discord.MessageObserved -= Observer;
+            }
+        }
+
+        private static async Task<SelfTestResult> WebhookReuseTest(DiscordBridgePlugin plugin)
+        {
+            var (channel, route, skip) = await SelfTestChannel(plugin);
+            if (skip is { } skipped)
+                return skipped;
+            if (route != DiscordHandler.DeliveryRoute.Webhook)
+                return SelfTestResult.Skip($"self-test channel uses {route}, not a webhook");
+
+            var first = await plugin.Discord.GetOrCreateWebhookClient((ITextChannel)channel!);
+            var second = await plugin.Discord.GetOrCreateWebhookClient((ITextChannel)channel!);
+            if (first == null)
+                return SelfTestResult.Fail("couldn't get or create the webhook");
+            return ReferenceEquals(first, second)
+                ? SelfTestResult.Pass("same client both times")
+                : SelfTestResult.Fail("a new webhook client was created for the second message (leak)");
+        }
+
+        private static async Task<SelfTestResult> NoPingsTest(DiscordBridgePlugin plugin, CancellationToken token)
+        {
+            var (channel, route, skip) = await SelfTestChannel(plugin);
+            if (skip is { } skipped)
+                return skipped;
+            if (route != DiscordHandler.DeliveryRoute.Webhook || await plugin.Discord.GetOrCreateWebhookClient((ITextChannel)channel!) is not { } webhook)
+                return SelfTestResult.Skip($"self-test channel uses {route}, not a webhook");
+
+            // Mention the bot itself (harmless) the way a player could type it in game, and send it like a relay.
+            var tag = NewTag();
+            var content = $"**[say]** <@{plugin.Discord.BotUserId}> {tag} mention test (safe to ignore; deleted automatically)";
+            var arrived = new TaskCompletionSource<SocketMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
+            void Observer(SocketMessage m)
+            {
+                if (m.Content.Contains(tag))
+                    arrived.TrySetResult(m);
+            }
+
+            plugin.Discord.MessageObserved += Observer;
+            try
+            {
+                var id = await webhook.SendMessageAsync(content, username: Constant.WebhookName, allowedMentions: DiscordHandler.MentionsForPrefix(null));
+                var finished = await Task.WhenAny(arrived.Task, Task.Delay(TimeSpan.FromSeconds(15), token));
+                try { await webhook.DeleteMessageAsync(id); } catch { /* best effort */ }
+                if (finished != arrived.Task)
+                    return SelfTestResult.Fail("the test message never came back through the gateway");
+
+                var message = arrived.Task.Result;
+                return message.MentionedUsers.Count == 0
+                    ? SelfTestResult.Pass("Discord reports no pinged users")
+                    : SelfTestResult.Fail($"Discord reports {message.MentionedUsers.Count} pinged user(s): relayed text can still ping");
+            }
+            finally
+            {
+                plugin.Discord.MessageObserved -= Observer;
+            }
+        }
+
+        private static async Task<SelfTestResult> ReactionTest(DiscordBridgePlugin plugin, CancellationToken token)
+        {
+            var (channel, _, skip) = await SelfTestChannel(plugin);
+            if (skip is { } skipped)
+                return skipped;
+
+            var seen = await PostAndObserve(plugin, channel!, $"🍐 {Constant.PluginName} reaction test {NewTag()} (safe to ignore; deleted automatically)", token);
+            if (seen == null)
+                return SelfTestResult.Fail("the test message never came back through the gateway");
+            try
+            {
+                if ((channel as ISocketMessageChannel)?.GetCachedMessage(seen.Id) == null)
+                    return SelfTestResult.Warn("the message wasn't in the gateway cache; reactions fall back to fetching it");
+
+                await plugin.Discord.ReactAsync(channel!.Id, seen.Id, "✅");
+                var fetched = await channel.GetMessageAsync(seen.Id);
+                return fetched?.Reactions.Any(r => r.Key.Name == "✅" && r.Value.IsMe) == true
+                    ? SelfTestResult.Pass("reacted ✅ using the cached message")
+                    : SelfTestResult.Fail("no ✅ reaction on the message (Add Reactions permission?)");
+            }
+            finally
+            {
+                try { await seen.DeleteAsync(); } catch { /* best effort */ }
+            }
+        }
+
+        private static async Task<SelfTestResult> PingTest(DiscordBridgePlugin plugin, CancellationToken token)
+        {
+            var (channel, _, skip) = await SelfTestChannel(plugin);
+            if (skip is { } skipped)
+                return skipped;
+
+            var seen = await PostAndObserve(plugin, channel!, $"🍐 {Constant.PluginName} ping test {NewTag()} (safe to ignore; deleted automatically)", token);
+            if (seen == null)
+                return SelfTestResult.Fail("the test message never came back through the gateway");
+            try
+            {
+                var expected = InboundRules.PingReaction(await LoggedIn());
+                await plugin.Discord.AnswerPingAsync(seen);
+                var fetched = await channel!.GetMessageAsync(seen.Id);
+                return fetched?.Reactions.Any(r => r.Key.Name == expected && r.Value.IsMe) == true
+                    ? SelfTestResult.Pass($"reacted {expected}")
+                    : SelfTestResult.Fail($"expected a {expected} reaction (or the bot replied 'Pong' instead: missing Add Reactions permission?)");
+            }
+            finally
+            {
+                try { await seen.DeleteAsync(); } catch { /* best effort */ }
+            }
         }
 
         private static async Task<SelfTestResult> DiscordRoundTrip(DiscordBridgePlugin plugin, CancellationToken token)

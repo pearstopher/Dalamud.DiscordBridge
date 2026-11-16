@@ -16,7 +16,8 @@ For the Discord round trip, run `xl!selftesthere` once in a **private** channel.
 |---|---|---|
 | `env.build` | Which DLL/build is loaded | A1 |
 | `env.logged-in` | You're logged in (game tests need it) | — |
-| `env.discord-ready` | Bot connected | A3 (status) |
+| `env.discord-ready` | Bot connected, and `/dcp`'s state matches the gateway (#48) | A3 (status) |
+| `config.dalamud-format` | Your real settings survive a save + reload in Dalamud's format (#46) | — |
 | `env.owner` | Owner configured | — |
 | `data.item-sheet` | Item sheet and icon URL for retainer sales | B3 (data part) |
 | `outbound.tell-recipient` | Tell recipient read as Name＠World | B10 (extraction part) |
@@ -32,6 +33,11 @@ For the Discord round trip, run `xl!selftesthere` once in a **private** channel.
 | `discord.reply-routing` | Relay messages read back from Discord route replies to the right channel/person; GM and retainer replies blocked | D8 (routing part) |
 | `discord.status-online` | The 🟢 online post fired once this load (or the setting is off) | A6 (online part) |
 | `discord.round-trip` | Post → gateway → back, Message Content intent working | — |
+| `discord.webhook-reuse` | The channel's webhook client is created once and reused (#40) | F5 (reuse part) |
+| `discord.no-pings` | A relay containing `<@bot>` pings nobody (#41) | F6 (game-text part) |
+| `discord.reaction` | Reacting from the gateway cache works (#50) | — |
+| `discord.ping` | `xl!ping`'s reaction matches your login state (#37) | A7 (reaction part) |
+| `lodestone.cache` | Second portrait lookup is instant (#47) | — |
 
 The steps below are still manual: things that need a second Discord account, other players, logging out, reloading, or judging how something looks. Steps fully covered above are marked *(automated)*; skip them if section 0 passed.
 
@@ -95,6 +101,18 @@ Test with **tells to yourself**, not FC, so nobody else sees test lines. A tell 
 - [ ] D9. From the second account (with `setinboundperm everyone`) → shown locally only, never sent.
 - [ ] D9b. **[D] vs [S] (#28):** a shown-only message has `[D]` and a 👁️ reaction. A really-sent one (send-as-me on) shows on **your** screen as `[S]` (e.g. `>> [S] Ane Mora: hi`, `[S] Ane Mora >> hi`) and gets ✅. Untick "Tag messages sent by the plugin" in `/dcp` → sent messages look like normal chat again.
 - [ ] D10. Untick "Allow sending as my character" → your messages are only shown again (`[D]`, 👁️).
+
+## F. Fixes from the code review (#38: #39–#52)
+
+The self-tests above cover the reusable-webhook, no-pings, reaction, ping, cache and config-format parts. These need you:
+
+- [ ] F1. **Settings kept (#46):** after loading this build, `/dcp` still shows your token (tick **Show**) and owner, and `xl!listchannel` in your channels shows the same setup as before.
+- [ ] F2. **Save doesn't freeze (#44):** `/dcp` → **Save**. The game doesn't hitch; the status shows *Reconnecting…*, then *Connected!*. The token field shows dots until you tick **Show**.
+- [ ] F3. **Connection state (#48):** turn Wi-Fi off for ~30 s: `/dcp` shows *Connection lost, reconnecting…*; turn it back on → *Connected!*. Optional: paste a wrong token → Save → *Token empty or invalid*, then put the right one back and Save.
+- [ ] F4. **Commands (#42, #52):** as yourself: `xl!help` (lists everything), `xl!listchannel`, `xl!setprefix fc 🍐` then `xl!unsetprefix fc` (both reply with the list), `xl!setchannel fc,bogus` (❌ naming `bogus`, nothing changed), `xl!setduplicatems none` then `xl!setduplicatems 5000`. From a second, non-owner account: `xl!setup` → "not allowed", `xl!help` works.
+- [ ] F5. **Deleted webhook (#40):** Discord channel settings → Integrations → Webhooks → delete "FFXIV Bridge Worker". Say something in a relayed in-game channel: it still arrives, and a new webhook appears.
+- [ ] F6. **Your own prefix still pings (#41):** `xl!setprefix say <@YOUR_USER_ID>` (Discord: right-click yourself → Copy User ID), then `/say hi` in game → you get pinged. `xl!unsetprefix say`, then `/say <@YOUR_USER_ID> hi` → it shows as a mention but **doesn't** ping.
+- [ ] F7. **Busy chat (#49):** with only some kinds subscribed, fight something for a minute: subscribed chat still arrives promptly, and `/xllog` has no new errors.
 
 ## E. Wrap-up
 

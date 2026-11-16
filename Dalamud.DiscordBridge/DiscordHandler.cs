@@ -575,7 +575,7 @@ namespace Dalamud.DiscordBridge
             };
         }
 
-        private async Task AnswerPingAsync(SocketMessage message)
+        internal async Task AnswerPingAsync(SocketMessage message)
         {
             var loggedIn = await Service.Framework.RunOnFrameworkThread(() => Service.State.IsLoggedIn);
             try
@@ -700,7 +700,7 @@ namespace Dalamud.DiscordBridge
         /// failures are remembered for a while (#47), so the relay queue never waits on the same slow search twice.
         /// </summary>
         /// <returns>The portrait URL, or null (use the fallback avatar).</returns>
-        private async Task<string?> LookupAvatarAsync(string name, string world)
+        internal async Task<string?> LookupAvatarAsync(string name, string world)
         {
             var key = $"{name}＠{world}";
             if (Avatars.TryGet(key, DateTimeOffset.UtcNow, out var known))
