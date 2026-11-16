@@ -106,7 +106,7 @@ public class WebhookCacheTests
         // Regression (#40): a new DiscordWebhookClient per message leaked an HttpClient each time.
         var source = File.ReadAllText(Path.Combine(DocumentationTests.Root, "Dalamud.DiscordBridge", "DiscordHandler.cs"));
 
-        Assert.Equal(1, System.Text.RegularExpressions.Regex.Matches(source, @"new DiscordWebhookClient\(").Count);
+        Assert.Single(System.Text.RegularExpressions.Regex.Matches(source, @"new DiscordWebhookClient\("));
         Assert.Contains("this.webhooks.Add(channel.Id, new DiscordWebhookClient(hook))", source);
         Assert.Contains("this.webhooks.Dispose()", source);
     }
