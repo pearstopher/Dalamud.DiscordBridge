@@ -11,10 +11,16 @@ namespace Dalamud.DiscordBridge
 {
     /// <summary>
     /// Dedupes already posted messages whenever a message is received.
+    /// Useful when several players running the plugin relay the same chat into one channel.
     /// </summary>
+    /// <remarks>
+    /// <see cref="OnMessageReceived"/> runs on the Discord gateway, while <see cref="CheckAlreadySent"/> runs on the
+    /// message queue task. All access to the recent-message set goes through <see cref="recentLock"/>, which is never
+    /// held across an await.
+    /// </remarks>
     public class DuplicateFilter
     {
-        static readonly IPluginLog Logger = Service.Logger;
+        private static IPluginLog? Logger => Service.Logger;
 
         /// <summary>
         /// Constructs a <see cref="DuplicateFilter"/> to dedupe messages for the given socket client.
@@ -24,10 +30,10 @@ namespace Dalamud.DiscordBridge
         public DuplicateFilter(DiscordBridgePlugin plugin, DiscordSocketClient client)
         {
             this.plugin = plugin;
-            
+
             client.MessageReceived += OnMessageReceived;
         }
-        
+
         #region Methods
 
         /// <summary>
@@ -40,28 +46,28 @@ namespace Dalamud.DiscordBridge
         /// <returns>Whether the chat was recently sent and should be prevented.</returns>
         public bool CheckAlreadySent(Discord.IChannel channel, string slug, string displayName, string chatText)
         {
-            // Get the first message that duplicates the name and text for consideration.
-            var recentMsg = recentMessages.FirstOrDefault(msg =>
+            SocketMessage? recentMsg;
+            lock (this.recentLock)
             {
-                var contentParser = new ContentParser(msg.Content);
-                
-                return msg.Channel.Id == channel.Id &&
-                       msg.Author.Username == displayName &&
-                       contentParser.Slug == slug &&
-                       contentParser.Text == chatText;
-            });
+                recentMsg = this.recentMessages.FirstOrDefault(msg =>
+                {
+                    var contentParser = new ContentParser(msg.Content);
+
+                    return msg.Channel.Id == channel.Id &&
+                           msg.Author.Username == displayName &&
+                           contentParser.Slug == slug &&
+                           contentParser.Text == chatText;
+                });
+            }
 
             if (recentMsg == null)
-            {
                 return false;
-            }
-            
-            long msgDiff = GetAgeMs(recentMsg);
-            
+
+            long msgDiff = GetAgeMs(recentMsg.Timestamp, DateTimeOffset.UtcNow);
+
             if (msgDiff < plugin.Config.DuplicateCheckMS)
             {
-                Logger.Verbose($"[FILTER] Filtered outgoing message as duplicate. Diff: {msgDiff}ms, Threshold: {plugin.Config.DuplicateCheckMS}ms");
-
+                Logger?.Verbose($"[FILTER] Filtered outgoing message as duplicate. Diff: {msgDiff}ms, Threshold: {plugin.Config.DuplicateCheckMS}ms");
                 return true;
             }
 
@@ -69,40 +75,65 @@ namespace Dalamud.DiscordBridge
         }
 
         #endregion
-        
+
+        #region Pure helpers (unit tested)
+
+        /// <summary>
+        /// Two relayed messages are duplicates when they're in the same channel, from the same webhook name,
+        /// with the same chat-kind slug and text.
+        /// </summary>
+        internal static bool IsDuplicate(ulong leftChannel, string leftAuthor, string leftContent,
+                                         ulong rightChannel, string rightAuthor, string rightContent)
+        {
+            if (leftChannel != rightChannel || leftAuthor != rightAuthor)
+                return false;
+
+            var leftParsed = new ContentParser(leftContent);
+            var rightParsed = new ContentParser(rightContent);
+
+            return leftParsed.Slug == rightParsed.Slug && leftParsed.Text == rightParsed.Text;
+        }
+
+        /// <summary>
+        /// True if <paramref name="left"/> was posted after <paramref name="right"/>. Compares instants, not UTC offsets.
+        /// </summary>
+        internal static bool IsNewer(DateTimeOffset left, DateTimeOffset right) => left > right;
+
+        internal static long GetAgeMs(DateTimeOffset timestamp, DateTimeOffset now)
+            => now.ToUnixTimeMilliseconds() - timestamp.ToUnixTimeMilliseconds();
+
+        #endregion
+
         #region Private Functions
 
         private async Task OnMessageReceived(SocketMessage message)
         {
-            AddRecent(message);
-            
+            // The message should be from a webhook and have a content string.
+            if (!message.Author.IsWebhook || message.Content.IsNullOrEmpty())
+                return;
+
+            lock (this.recentLock)
+            {
+                this.recentMessages.Add(message);
+            }
+
             await Dedupe();
         }
 
-        private void AddRecent(SocketMessage message)
-        {
-            // The message should be from a webhook and have a content string. 
-            if (!message.Author.IsWebhook || message.Content.IsNullOrEmpty())
-            {
-                return;
-            }
-            
-            // Add the message if it's not already in the recent messages list.
-            recentMessages.Add(message);
-        }
-        
         private async Task Dedupe()
         {
-            // Remove for consideration any message that's over the age threshold.
-            var filtered = recentMessages
-                .Where(m => GetAgeMs(m) < plugin.Config.DuplicateCheckMS)
-                .ToArray(); // Convert to array to avoid multiple enumeration below.
+            var now = DateTimeOffset.UtcNow;
+            SocketMessage[] filtered;
 
-            // Holds deleted messages so that they can be removed from recents later.
+            lock (this.recentLock)
+            {
+                // Forget anything older than the duplicate window.
+                this.recentMessages.RemoveWhere(m => GetAgeMs(m.Timestamp, now) >= plugin.Config.DuplicateCheckMS);
+                filtered = this.recentMessages.ToArray();
+            }
+
+            // Compare every message to every other message (outside the lock: deleting awaits network I/O).
             var deleted = new HashSet<SocketMessage>();
-            
-            // Compare every message to every other message to check for duplicates.
-            // - there's probably a linq way to do this, but would it really be better
             for (var outerIdx = 0; outerIdx < filtered.Length; outerIdx++)
             {
                 var recent = filtered[outerIdx];
@@ -110,29 +141,34 @@ namespace Dalamud.DiscordBridge
                 for (var innerIdx = outerIdx + 1; innerIdx < filtered.Length; innerIdx++)
                 {
                     var other = filtered[innerIdx];
-                    
-                    if (IsDuplicate(recent, other))
-                    {
-                        SocketMessage mostRecent = await DeleteMostRecent(recent, other);
 
-                        deleted.Add(mostRecent);
+                    if (deleted.Contains(recent) || deleted.Contains(other))
+                        continue;
+
+                    if (IsDuplicate(recent.Channel.Id, recent.Author.Username, recent.Content,
+                                    other.Channel.Id, other.Author.Username, other.Content))
+                    {
+                        deleted.Add(await DeleteMostRecent(recent, other));
                     }
                 }
             }
 
-            // Rebuild recent messages to exclude old messages and deleted messages.
-            recentMessages = new(filtered.Except(deleted));
+            if (deleted.Count == 0)
+                return;
+
+            lock (this.recentLock)
+            {
+                this.recentMessages.ExceptWith(deleted);
+            }
         }
-        
-        /// <returns>The most recent of the two messages.</returns>
+
+        /// <returns>The most recent of the two messages, which was deleted.</returns>
         private static async Task<SocketMessage> DeleteMostRecent(SocketMessage left, SocketMessage right)
         {
-            bool leftIsNewer = left.Timestamp.Offset > right.Timestamp.Offset;
-            
-            SocketMessage target = leftIsNewer ? left : right;
-            
+            SocketMessage target = IsNewer(left.Timestamp, right.Timestamp) ? left : right;
+
             _ = await TryDeleteAsync(target);
-            
+
             return target;
         }
 
@@ -142,53 +178,30 @@ namespace Dalamud.DiscordBridge
             try
             {
                 await message.DeleteAsync();
-                //await message.AddReactionAsync(new Emoji("💥")); // useful for testing
-                
                 return true;
             }
             catch (Discord.Net.HttpException ex)
             {
-                // Rethrow unless 404 came back.
-                // 404 is expected if the message was already deleted.
+                // 404 is expected if the message was already deleted (e.g. by another bridge user's filter).
                 if (ex.HttpCode != HttpStatusCode.NotFound)
                 {
-                    Service.Logger.Error($"[FILTER] Unexpected exception when attempting to delete a message.");
-                    
+                    Logger?.Error(ex, "[FILTER] Unexpected exception when attempting to delete a message.");
                     throw;
                 }
             }
-            
+
             return false;
         }
-        
-        private static bool IsDuplicate(SocketMessage left, SocketMessage right)
-        {
-            var leftContent = new ContentParser(left.Content);
-            var rightContent = new ContentParser(right.Content);
-            
-            return left.Channel.Id == right.Channel.Id &&
-                   leftContent.Slug == rightContent.Slug &&
-                   left.Author.Username == right.Author.Username &&
-                   leftContent.Text == rightContent.Text;
-        }
 
-        private static long GetAgeMs(SocketMessage message)
-        {
-            return GetElapsedMs(message.Timestamp);
-        }
-        
-        private static long GetElapsedMs(DateTimeOffset timestamp)
-        {
-            return DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - timestamp.ToUnixTimeMilliseconds();
-        }
-        
         #endregion
-        
+
         #region Private Data
 
         private readonly DiscordBridgePlugin plugin;
-        
-        private HashSet<SocketMessage> recentMessages = [];
+
+        private readonly object recentLock = new();
+
+        private readonly HashSet<SocketMessage> recentMessages = [];
 
         #endregion
     }
