@@ -12,6 +12,26 @@ namespace Dalamud.DiscordBridge
         public bool IsTell => Type is XivChatType.TellOutgoing or XivChatType.TellIncoming;
     }
 
+    /// <summary>What to do with a Discord reply.</summary>
+    internal enum ReplyKind
+    {
+        /// <summary>Not a reply to one of our relays (or no reply at all): use the channel's default.</summary>
+        NotAReply,
+
+        /// <summary>Send/show it where the replied-to relay came from.</summary>
+        Route,
+
+        /// <summary>The replied-to relay came from somewhere you can't reply to (GM, retainer, system…). Do nothing.</summary>
+        Blocked,
+    }
+
+    internal readonly record struct ReplyDecision(ReplyKind Kind, ReplyTarget? Target, string? Reason)
+    {
+        internal static ReplyDecision NotAReply => new(ReplyKind.NotAReply, null, null);
+        internal static ReplyDecision RouteTo(ReplyTarget target) => new(ReplyKind.Route, target, null);
+        internal static ReplyDecision Block(string reason) => new(ReplyKind.Blocked, null, reason);
+    }
+
     /// <summary>
     /// Remembers which in-game channel (and tell partner) each relayed Discord message came from, so replies can be
     /// routed back. Bounded and in memory; <see cref="ReplyRouting.Resolve"/> falls back to parsing the message.
@@ -76,19 +96,56 @@ namespace Dalamud.DiscordBridge
                 : new ReplyTarget(chatType, null);
 
         /// <summary>
-        /// Where a reply should go, or null to use the channel's default (<c>setinbound</c>) target.
+        /// Decide what a reply does. Replies to relays from channels you can't talk in (GM channels, retainer sales,
+        /// system messages, standard emotes…) are <see cref="ReplyKind.Blocked"/>: they never fall back to the default.
         /// </summary>
         /// <param name="message">The inbound Discord message (with its reply fields).</param>
         /// <param name="index">Recorded relays.</param>
         /// <param name="customSlugs">User-defined slug overrides (setchattypename), so they can be parsed back.</param>
-        internal static ReplyTarget? Resolve(InboundDiscordMessage message, RelayedMessageIndex index,
+        internal static ReplyDecision Decide(InboundDiscordMessage message, RelayedMessageIndex index,
                                              IReadOnlyDictionary<XivChatType, string>? customSlugs = null)
         {
             if (message.ReplyToMessageId is not { } replyId)
-                return null;
+                return ReplyDecision.NotAReply;
 
-            var target = index.Find(replyId) ?? Parse(message, customSlugs);
-            return target is { } t && CanReplyTo(t) ? t : null;
+            ReplyTarget target;
+            if (index.Find(replyId) is { } indexed)
+            {
+                target = indexed;
+            }
+            else
+            {
+                // Only relay-shaped messages ("**[slug]** …" from a webhook/bot) count as replies to the game.
+                if (!message.ReplyToIsRelay || string.IsNullOrEmpty(message.ReplyToContent))
+                    return ReplyDecision.NotAReply;
+
+                var slug = new ContentParser(message.ReplyToContent).Slug;
+                if (string.IsNullOrEmpty(slug))
+                    return ReplyDecision.NotAReply;
+
+                if (Parse(message, customSlugs) is not { } parsed)
+                    return ReplyDecision.Block($"can't tell which channel `[{slug}]` is");
+                target = parsed;
+            }
+
+            if (IsGmChannel(target.Type))
+                return ReplyDecision.Block("you can't reply to GM messages");
+            if (target.IsTell && string.IsNullOrWhiteSpace(target.TellPartner))
+                return ReplyDecision.Block("can't tell who that tell was with");
+            if (!CanReplyTo(target))
+                return ReplyDecision.Block($"you can't reply to {target.Type.GetFancyNameOrType()} messages");
+
+            return ReplyDecision.RouteTo(target);
+        }
+
+        /// <summary>
+        /// GM channels (GM tell, say, shout, yell, party, FC, linkshells 1–8, novice network): chat types 80–94.
+        /// Never a reply, display or send target.
+        /// </summary>
+        internal static bool IsGmChannel(XivChatType type)
+        {
+            var value = (int)type & 0x7F;
+            return value is >= 80 and <= 94;
         }
 
         /// <summary>Fallback when the relay isn't in memory (e.g. after a reload): read the relayed message itself.</summary>
@@ -109,9 +166,10 @@ namespace Dalamud.DiscordBridge
             return ForRelay(XivChatType.TellOutgoing, partner);
         }
 
-        /// <summary>Chat types a reply can be sent or shown in: the inbound targets, plus tells to a known person.</summary>
+        /// <summary>Chat types a reply can be sent or shown in: the inbound targets, plus tells to a known person. Never GM.</summary>
         internal static bool CanReplyTo(ReplyTarget target)
-            => target.IsTell ? !string.IsNullOrWhiteSpace(target.TellPartner) : InboundRules.AllowedTargets.Contains(target.Type);
+            => !IsGmChannel(target.Type) &&
+               (target.IsTell ? !string.IsNullOrWhiteSpace(target.TellPartner) : InboundRules.AllowedTargets.Contains(target.Type));
 
         private static XivChatType? SlugToType(string slug, IReadOnlyDictionary<XivChatType, string>? customSlugs)
         {

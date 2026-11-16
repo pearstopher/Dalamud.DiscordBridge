@@ -58,6 +58,13 @@ namespace Dalamud.DiscordBridge
             line = string.Empty;
             reason = string.Empty;
 
+            // Defense in depth: never anything GM-related, whatever the caller asked for.
+            if (ReplyRouting.IsGmChannel(type))
+            {
+                reason = "the plugin never sends to GM channels";
+                return false;
+            }
+
             string prefix;
             if (type is XivChatType.TellOutgoing or XivChatType.TellIncoming)
             {

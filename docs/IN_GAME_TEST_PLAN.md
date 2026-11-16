@@ -29,7 +29,7 @@ For the Discord round trip, run `xl!selftesthere` once in a **private** channel.
 | `send.tell-self` | *(opt-in)* Real tell to yourself via the send path; both copies swallowed | D3 |
 | `send.slash-rejected` | `/logout` is rejected and you stay logged in | D5 |
 | `discord.channels` | Every configured channel reachable, webhook permission | B4 (permission part) |
-| `discord.reply-routing` | Relay messages read back from Discord route replies to the right channel/person | D8 (routing part) |
+| `discord.reply-routing` | Relay messages read back from Discord route replies to the right channel/person; GM and retainer replies blocked | D8 (routing part) |
 | `discord.round-trip` | Post → gateway → back, Message Content intent working | — |
 
 The steps below are still manual: things that need a second Discord account, other players, logging out, reloading, or judging how something looks. Steps fully covered above are marked *(automated)*; skip them if section 0 passed.
@@ -83,7 +83,9 @@ Test with **tells to yourself**, not FC, so nobody else sees test lines. A tell 
   - Reply to a relayed **incoming** tell from someone → shown as a tell-coloured `[D] you: → Them＠World: …` (or sent as a tell to them, in send mode).
   - Reply to a relayed `[say]` (or `[ls1]`) line → shown/sent in Say (LS1), not the channel's default.
   - Reply to a relayed **custom emote** (`[customemote]`) → shown/sent as a custom emote (`/em`) (#24).
-  - Reply to a standard emote or system message, or a normal non-reply message → uses the channel's default (`setinbound`). Tip: `xl!setinbound e` makes the default Echo, visible only to you.
+  - Reply to a **retainer sale**, system message, or standard emote relay → ❌ plus "Not sent to game: you can't reply to … messages", and **nothing** in game (#30).
+  - A normal non-reply message, or a reply to a human's Discord message → the channel's default (`setinbound`). Tip: `xl!setinbound e` makes the default Echo, visible only to you.
+  - GM channels can't be produced on demand; `discord.reply-routing` checks that a `[gmtell]` relay is blocked.
   - Reload the plugin, then reply to an *older* relayed tell → still goes to that person (parsed from the message).
 - [ ] D8b. **One-off override (#26):** in a channel whose default is `e`, post `!s hello` → shown in Say. `!t <You>@<World> hi` → a tell to you. `!em waves.` → custom emote. `!fcc oops` → ❌ "unknown channel", nothing in game. `!!! wow` → shown normally in the default. Reply to a tell with `!e private note` → Echo (the override beats the reply).
 - [ ] D9. From the second account (with `setinboundperm everyone`) → shown locally only, never sent.

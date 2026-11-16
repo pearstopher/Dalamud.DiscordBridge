@@ -1294,16 +1294,26 @@ namespace Dalamud.DiscordBridge
             }
 
             // A reply to a relayed message goes back where that message came from (channel, or tell partner).
-            var reply = ReplyRouting.Resolve(draft, this.plugin.RelayIndex, this.plugin.Config.CustomSlugsConfigs);
+            var decision = ReplyRouting.Decide(draft, this.plugin.RelayIndex, this.plugin.Config.CustomSlugsConfigs);
             if (draft.ReplyToMessageId is { } replyId)
             {
-                Logger.Debug("Reply routing: reply to {0} (relay={1}, indexed={2}, author=\"{3}\", content=\"{4}\") → {5}",
+                Logger.Debug("Reply routing: reply to {0} (relay={1}, indexed={2}, author=\"{3}\", content=\"{4}\") → {5} {6}",
                     replyId, draft.ReplyToIsRelay, this.plugin.RelayIndex.Find(replyId)?.ToString() ?? "no",
                     draft.ReplyToAuthor ?? "", draft.ReplyToContent ?? "(none)",
-                    reply?.ToString() ?? $"default ({draft.TargetType})");
+                    decision.Kind, decision.Target?.ToString() ?? decision.Reason ?? $"default ({draft.TargetType})");
             }
 
-            var inbound = reply is { } r
+            // Replies to relays from GM channels, retainer sales, system messages… go nowhere (never the default).
+            if (decision.Kind == ReplyKind.Blocked)
+            {
+                if (this.plugin.Config.InboundReactions)
+                    await this.ReactAsync(message.Channel.Id, message.Id, "❌");
+                await this.ReplyAsync(message.Channel.Id, message.Id,
+                    $"Not sent to game: {decision.Reason}. Start your message with a channel ({ChannelOverride.Examples}) to send it somewhere else.");
+                return true;
+            }
+
+            var inbound = decision is { Kind: ReplyKind.Route, Target: { } r }
                 ? draft with { TargetType = r.Type, TellTarget = r.TellPartner, ReplyToAuthor = null }
                 : draft;
 

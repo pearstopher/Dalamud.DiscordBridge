@@ -497,6 +497,12 @@ namespace Dalamud.DiscordBridge
             return type.GetInfo().Slug ?? "";
         }
 
+        /// <summary>The display name, or the enum name if the type isn't mapped.</summary>
+        public static string GetFancyNameOrType(this XivChatType type)
+            => TypeInfoDict.TryGetValue((XivChatType)((int)type & 0x7F), out var info) && !string.IsNullOrEmpty(info.FancyName)
+                ? info.FancyName
+                : type.ToString();
+
         public static string GetFancyName(this XivChatType type)
         {
             return type.GetInfo().FancyName ?? "";
