@@ -1444,7 +1444,7 @@ namespace Dalamud.DiscordBridge
         public async Task SendItemSaleEvent(ReadOnlySeString name, string iconurl, uint itemId, string message, XivChatType chatType)
         {
             var applicableChannels =
-                this.plugin.Config.ChannelConfigs.Where(x => x.Value.ChatTypes.Contains(chatType));
+                this.plugin.Config.ChannelConfigs.Where(x => ChatTypeGroups.Receives(x.Value, chatType));
 
             if (!applicableChannels.Any())
                 return;
@@ -1596,7 +1596,7 @@ namespace Dalamud.DiscordBridge
             }
 
             var applicableChannels =
-                this.plugin.Config.ChannelConfigs.Where(x => x.Value.ChatTypes.Contains(chatType));
+                this.plugin.Config.ChannelConfigs.Where(x => ChatTypeGroups.Receives(x.Value, chatType));
 
             if (!applicableChannels.Any())
                 return;

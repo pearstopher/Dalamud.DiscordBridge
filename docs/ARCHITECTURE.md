@@ -23,6 +23,7 @@ All source is in `Dalamud.DiscordBridge/`.
 | `InboundDisplay.cs` | Prints converted Discord messages into the local chat log (`IChatGui.Print` on the framework thread, only when logged in). Also `InboundFormat` (pure: entry type/name/text, Echo mode, `[D] {name}` sender label) and the `InboundResult` outcomes. |
 | `InboundSender.cs` | "Send as me": types the owner's converted message into the chat box (`UIModule.ProcessChatBoxEntry`, framework thread) after `Utf8String.SanitizeString` must leave it unchanged. Registers the echo with the guard and returns an `InboundOutcome` (result + reason). |
 | `GameChatCommand.cs` | Pure: chat type → command (`/s /sh /y /p /a /fc /l1-8 /cwl1-8 /e /em`), builds `"/fc text"` and rejects unsupported channels, empty text, leading `/`, line breaks, >500 bytes. Also `SendRateLimiter` (≥2 s apart, ≤5 waiting). |
+| `ChatTypeGroups.cs` | Pure chat-type groups: `Receives` (a channel gets a type it's subscribed to, plus GM messages of the matching player channel: GM tell ↔ tells, GM FC ↔ FC, GM LS1–8 ↔ LS1–8, GM say/shout/yell/party/NN), and `PlayerChat` (the `setup` preset). |
 | `ChatContentFormat.cs` | Pure formatting of relayed lines for Discord: `{prefix}**[{slug}]** {body}`, the body with sender and `→ Recipient` for outgoing tells, and cleaning raw tell-recipient text. Parsed back by `ContentParser`. |
 | `ChannelOverride.cs` | Pure parser for one-message overrides typed in Discord (`!e`, `!fc`, `!l1`/`!ls1`, `!cwl1`, `!em`, `!t First Last@World …`). Precedence: override > reply routing > `setinbound` default. Unknown `!word` → ❌, not relayed. |
 | `ReplyRouting.cs` | Discord replies → in-game target. `RelayedMessageIndex` (bounded, in memory, on the plugin) records each outbound relay's Discord message ID → chat type / tell partner. `ReplyRouting.Decide` uses it, or parses an older relay's `**[slug]**`, `→ Name:` and webhook name → `NotAReply` (use default), `Route`, or `Blocked` (GM channels 80–94, retainer sales, system/emote/NPC…, unknown channel, tell without partner; never falls back). `IsGmChannel` is also enforced in `GameChatCommand.TryBuild`. Tells become `/tell Name@World`. |
@@ -76,7 +77,7 @@ Game chat ─► IChatGui.ChatMessage ─► DiscordBridgePlugin.ChatOnOnChatMes
          SendChatEvent
            1. TellOutgoing is remapped to TellIncoming (both share slug "tell")
            2. avatar: explicit > ChatTypeAvatarURL[type] > DefaultAvatarURL > Lodestone portrait (NetStone, cached per name@world)
-           3. channels = ChannelConfigs where ChatTypes contains type (none → return)
+           3. channels = ChannelConfigs where ChatTypeGroups.Receives (subscribed type, or GM message of a subscribed player channel) (none → return)
            4. SpecialCharsHandler.TransformToUnicode
            5. content = "{prefix}**[{customSlug|slug}]** {[displayName: ]message}"
            6. per channel (ResolveDeliveryAsync → ChooseRoute): DM → embed | ForceEmbedFallbackMode → embed |
