@@ -2,6 +2,8 @@
 
 Everything you can type, in Discord and in game. Discord commands use the bot prefix (default `xl!`; configurable, see [SETTINGS.md](SETTINGS.md)). **Owner** means the command only works for the Discord account set as owner in `/dcp`. Everyone else gets "You are not allowed…".
 
+Every `<kinds>` argument is a comma-separated list, case-insensitive. `tell` means both directions, `p` means party + cross-party, `any` = all regular chat, `all` = every kind. A typo is rejected with the unknown names listed; nothing is changed.
+
 Kinds are chat-type names such as `say`, `fc`, `ls1`, `cwls1`, `p`, `tell`, `e` (Echo), `customemote`. In game, `/dcpprintlist` prints the full list.
 
 ## Discord: one-command setup
@@ -23,16 +25,16 @@ Mentions in relayed game text (`<@123>`, `<@&456>`, `@everyone`) show as text an
 | `xl!ping` (or `xl!test`) | Anyone | **Connection test.** The bot reacts ✅ (plugin running, character logged in) or ⏸️ (running, not logged in). Nothing is shown or sent in game. **No reaction = the plugin (and so the game) isn't running.** If the bot can't add reactions, it replies `Pong: …` instead. | `xl!ping` |
 | `xl!togglestatus` | Owner | **Global.** Post 🟢 *Online* when the plugin starts and 🔴 *Offline* when it stops (game closed normally, plugin disabled or reloaded) in every bridged channel (any channel with chat kinds, duty pops or `setinbound`). On by default. Posted once per plugin load: reconnects and `/dcp` Save don't repost. A crash posts nothing. When the plugin isn't running, nothing reads Discord, so your messages get **no reaction at all**. | |
 | `xl!setprefix <kinds> <prefix>` | Owner | Text/emoji put in front of relayed lines of these kinds. | `xl!setprefix fc 🏠` |
-| `xl!unsetprefix <kind>` | Owner | Remove that prefix. | |
+| `xl!unsetprefix <kinds>` | Owner | Remove those prefixes. | `xl!unsetprefix fc,tell` |
 | `xl!setcfprefix <prefix\|none>` | Owner | Prefix for Duty Finder posts (e.g. a role ping). | `xl!setcfprefix @here` |
-| `xl!setchattypename <kinds> <text>` | Owner | Replace the `[slug]` label shown for these kinds. | `xl!setchattypename fc Home` |
-| `xl!unsetchattypename <kind>` | Owner | Back to the default label. | |
-| `xl!setavatar <kinds\|default> <url>` | Owner | Fallback avatar for these kinds (when no Lodestone portrait), or the global default. | `xl!setavatar default https://…/pear.png` |
-| `xl!unsetavatar <kind\|default>` | Owner | Remove that avatar override. | |
+| `xl!setchattypename <kinds> <text\|none>` | Owner | Replace the `[slug]` label shown for these kinds (`none` = back to default). | `xl!setchattypename fc Home` |
+| `xl!unsetchattypename <kinds>` | Owner | Back to the default label. | |
+| `xl!setavatar <kinds\|default> <url\|none>` | Owner | Fallback avatar for these kinds (when no Lodestone portrait), or the global default. Must be a full `https://` link; `none` removes it. | `xl!setavatar default https://…/pear.png` |
+| `xl!unsetavatar <kinds\|default>` | Owner | Remove those avatar overrides. | |
 | `xl!togglesender` | Owner | Global: also write `Name＠World:` inside each relayed message. | |
 | `xl!toggleembed` | Owner | Global: post as embeds instead of webhooks (fallback mode). | |
 | `xl!toggledefaultnameavatar` | Owner | Global: webhook posts use the bot's name and default avatar instead of the player's (combine with `togglesender`). | |
-| `xl!setduplicatems <ms>` | Owner | Duplicate-filter window when several players relay the same chat (default 5000). | `xl!setduplicatems 3000` |
+| `xl!setduplicatems <ms\|none>` | Owner | Duplicate-filter window when several players relay the same chat (default 5000; `0` or `none` = off). | `xl!setduplicatems 3000` |
 | `xl!help` | Anyone | List the commands. | |
 
 ## Discord: Discord → game (messages you post)
