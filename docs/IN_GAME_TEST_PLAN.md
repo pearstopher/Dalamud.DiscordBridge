@@ -74,7 +74,7 @@ Do these somewhere it's OK for others to see test lines, or use Echo (`e`) first
 - [ ] D2. Tick it (a red warning appears). `/dcpsend e hello from dev` → Echo line from you.
 - [ ] D3. `/dcpsend fc hello from dev` → FC members see it, and `#out` (subscribed to FC) gets **no** duplicate.
 - [ ] D4. In `#two-way`: `xl!togglesend` → a warning embed naming Free Company. As the owner, post `omw` → said in FC, ✅, no echo back to Discord or `#out`.
-- [ ] D5. *(automated: `send.slash-rejected`)* **Command safety:** post `/logout` → ❌ with the reply "Not sent to game: messages can't start with /". You are **not** logged out. Post `` `/logout` `` → sent as the text `／logout`.
+- [ ] D5. *(automated: `send.slash-rejected`)* **Command safety:** Discord's client turns `/logout` into its own slash-command menu, so post ` /logout` (leading space) or `` `/logout` ``. Expect ❌ with the reply "Not sent to game: messages can't start with /". You are **not** logged out, and nothing is said in game. In display-only channels the text is shown literally as `/logout` (printing never runs commands).
 - [ ] D6. Post 600 characters → ❌ "too long for game chat".
 - [ ] D7. Post 10 messages quickly → about one every 2 s, and the extras ❌ "too many at once".
 - [ ] D8. From the second account (with `setinboundperm everyone`) → shown locally only, never sent.

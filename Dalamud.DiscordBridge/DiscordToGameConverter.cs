@@ -26,6 +26,8 @@ namespace Dalamud.DiscordBridge
     /// <summary>
     /// Converts a Discord message into a single line the FFXIV chat log can show (and later send).
     /// Pure: no Discord.Net client or Dalamud services.
+    /// A leading '/' is kept: printing never runs commands, and the send path (<see cref="GameChatCommand.TryBuild"/>)
+    /// rejects text that starts with '/'.
     /// </summary>
     internal sealed class DiscordToGameConverter
     {
@@ -63,7 +65,6 @@ namespace Dalamud.DiscordBridge
             if (!string.IsNullOrWhiteSpace(message.ReplyToAuthor))
                 text = $"re @{ConvertName(message.ReplyToAuthor)}: {text}";
 
-            text = NeutralizeCommand(text);
             text = this.sanitizer.Sanitize(text);
 
             return TruncateUtf8(text, byteBudget);
@@ -119,12 +120,6 @@ namespace Dalamud.DiscordBridge
 
             return string.Join(" ", parts);
         }
-
-        /// <summary>
-        /// Text starting with '/' would run as a command if typed into the chat box. Swap it for a full-width solidus.
-        /// </summary>
-        internal static string NeutralizeCommand(string text)
-            => text.StartsWith('/') ? "／" + text[1..] : text;
 
         /// <summary>Cut to at most <paramref name="maxBytes"/> UTF-8 bytes on a character boundary, adding "...".</summary>
         internal static string TruncateUtf8(string text, int maxBytes)

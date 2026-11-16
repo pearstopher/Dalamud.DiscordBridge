@@ -38,7 +38,7 @@ Save, then install **Discord Chat Pears** from `/xlplugins`.
 - **Send as me** *does* send chat to the game server without you typing in game. That's **outside Dalamud's plugin rules**, which is why this plugin is distributed from a custom repository and the feature is off by default. Use it at your own risk. Safeguards:
   - only the configured owner's messages are sent
   - two switches must both be on
-  - messages can never start a command (`/logout` from Discord is rejected)
+  - messages can never start a command (anything starting with `/` is rejected, with a reply saying why)
   - at most one message every 2 seconds, and a capped backlog
   - over-long messages are rejected rather than cut off
 - The full per-feature list is in [docs/DALAMUD_RULES.md](docs/DALAMUD_RULES.md).
