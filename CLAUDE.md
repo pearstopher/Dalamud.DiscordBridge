@@ -45,7 +45,7 @@ dotnet test Dalamud.DiscordBridge.sln -c Release --no-build    # all tests green
 - Output: `Dalamud.DiscordBridge/bin/x64/Release/` (DLL). Packaged zip: `bin/x64/Release/DiscordChatPears/latest.zip`.
 - Claude can't run FFXIV. Behaviour that needs the game gets manual test steps in the issue and the `needs-in-game-test` label.
 - **Warning baseline: 14 warnings** (all nullable-reference warnings). Lower this number whenever a change reduces it. Don't add new warnings. Fix existing ones only when you're already touching that code.
-- CI: `.github/workflows/build.yml` builds and tests on push to `master`, on demand, and daily. After pushing, check it with `gh run list --limit 3`; fix a red run before starting the next issue. Don't push tags (releases are the owner's call; see #12).
+- CI: `.github/workflows/build.yml` builds and tests on push to `master`, on demand, and daily. After pushing, check it with `gh run list --limit 3`; fix a red run before starting the next issue. Never push release tags (`v*`) unless the owner asks for a specific release; see DEVELOPMENT.md §9.
 - In-game dev testing (loading the dev DLL, test Discord server, debug commands, reading `/xllog`): [DEVELOPMENT.md](DEVELOPMENT.md). Put in-game steps in issues in terms of that guide.
 - This plugin is **not bound by Dalamud's plugin rules** (custom-repo distribution, owner decision in #9), but every feature must get a row in [docs/DALAMUD_RULES.md](docs/DALAMUD_RULES.md). Rule-breaking features must be opt-in and off by default.
 

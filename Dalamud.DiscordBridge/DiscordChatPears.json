@@ -4,6 +4,12 @@
   "Description": "Two-way bridge between FFXIV chat and Discord. Relays your in-game chat to Discord channels of your choosing, and shows messages from Discord in your chat log. A fork of Discord Chat Bridge.",
   "InternalName": "DiscordChatPears",
   "RepoUrl": "https://github.com/pearstopher/Dalamud.DiscordBridge",
-  "Tags": [ "discord", "chat", "bridge", "relay" ],
-  "Punchline": "Two-way chat between FFXIV and Discord."
+  "Tags": [
+    "discord",
+    "chat",
+    "bridge",
+    "relay"
+  ],
+  "Punchline": "Two-way chat between FFXIV and Discord.",
+  "IconUrl": "https://raw.githubusercontent.com/pearstopher/Dalamud.DiscordBridge/master/Dalamud.DiscordBridge/icon.png"
 }
