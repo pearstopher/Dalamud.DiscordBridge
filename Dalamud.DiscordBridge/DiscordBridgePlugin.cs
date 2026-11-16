@@ -60,7 +60,6 @@ namespace Dalamud.DiscordBridge
 
         private static IPluginLog Logger => Service.Logger;
 
-        // public IPlayerCharacter? cachedLocalPlayer;
         public string cachedPlayerName;
         public string cachedPlayerWorld;
 
@@ -118,7 +117,6 @@ namespace Dalamud.DiscordBridge
             this.inboundSender = new InboundSender(this.Config, this.EchoGuard);
             this.SelfTests = new SelfTestService(this);
             this.Discord = new DiscordHandler(this);
-            // Task t = this.Discord.Start(); // bot won't start if we just have this
 
 
             System.Threading.Tasks.Task.Run(async () => // makes the bot actually start
@@ -331,7 +329,6 @@ namespace Dalamud.DiscordBridge
             Item sampleitem = Service.Data.GetExcelSheet<Item>().GetRow(12537);
             SeString sameplesale = new(new Payload[] { new TextPayload("The "), new ItemPayload(sampleitem.RowId, true), new TextPayload(sampleitem.Name.ExtractText()), new TextPayload(" you put up for sale in the Crystarium markets has sold for 777 gil (after fees).") });
 
-            // Logger.Information($"Trying to make a fake sale: {sameplesale.TextValue}");
 
             this.Discord.MessageQueue.Enqueue(new QueuedRetainerItemSaleEvent
             {

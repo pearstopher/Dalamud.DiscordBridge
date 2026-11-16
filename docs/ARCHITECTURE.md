@@ -39,7 +39,6 @@ All source is in `Dalamud.DiscordBridge/`.
 | `PluginCommandManager.cs` + `Attributes/` | Reflection-based registration of in-game slash commands from `[Command]`, `[HelpMessage]`, `[Aliases]`, `[DoNotShowInHelp]` attributes on methods of `DiscordBridgePlugin`. |
 | `PluginUI.cs` | ImGui setup window (`/dcp`): token (hidden unless *Show* is ticked), owner name/ID, connection status, invite link. Save reconnects on a background task (`SwapGate`: one at a time, "Reconnecting…" meanwhile, #44): disposes and recreates `DiscordHandler`. |
 | `API/` | IPC for other plugins: `DiscordBridge.APIVersion` (returns `1`) and `DiscordBridge.SendMessage(pluginName, avatarUrl, message)`. |
-| `XivApi/` | Legacy XIVAPI client and result models. Mostly unused now (avatars come from NetStone; item icons are built as `beta.xivapi.com` asset URLs). |
 | `DiscordState.cs` | Bot connection state shown in `/dcp`: `None`, `Ready`, `TokenInvalid`, `Disconnected` (reconnecting). `DiscordStates.Next` is the pure state machine fed by the gateway's Ready/Connected/Disconnected events and a rejected login (#48). |
 | `Constant.cs` | Plugin name, commands, and links: help and issues point to this fork (#45), the logo to DalamudAssets. |
 | `SelfTests/` | Dev-only in-game self-tests: `SelfTestFramework.cs` (pure runner with timeouts, JSON/text reports), `GameSelfTests.cs` (the tests), `SelfTestService.cs` (button / `/dcptest` / auto-run after load, writes `selftest-results.json`). Hooks: `DiscordBridgePlugin.ChatObserver`, `DiscordHandler.MessageObserved`. |
@@ -176,7 +175,7 @@ All commands are handled in `DiscordHandler.SocketClientOnMessageReceived`, a lo
 | Discord gateway/REST (Discord.Net) | Bot login, commands, webhooks, embeds | Intents: `AllUnprivileged`, `GuildMessages`, `GuildWebhooks`, `MessageContent` (privileged, must be enabled in the Discord developer portal). Invite permission integer `2684742720`. |
 | Lodestone (NetStone) | Player portraits | Network scrape per unseen `name@world`, at most 5 s each. `AvatarCache`: found portraits kept for the session, misses for 1 h, failures for 5 min (#47). |
 | `beta.xivapi.com` asset API | Item icons for retainer sales | URL built directly, no request made by the plugin. |
-| `xivapi.com` | Duty images (`/i/{folder}/{image}.png`), legacy `XivApiClient` | |
+| `xivapi.com` | Duty images (`/i/{folder}/{image}.png`) | |
 | goatcorp DalamudAssets | Default logo/avatar | `Constant.LogoLink` |
 
 ## Known issues

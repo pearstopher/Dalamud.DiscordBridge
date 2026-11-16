@@ -27,7 +27,7 @@ Related:
 |---|---|
 | Language / TFM | C# 14, `net10.0-windows`, nullable enabled |
 | Project SDK | `Dalamud.NET.Sdk/15.0.0` (Dalamud API level 15) |
-| Key packages | `Discord.Net` 3.20.1 (socket, REST, webhook), `NetStone` 1.4.1 (Lodestone scraping) |
+| Key packages | `Discord.Net` 3.20.2 (socket, REST, webhook), `NetStone` 1.4.1 (Lodestone scraping) |
 | Entry point | `Dalamud.DiscordBridge/DiscordBridgePlugin.cs` |
 | Build | `dotnet build Dalamud.DiscordBridge.sln -c Release` |
 | Output | `Dalamud.DiscordBridge/bin/x64/Release/` (DLL), plus `…/Release/DiscordChatPears/latest.zip` |
