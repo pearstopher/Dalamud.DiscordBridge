@@ -1,6 +1,6 @@
 # Testing
 
-Verification has three levels. Every change needs level 1. Level 2 applies once the test project from #2 exists. Level 3 is the owner's job: Claude can't run FFXIV, so it writes the steps into the issue and labels it `needs-in-game-test`.
+Verification has three levels. Every change needs level 1. Level 3 is the owner's job: Claude can't run FFXIV, so it writes the steps into the issue and labels it `needs-in-game-test`.
 
 ## 1. Build verification (always)
 
@@ -11,7 +11,7 @@ dotnet build Dalamud.DiscordBridge.sln -c Release
 - Must report **0 errors**.
 - Warning count must not exceed the baseline in `CLAUDE.md` (14 at the time of writing). Compare the `N Warning(s)` line before and after your change.
 - Requires Dalamud dev assemblies at `%AppData%\XIVLauncher\addon\Hooks\dev\` (the SDK's `DalamudLibPath`). If they're missing, the build fails resolving `Dalamud.dll`. Installing XIVLauncher with Dalamud provides them.
-- Output: `Dalamud.DiscordBridge/bin/x64/Release/` (DLL and dependencies; point Dev Plugin Locations here). A packaged `latest.zip` and manifest are written to `bin/x64/Release/Dalamud.DiscordBridge/`.
+- Output: `Dalamud.DiscordBridge/bin/x64/Release/` (DLL and dependencies; point Dev Plugin Locations here). A packaged `latest.zip` and manifest are written to `bin/x64/Release/DiscordChatPears/`.
 
 ## 2. Unit tests
 
