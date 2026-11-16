@@ -9,7 +9,7 @@ dotnet build Dalamud.DiscordBridge.sln -c Release
 ```
 
 - Must report **0 errors**.
-- Warning count must not exceed the baseline in `CLAUDE.md` (16 at the time of writing). Compare the `N Warning(s)` line before and after your change.
+- Warning count must not exceed the baseline in `CLAUDE.md` (14 at the time of writing). Compare the `N Warning(s)` line before and after your change.
 - Requires Dalamud dev assemblies at `%AppData%\XIVLauncher\addon\Hooks\dev\` (the SDK's `DalamudLibPath`). If they're missing, the build fails resolving `Dalamud.dll`. Installing XIVLauncher with Dalamud provides them.
 - Output: `Dalamud.DiscordBridge/bin/x64/Release/` (DLL and dependencies; point Dev Plugin Locations here). A packaged `latest.zip` and manifest are written to `bin/x64/Release/Dalamud.DiscordBridge/`.
 
@@ -53,7 +53,7 @@ Use the relevant parts for each change. Put the exact steps in the issue's "Manu
 |---|---|
 | Startup | Plugin loads without errors in `/xllog`, and the bot shows Idle at the title screen and Online after login |
 | Relay | `xl!setchannel say` in a test channel. A `/say` line in-game appears with the correct name＠world and portrait |
-| Debug commands | `/ddebug say` posts "Test Message". `/dsaledebug` posts a retainer sale with the item icon |
+| Debug commands | `/dcpdebug say` posts "Test Message". `/dcpsaledebug` posts a retainer sale with the item icon |
 | Formatting | Auto-translate brackets, HQ icon, italics render sensibly. `xl!togglesender`, `xl!toggleembed`, `xl!toggledefaultnameavatar` behave as described |
 | Duty pop | `xl!toggledf`, queue for a duty, and an embed appears on pop |
 | Permissions | A non-owner running a command gets the "not allowed" embed |

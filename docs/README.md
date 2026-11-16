@@ -1,6 +1,6 @@
-# Discord Chat Bridge: Developer Documentation
+# Discord Chat Pears: Developer Documentation
 
-Developer docs for this fork of **Discord Chat Bridge** (`Dalamud.DiscordBridge`), a Dalamud plugin that relays FFXIV chat to Discord. Written for anyone (human or Claude) who's new to the codebase.
+Developer docs for **Discord Chat Pears** (`DiscordChatPears`), a fork of Discord Chat Bridge (`Dalamud.DiscordBridge`): a Dalamud plugin that relays FFXIV chat to and from Discord. Written for anyone (human or Claude) who's new to the codebase.
 
 | Doc | Read it when… |
 |---|---|
@@ -26,5 +26,5 @@ Related:
 | Key packages | `Discord.Net` 3.20.1 (socket, REST, webhook), `NetStone` 1.4.1 (Lodestone scraping) |
 | Entry point | `Dalamud.DiscordBridge/DiscordBridgePlugin.cs` |
 | Build | `dotnet build Dalamud.DiscordBridge.sln -c Release` |
-| Output | `Dalamud.DiscordBridge/bin/x64/Release/` (DLL), plus `…/Release/Dalamud.DiscordBridge/latest.zip` |
+| Output | `Dalamud.DiscordBridge/bin/x64/Release/` (DLL), plus `…/Release/DiscordChatPears/latest.zip` |
 | License | AGPL-3.0 (inherited; derivative work must stay AGPL) |

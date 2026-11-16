@@ -8,7 +8,7 @@
 4. **Design for testability.** Put decisions and formatting in pure helpers, and keep Discord/Dalamud calls in a thin shell.
 5. **Implement** following the recipes below.
 6. **Config** changes must be backward compatible: give new fields defaults and `Save()` after mutation.
-7. **User-facing text:** update the Discord `help` embed, `/pdiscord` UI text, and `README.md` as applicable.
+7. **User-facing text:** update the Discord `help` embed, `/dcp` UI text, and `README.md` as applicable.
 8. **Rules:** add or update the feature's row in [DALAMUD_RULES.md](DALAMUD_RULES.md). Anything that breaks the rules must be opt-in, off by default, and say so to the user.
 9. **Verify** per [TESTING.md](TESTING.md): build (0 errors, warnings ≤ baseline) and tests. Write manual in-game steps in the issue, referring to [DEVELOPMENT.md](../DEVELOPMENT.md) (debug commands, `/xllog`), and add a debug command if the feature is otherwise hard to trigger.
 10. **Merge** locally (`--no-ff`, `Closes #n`), push to `origin`, comment, and close. **No PRs. Never touch upstream.**
@@ -20,7 +20,7 @@
 1. `XivChatTypeExtensions.cs`: add a `TypeInfoDict` entry with a unique, short, lowercase `Slug` (it's what users type) and a `FancyName`. Types without an entry are **deleted from user configs at startup** by the constructor's sanitizer, so the entry is required.
 2. If it should be part of `xl!setchannel any`, add it to `DefaultChatTypes` in `DiscordHandler.cs`.
 3. If the sender has no `PlayerPayload` (system/NPC-style), add a case to the sender-resolution `switch` in `DiscordMessageQueue.RunMessageQueue` so it doesn't log a `playerLink was null` error. Consider whether `SendChatEvent` should skip the Lodestone lookup (see the `Echo`/61/68 cases).
-4. Test: slug lookup round-trips. Manual: `/ddebug <slug>` posts to a subscribed channel.
+4. Test: slug lookup round-trips. Manual: `/dcpdebug <slug>` posts to a subscribed channel.
 
 ### Relay a new kind of game event (not a chat line)
 
@@ -60,7 +60,7 @@
 ### Add a configuration option
 
 1. `Configuration.cs`: add a property with a default initializer. Global settings go on `Configuration`, per-channel ones on `DiscordChannelConfig`, per-chat-type ones in a `Dictionary<XivChatType, T>`.
-2. Expose it through a Discord command, the `/pdiscord` UI, or both. Settings needed before the bot connects (like the token) must be in the UI.
+2. Expose it through a Discord command, the `/dcp` UI, or both. Settings needed before the bot connects (like the token) must be in the UI.
 3. Read it where needed through `this.plugin.Config` / `DiscordBridgePlugin.Plugin.Config`.
 4. Add a deserialization test with JSON that lacks the field, and confirm the default applies.
 

@@ -39,8 +39,21 @@ namespace Dalamud.DiscordBridge
             Plugin = this;
             pluginInterface.Create<Service>();
 
-            this.Config = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
+            var loadedConfig = pluginInterface.GetPluginConfig() as Configuration;
+            var importedLegacyConfig = false;
+            if (loadedConfig == null)
+            {
+                // First run: take over the official Discord Chat Bridge's settings, if it was ever used (read-only).
+                loadedConfig = ConfigImport.TryReadLegacy(
+                    ConfigImport.LegacyConfigPath(pluginInterface.ConfigFile.FullName),
+                    ex => Logger.Warning(ex, "Could not import settings from Discord Chat Bridge."));
+                importedLegacyConfig = loadedConfig != null;
+            }
+
+            this.Config = loadedConfig ?? new Configuration();
             this.Config.Initialize(pluginInterface);
+            if (importedLegacyConfig)
+                this.Config.Save();
 
             pluginInterface.UiBuilder.OpenConfigUi += this.OpenConfigUi;
 
@@ -104,10 +117,16 @@ namespace Dalamud.DiscordBridge
 
             this.commandManager = new PluginCommandManager<DiscordBridgePlugin>(this, command);
 
+            if (importedLegacyConfig)
+            {
+                Service.Chat.Print($"{Constant.PluginName} imported your settings from Discord Chat Bridge. " +
+                                   "Disable Discord Chat Bridge so messages aren't relayed twice.");
+            }
+
             if (string.IsNullOrEmpty(this.Config.DiscordToken))
             {
-                Service.Chat.PrintError("The Discord Bridge plugin was installed successfully." +
-                                                              "Please use the \"/pdiscord\" command to set it up.");
+                Service.Chat.PrintError($"{Constant.PluginName} was installed successfully. " +
+                                                              $"Please use the \"{Constant.MainCommand}\" command to set it up.");
             }
 
             // Lets a developer confirm in /xllog exactly which build the game is running (see DEVELOPMENT.md).
@@ -204,7 +223,8 @@ namespace Dalamud.DiscordBridge
         }
 
         
-        [Command("/pdiscord")]
+        [Command(Constant.MainCommand)]
+        [Aliases("/discordpears")]
         [HelpMessage("Show settings for the discord bridge plugin.")]
         public void OpenSettingsCommand(string command, string args)
         {
@@ -212,7 +232,7 @@ namespace Dalamud.DiscordBridge
         }
 
         
-        [Command("/ddebug")]
+        [Command("/dcpdebug")]
         [HelpMessage("Send a debug message using a particular chat type")]
         [DoNotShowInHelp]
         public void DebugCommand(string command, string args)
@@ -227,7 +247,7 @@ namespace Dalamud.DiscordBridge
             });
         }
         
-        [Command("/dsaledebug")]
+        [Command("/dcpsaledebug")]
         [HelpMessage("Send a fake item sale chat payload.")]
         [DoNotShowInHelp]
         public void SaleDebugCommand(string command, string args)
@@ -254,7 +274,7 @@ namespace Dalamud.DiscordBridge
         }
 
         
-        [Command("/dprintlist")]
+        [Command("/dcpprintlist")]
         [HelpMessage("Dump all plugin config to chat box.")]
         [DoNotShowInHelp]
         public void ListCommand(string command, string args)

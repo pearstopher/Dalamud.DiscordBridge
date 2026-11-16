@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-Personal fork of **Discord Chat Bridge** (`Dalamud.DiscordBridge`), a Dalamud plugin for FFXIV that relays in-game chat to Discord channels.
+Personal fork of **Discord Chat Bridge** (`Dalamud.DiscordBridge`), a Dalamud plugin for FFXIV that relays in-game chat to Discord channels. The fork ships as **Discord Chat Pears** (InternalName `DiscordChatPears`, v2.x), a two-way bridge, from the owner's custom plugin repo.
 
 - **Fork (ours):** `pearstopher/Dalamud.DiscordBridge` → git remote `origin`
 - **Upstream (NOT ours):** `reiichi001/Dalamud.DiscordBridge` (itself a fork of `goaaats/Dalamud.DiscordBridge`) → git remote `upstream`, fetch-only
@@ -42,9 +42,9 @@ dotnet test Dalamud.DiscordBridge.sln -c Release --no-build    # all tests green
 ```
 
 - Requires the .NET SDK (10.x is installed) and Dalamud dev files at `%AppData%\XIVLauncher\addon\Hooks\dev` (present on this machine). Project SDK: `Dalamud.NET.Sdk/15.0.0` (Dalamud API 15).
-- Output: `Dalamud.DiscordBridge/bin/x64/Release/` (DLL). Packaged zip: `bin/x64/Release/Dalamud.DiscordBridge/latest.zip`.
+- Output: `Dalamud.DiscordBridge/bin/x64/Release/` (DLL). Packaged zip: `bin/x64/Release/DiscordChatPears/latest.zip`.
 - Claude can't run FFXIV. Behaviour that needs the game gets manual test steps in the issue and the `needs-in-game-test` label.
-- **Warning baseline: 16 warnings** (all nullable-reference warnings). Lower this number whenever a change reduces it. Don't add new warnings. Fix existing ones only when you're already touching that code.
+- **Warning baseline: 14 warnings** (all nullable-reference warnings). Lower this number whenever a change reduces it. Don't add new warnings. Fix existing ones only when you're already touching that code.
 - CI: `.github/workflows/build.yml` builds and tests on push to `master`, on demand, and daily. After pushing, check it with `gh run list --limit 3`; fix a red run before starting the next issue. Don't push tags (releases are the owner's call; see #12).
 - In-game dev testing (loading the dev DLL, test Discord server, debug commands, reading `/xllog`): [DEVELOPMENT.md](DEVELOPMENT.md). Put in-game steps in issues in terms of that guide.
 - This plugin is **not bound by Dalamud's plugin rules** (custom-repo distribution, owner decision in #9), but every feature must get a row in [docs/DALAMUD_RULES.md](docs/DALAMUD_RULES.md). Rule-breaking features must be opt-in and off by default.
@@ -67,5 +67,5 @@ Read these before implementing anything:
 - Branch per issue: `issue/<number>-<short-slug>`, created from an up-to-date `master`. Branches stay local and are deleted after merge.
 - Commit messages: imperative summary, reference the issue `(#N)`, and end with the Co-Authored-By trailer.
 - Merge with `git merge --no-ff` and a message containing `Closes #N`, then `git push origin master`.
-- Keep `AssemblyVersion` in the csproj unchanged unless an issue asks for a version bump.
-- Don't edit `Dalamud.DiscordBridge.json` `RepoUrl`/`Author` unless an issue asks.
+- Keep `<Version>` in the csproj unchanged unless an issue asks for a version bump (release tags `vX.Y.Z` must match `X.Y.Z.0`).
+- Plugin identity is **Discord Chat Pears** (`DiscordChatPears`, set by `<AssemblyName>` in the csproj and `Dalamud.DiscordBridge/DiscordChatPears.json`). Don't change it unless the owner asks. The C# namespace and folder names stay `Dalamud.DiscordBridge`.

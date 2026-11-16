@@ -2,7 +2,7 @@
 
 How to build the plugin on your PC, load it into the game as a **dev plugin**, and check that a change works. Written for the owner and for Claude (who can build and unit-test, but can't run the game).
 
-> **Plugin identity:** until #11 lands, this fork still uses the official plugin's identity (`Dalamud.DiscordBridge`, "Discord Chat Bridge"). **Disable or uninstall the official Discord Chat Bridge before loading the dev build**, or the two will clash. After #11, it's "Discord Chat Pears" (`DiscordChatPears`) and paths below change accordingly.
+> **Plugin identity:** this fork is **Discord Chat Pears** (InternalName `DiscordChatPears`), so it installs alongside the official Discord Chat Bridge without clashing. Its commands use the `/dcp` prefix. On first load it imports the official plugin's settings once (read-only). **Disable the official plugin while testing**, though, or every chat line is relayed twice. Running both also means the `DiscordBridge.*` IPC endpoints belong to whichever loaded first (a warning in `/xllog`).
 
 ## 1. One-time setup
 
@@ -11,7 +11,7 @@ How to build the plugin on your PC, load it into the game as a **dev plugin**, a
 - **A test Discord server and bot** (keep testing out of your real server):
   1. Create a server you own, with a couple of text channels (e.g. `#fc-test`, `#ls-test`).
   2. At https://discord.com/developers/applications → **New Application** → **Bot**: reset and copy the token. Under **Privileged Gateway Intents**, enable **Message Content Intent** (needed for commands and for Discord → game relay).
-  3. In game, `/pdiscord` → paste the token and your Discord username or user ID → **Save**. When the status says **Connected!**, click **Join my server** and add the bot to the test server.
+  3. In game, `/dcp` → paste the token and your Discord username or user ID → **Save**. When the status says **Connected!**, click **Join my server** and add the bot to the test server.
   4. In a test channel: `xl!help`, then e.g. `xl!setchannel say,fc`.
   5. (Optional) A second Discord account, to test non-owner permissions.
 
@@ -20,7 +20,7 @@ How to build the plugin on your PC, load it into the game as a **dev plugin**, a
 From the repo root:
 
 ```sh
-dotnet build                          # Debug: Dalamud.DiscordBridge\bin\x64\Debug\Dalamud.DiscordBridge.dll
+dotnet build                          # Debug: Dalamud.DiscordBridge\bin\x64\Debug\DiscordChatPears.dll
 dotnet build -c Release               # Release: bin\x64\Release\…  (+ packaged latest.zip)
 dotnet test -c Release --no-build     # unit tests (after a Release build)
 ```
@@ -32,7 +32,7 @@ Use **Debug** for day-to-day testing in game. A good build ends with `0 Error(s)
 1. Start the game through XIVLauncher. **Disable the official Discord Chat Bridge** in `/xlplugins` if you have it.
 2. `/xlsettings` → **Experimental** → **Dev Plugin Locations**: paste the **full path to the Debug DLL**, click **+**, then **Save and Close**:
    ```
-   C:\Users\<you>\Documents\VSCode\ffxiv-discord-chat-bridge\Dalamud.DiscordBridge\bin\x64\Debug\Dalamud.DiscordBridge.dll
+   C:\Users\<you>\Documents\VSCode\ffxiv-discord-chat-bridge\Dalamud.DiscordBridge\bin\x64\Debug\DiscordChatPears.dll
    ```
 3. `/xlplugins` → **Dev Tools → Installed Dev Plugins** → enable the plugin.
 4. Recommended: in the dev plugin's settings, turn on **automatic reloading**. Dalamud then reloads the plugin about half a second after that DLL changes, so `dotnet build` is enough.
@@ -41,15 +41,15 @@ Use **Debug** for day-to-day testing in game. A good build ends with `0 Error(s)
 
 ## 4. Check which build is running
 
-`/xllog`, filter on `DiscordBridge`. On every load the plugin logs:
+`/xllog`, filter on `DiscordChatPears`. On every load the plugin logs:
 
 ```
-Discord Chat Bridge loaded (Debug build, built 2026-11-16 10:36:02, from C:\...\bin\x64\Debug\Dalamud.DiscordBridge.dll)
+Discord Chat Pears loaded (Debug build, built 2026-11-16 10:36:02, from C:\...\bin\x64\Debug\DiscordChatPears.dll)
 ```
 
 and `... unloaded` when disabled. **Check this line each time you test.** If the build time is older than your last build, the game is running a stale DLL. Red `ERR` lines mentioning the plugin are bugs. The same log is in `%APPDATA%\XIVLauncher\dalamud.log` (attach it to issues). Set the log level to **Debug** in `/xllog` to see the plugin's routing messages.
 
-Config file: `%APPDATA%\XIVLauncher\pluginConfigs\Dalamud.DiscordBridge.json`. Back it up before experimenting; delete it to start fresh.
+Config file: `%APPDATA%\XIVLauncher\pluginConfigs\DiscordChatPears.json`. Back it up before experimenting; delete it to start fresh.
 
 ## 5. Edit → test loop
 
@@ -66,11 +66,11 @@ Hidden from `/xlhelp`. Use them to exercise the pipeline without waiting for rea
 
 | Command | What it does |
 |---|---|
-| `/ddebug <slug>` | Enqueues a fake "Test Message" from "Test Sender" as chat kind `<slug>` (e.g. `/ddebug fc`) → relayed to channels subscribed to that kind |
-| `/dsaledebug` | Posts a fake retainer sale (Titanium Ore) to Discord and echoes it in game |
-| `/dprintlist` | Prints every chat kind `(id) slug - name` to the chat log |
+| `/dcpdebug <slug>` | Enqueues a fake "Test Message" from "Test Sender" as chat kind `<slug>` (e.g. `/dcpdebug fc`) → relayed to channels subscribed to that kind |
+| `/dcpsaledebug` | Posts a fake retainer sale (Titanium Ore) to Discord and echoes it in game |
+| `/dcpprintlist` | Prints every chat kind `(id) slug - name` to the chat log |
 
-Planned with the two-way feature: `/ddiscordin <slug> <name> <text>` (#15) fakes an incoming Discord message, and `/ddiscordsend <slug> <text>` (#16) tests sending as your character.
+Planned with the two-way feature: `/dcpin <slug> <name> <text>` (#15) fakes an incoming Discord message, and `/dcpsend <slug> <text>` (#16) tests sending as your character.
 
 ## 7. What to check in game
 
@@ -96,8 +96,8 @@ Set up in #12 (custom repo `pearstopher/ffxiv-plugins`). Claude never pushes rel
 |---|---|
 | Build error about Dalamud references | Run the game with Dalamud once, or set `DALAMUD_HOME`. |
 | Plugin not listed under Installed Dev Plugins | The dev location must point at the `.dll` file itself, and it must exist. |
-| Two "Discord Chat Bridge" entries / commands don't respond | The official plugin is still enabled. Disable it. |
+| Every message arrives in Discord twice | The official Discord Chat Bridge is still enabled. Disable it. |
 | Status stays "Token empty or invalid" | Re-copy the bot token. Check `/xllog` for the login error. |
-| Bot connects but ignores `xl!` commands | Message Content Intent is off in the developer portal, or your owner name/ID in `/pdiscord` doesn't match your Discord account. |
+| Bot connects but ignores `xl!` commands | Message Content Intent is off in the developer portal, or your owner name/ID in `/dcp` doesn't match your Discord account. |
 | Messages arrive as red FALLBACKMODE embeds | The bot lacks **Manage Webhooks** in that channel. |
 | My change didn't take effect | Compare the `loaded (...)` build time with your last build. Point the dev location at Debug. |
