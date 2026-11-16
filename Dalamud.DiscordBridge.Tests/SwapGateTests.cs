@@ -51,4 +51,18 @@ public class SwapGateTests
         Assert.Contains("ImGuiInputTextFlags.Password", source);
         Assert.DoesNotContain("togglesend", source);
     }
+
+    [Fact]
+    public void Reconnect_NeverOutlivesThePlugin()
+    {
+        // Unloading during a /dcp Save reconnect must not leave a live Discord connection behind.
+        var ui = File.ReadAllText(Path.Combine(DocumentationTests.Root, "Dalamud.DiscordBridge", "PluginUI.cs"));
+        var plugin = File.ReadAllText(Path.Combine(DocumentationTests.Root, "Dalamud.DiscordBridge", "DiscordBridgePlugin.cs"));
+        var swap = ui[ui.IndexOf("old.Dispose();", StringComparison.Ordinal)..];
+
+        Assert.True(swap.IndexOf("this.Plugin.IsUnloading", StringComparison.Ordinal) < swap.IndexOf("new DiscordHandler(", StringComparison.Ordinal));
+        Assert.Contains("fresh.Dispose();", swap);
+        var dispose = plugin[plugin.IndexOf("protected virtual void Dispose(bool disposing)", StringComparison.Ordinal)..];
+        Assert.True(dispose.IndexOf("this.IsUnloading = true;", StringComparison.Ordinal) < dispose.IndexOf("this.Discord.Dispose();", StringComparison.Ordinal));
+    }
 }

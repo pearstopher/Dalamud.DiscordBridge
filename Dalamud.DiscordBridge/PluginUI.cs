@@ -249,9 +249,16 @@ namespace Dalamud.DiscordBridge
                     try
                     {
                         old.Dispose();
+                        if (this.Plugin.IsUnloading)
+                            return;
+
                         var fresh = new DiscordHandler(this.Plugin);
                         this.Plugin.Discord = fresh;
                         await fresh.Start();
+
+                        // The plugin unloaded while we were connecting: don't leave this connection running.
+                        if (this.Plugin.IsUnloading)
+                            fresh.Dispose();
                     }
                     catch (Exception ex)
                     {

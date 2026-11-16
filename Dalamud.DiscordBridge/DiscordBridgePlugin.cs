@@ -40,6 +40,9 @@ namespace Dalamud.DiscordBridge
         /// </summary>
         internal Action<XivChatType, string, bool>? ChatObserver;
 
+        /// <summary>Set when the plugin starts unloading.</summary>
+        internal volatile bool IsUnloading;
+
         /// <summary>Which chat kinds any channel wants, cached per config revision (#49).</summary>
         private readonly RelayFilter relayFilter = new();
 
@@ -494,6 +497,10 @@ namespace Dalamud.DiscordBridge
         protected virtual void Dispose(bool disposing)
         {
             if (!disposing) return;
+
+            // A /dcp Save reconnect still running in the background checks this, so it never leaves a live Discord
+            // connection behind after the plugin is gone.
+            this.IsUnloading = true;
 
             // Detach game events first so nothing new is enqueued into the handler being torn down.
             // Every subscription in the constructor must have a matching line here.
