@@ -14,7 +14,7 @@ Kinds are chat-type names such as `say`, `fc`, `ls1`, `cwls1`, `p`, `tell`, `e` 
 
 ## Discord: game → Discord (what gets relayed to this channel)
 
-Mentions in relayed game text (`<@123>`, `<@&456>`, `@everyone`) show as text and **never ping** anyone (#41).
+Mentions in relayed game text (`<@123>`, `<@&456>`, `@everyone`) show as text and **never ping** anyone (#41). Mentions you put in your own prefix (`setprefix`, `setcfprefix`, e.g. `@here` on duty pops or `<@yourId>` on tells) still ping, and only those.
 
 | Command | Who | What it does | Example |
 |---|---|---|---|

@@ -46,6 +46,7 @@ All source is in `Dalamud.DiscordBridge/`.
 | `BuildInfo.cs` | Build configuration/time/path for the `… loaded (Debug build, built …, from …)` line logged at startup (see DEVELOPMENT.md). |
 | `DiscordChatPears.json` | Plugin manifest metadata (name, author, description, tags). The InternalName comes from `<AssemblyName>DiscordChatPears` in the csproj. |
 | `ChannelLookup.cs` | Pure (#39): classifies a failed channel lookup (`Found`/`NotFound`/`Error`). Only a definitive "Unknown Channel" removes a channel's settings; outages and missing access keep them (`WarnOnce` logs once per session). |
+| `MentionPolicy.cs` | Pure (#41): relays never ping, except the users/roles/`@everyone` written in the owner's own prefix (`DiscordHandler.MentionsForPrefix`). |
 | `ChatKindArgs.cs` | Pure (#42): parses the chat-kind list of `setchannel`/`unsetchannel`/`setprefix`/`unsetprefix`/`setchattypename`/`unsetchattypename`/`setavatar`/`unsetavatar` (`tell`, `p`, `any`, `all`, typos named in the error), formats list replies (truncated to fit an embed), validates avatar URLs and `setduplicatems`. |
 | `ClientCache.cs` / `WebhookRules.cs` | One cached `DiscordWebhookClient` per channel (#40), disposed on eviction and shutdown; a deleted webhook ("Unknown Webhook") is recreated once and the send retried; the config is saved only when the webhook ID changes. |
 | `ConfigImport.cs` | One-time, read-only import of the official Discord Chat Bridge config (`pluginConfigs/Dalamud.DiscordBridge.json`) on first run, stripping its `$type` metadata. |

@@ -33,8 +33,8 @@ public class RelayMentionsTests
             // The call runs until the end of its statement.
             var end = source.IndexOf(';', call.Index);
             var statement = source[call.Index..end];
-            Assert.True(statement.Contains("allowedMentions: RelayMentions"),
-                $"{file}: SendMessageAsync without allowedMentions: RelayMentions near: {statement[..Math.Min(120, statement.Length)]}");
+            Assert.True(statement.Contains("allowedMentions: RelayMentions") || statement.Contains("allowedMentions: MentionsForPrefix(prefix)"),
+                $"{file}: SendMessageAsync without RelayMentions/MentionsForPrefix near: {statement[..Math.Min(120, statement.Length)]}");
         }
     }
 
@@ -46,8 +46,49 @@ public class RelayMentionsTests
             if (file.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}"))
                 continue;
             var source = File.ReadAllText(file);
-            Assert.DoesNotMatch(@"AllowedMentionTypes\.(Roles|Users|Everyone)", source);
+            Assert.DoesNotMatch(@"AllowedMentionTypes\.(Roles|Users)", source);
             Assert.DoesNotContain("AllowedMentions.All", source);
+            if (!file.EndsWith("DiscordHandler.cs"))
+                Assert.DoesNotContain("AllowedMentionTypes.Everyone", source);
         }
+
+        // @everyone is only ever allowed by MentionsForPrefix, when the owner's own prefix contains it.
+        Assert.Single(Regex.Matches(Source("DiscordHandler.cs"), @"AllowedMentionTypes\.Everyone"));
+    }
+
+    [Fact]
+    public void ForOwnerPrefix_NoPrefix_AllowsNothing()
+    {
+        Assert.True(MentionPolicy.ForOwnerPrefix(null).None);
+        Assert.True(MentionPolicy.ForOwnerPrefix("🍐 [FC]").None);
+        Assert.Same(DiscordHandler.RelayMentions, DiscordHandler.MentionsForPrefix(""));
+    }
+
+    [Fact]
+    public void ForOwnerPrefix_AllowsExactlyTheWrittenMentions()
+    {
+        var allowed = MentionPolicy.ForOwnerPrefix("<@123> <@!456> <@&789> <@123>");
+
+        Assert.False(allowed.Everyone);
+        Assert.Equal([123UL, 456UL], allowed.Users);
+        Assert.Equal([789UL], allowed.Roles);
+    }
+
+    [Theory]
+    [InlineData("@here")]
+    [InlineData("@everyone duty!")]
+    public void ForOwnerPrefix_HereOrEveryone_AllowsEveryone(string prefix)
+    {
+        Assert.True(MentionPolicy.ForOwnerPrefix(prefix).Everyone);
+    }
+
+    [Fact]
+    public void MentionsForPrefix_BuildsAllowList()
+    {
+        var mentions = DiscordHandler.MentionsForPrefix("<@&789> @here");
+
+        Assert.Equal(Discord.AllowedMentionTypes.Everyone, mentions.AllowedTypes);
+        Assert.Equal([789UL], mentions.RoleIds);
+        Assert.Empty(mentions.UserIds ?? []);
     }
 }
