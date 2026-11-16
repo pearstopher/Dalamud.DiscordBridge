@@ -1,0 +1,9 @@
+{
+  "Author": "pearstopher (fork of goat / Franz's Discord Chat Bridge)",
+  "Name": "Discord Chat Pears",
+  "Description": "Two-way bridge between FFXIV chat and Discord. Relays your in-game chat to Discord channels of your choosing, and shows messages from Discord in your chat log. A fork of Discord Chat Bridge.",
+  "InternalName": "DiscordChatPears",
+  "RepoUrl": "https://github.com/pearstopher/Dalamud.DiscordBridge",
+  "Tags": [ "discord", "chat", "bridge", "relay" ],
+  "Punchline": "Two-way chat between FFXIV and Discord."
+}

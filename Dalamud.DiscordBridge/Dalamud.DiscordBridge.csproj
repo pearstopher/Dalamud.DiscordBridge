@@ -2,7 +2,11 @@
 <Project Sdk="Dalamud.NET.Sdk/15.0.0">
   <PropertyGroup>
 	<NoWarn>CA1416,CA1862,IDE0003,IDE0060</NoWarn>
-    <AssemblyVersion>1.6.2.1</AssemblyVersion>
+    <!-- Plugin identity: Dalamud uses the assembly name as the InternalName (see DiscordChatPears.json). -->
+    <AssemblyName>DiscordChatPears</AssemblyName>
+    <RootNamespace>Dalamud.DiscordBridge</RootNamespace>
+    <!-- Release tags vX.Y.Z must match this (X.Y.Z.0). -->
+    <Version>2.0.0.0</Version>
   </PropertyGroup>
 
   <ItemGroup>

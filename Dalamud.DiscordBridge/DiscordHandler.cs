@@ -660,7 +660,7 @@ namespace Dalamud.DiscordBridge
                     this.plugin.Config.Save();
 
                     await SendGenericEmbed(message.Channel,
-                        $"OK! Sending relayed messages in embed fallback mode have been {(this.plugin.Config.ForceEmbedFallbackMode ? "**enabled**." : "**disabled**.\n\nPlease make sure Discord Chat Bridge is allowed to manage webhooks in your channels as needed.")}",
+                        $"OK! Sending relayed messages in embed fallback mode have been {(this.plugin.Config.ForceEmbedFallbackMode ? "**enabled**." : $"**disabled**.\n\nPlease make sure {Constant.PluginName} is allowed to manage webhooks in your channels as needed.")}",
                         "Embed Fallback Mode set", EmbedColorFine);
 
                     return;
@@ -692,7 +692,7 @@ namespace Dalamud.DiscordBridge
                     this.plugin.Config.Save();
 
                     await SendGenericEmbed(message.Channel,
-                        $"OK! Discord Chat Bridge **{(this.plugin.Config.SenderInMessage ? "will" : "will not")}** include the sender name in all messages (where possible).",
+                        $"OK! {Constant.PluginName} **{(this.plugin.Config.SenderInMessage ? "will" : "will not")}** include the sender name in all messages (where possible).",
                         "Sender In Message Mode set", EmbedColorFine);
 
                     return;
@@ -931,7 +931,7 @@ namespace Dalamud.DiscordBridge
                     Logger.Verbose("Help time");
 
                     var builder = new EmbedBuilder()
-                        .WithTitle("Discord Bridge Help")
+                        .WithTitle($"{Constant.PluginName} Help")
                         .WithDescription("You can use the following commands to set up the Discord bridge.")
                         .WithColor(new Color(EmbedColorFine))
                         .AddField($"{this.plugin.Config.DiscordBotPrefix}setchannel", "Select, which kinds of chat should arrive in this channel.\n" +
@@ -972,7 +972,7 @@ namespace Dalamud.DiscordBridge
                         .WithFooter(footer =>
                         {
                             footer
-                                .WithText("Dalamud Chat Bridge")
+                                .WithText(Constant.PluginName)
                                 .WithIconUrl(Constant.LogoLink);
                         })
                         .WithThumbnailUrl(Constant.LogoLink);
@@ -1002,7 +1002,7 @@ namespace Dalamud.DiscordBridge
                 .WithColor(new Color(color))
                 .WithFooter(footer => {
                     footer
-                        .WithText("Dalamud Chat Bridge")
+                        .WithText(Constant.PluginName)
                         .WithIconUrl(Constant.LogoLink);
                 })
                 .WithThumbnailUrl(Constant.LogoLink);
@@ -1022,7 +1022,7 @@ namespace Dalamud.DiscordBridge
                 .WithColor(new Color(color))
                 .WithFooter(footer => {
                     footer
-                        .WithText("Dalamud Chat Bridge")
+                        .WithText(Constant.PluginName)
                         .WithIconUrl(Constant.LogoLink);
                 })
                 .WithThumbnailUrl(iconurl);
@@ -1057,7 +1057,7 @@ namespace Dalamud.DiscordBridge
             if (errorMessageChannel == null) 
                 return false;
 
-            await SendGenericEmbed(errorMessageChannel, "You are not allowed to run commands for this bot.\n\nIf this is your bot, please use the \"/pdiscord\" command in-game to enter your username or Discord User ID number.", "Error", EmbedColorError);
+            await SendGenericEmbed(errorMessageChannel, $"You are not allowed to run commands for this bot.\n\nIf this is your bot, please use the \"{Constant.MainCommand}\" command in-game to enter your username or Discord User ID number.", "Error", EmbedColorError);
 
             return false;
         }
@@ -1379,7 +1379,7 @@ namespace Dalamud.DiscordBridge
                         var webhookAvatar = avatarUrl;
                         if (this.plugin.Config.ForceDefaultNameAvatar)
                         {
-                            webhookName = this.socketClient.CurrentUser.Username.ToLower().Contains("discord") ? "Dalamud Chat Bridge" : this.socketClient.CurrentUser.Username;
+                            webhookName = this.socketClient.CurrentUser.Username.ToLower().Contains("discord") ? Constant.WebhookName : this.socketClient.CurrentUser.Username;
                             webhookAvatar = plugin.Config.DefaultAvatarURL;
                         }
 
@@ -1423,7 +1423,7 @@ namespace Dalamud.DiscordBridge
                         .WithIconUrl(Constant.LogoLink);
                 });
 
-            var bridgeAuthor = new EmbedAuthorBuilder { Name = "Dalamud Chat Bridge", IconUrl = Constant.LogoLink };
+            var bridgeAuthor = new EmbedAuthorBuilder { Name = Constant.PluginName, IconUrl = Constant.LogoLink };
             var prefix = this.plugin.Config.CFPrefixConfig ?? "";
 
             foreach (var channelConfig in applicableChannels)
@@ -1454,7 +1454,7 @@ namespace Dalamud.DiscordBridge
                         if (webhookClient != null)
                         {
                             await webhookClient.SendMessageAsync($"{prefix}", embeds: [NewEmbed().Build()],
-                                username: "Dalamud Chat Bridge", avatarUrl: Constant.LogoLink);
+                                username: Constant.WebhookName, avatarUrl: Constant.LogoLink);
                         }
                         else
                         {

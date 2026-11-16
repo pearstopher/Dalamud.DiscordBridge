@@ -10,7 +10,7 @@ All source is in `Dalamud.DiscordBridge/`.
 
 | File | Responsibility |
 |---|---|
-| `DiscordBridgePlugin.cs` | `IDalamudPlugin` entry point. Loads/sanitizes config, creates every component, subscribes to Dalamud events, registers `/pdiscord` and debug commands, and caches the local player's name/world. Holds the static `DiscordBridgePlugin.Plugin` instance. |
+| `DiscordBridgePlugin.cs` | `IDalamudPlugin` entry point. Loads/sanitizes config, creates every component, subscribes to Dalamud events, registers `/dcp` and debug commands, and caches the local player's name/world. Holds the static `DiscordBridgePlugin.Plugin` instance. |
 | `Service.cs` | Static Dalamud service locator (`[PluginService]` properties: `Interface`, `State`, `PlayerState`, `ObjectTable`, `Chat`, `Data`, `Logger`, `Framework`), filled by `pluginInterface.Create<Service>()`. |
 | `Configuration.cs` | `IPluginConfiguration` persisted by Dalamud as JSON. Bot token, owner, command prefix, per-channel subscriptions, prefixes, custom slugs, avatars, display toggles, duplicate window. |
 | `Model/DiscordChannelConfig.cs` | Per-Discord-channel settings: subscribed `ChatTypes`, cached `WebhookId`, `IsContentFinder` (duty pop notifications). `IsBidirectional` exists but isn't used. |
@@ -22,12 +22,13 @@ All source is in `Dalamud.DiscordBridge/`.
 | `SpecialCharsHandler.cs` | Maps FFXIV private-use glyphs (U+E020–U+E0DB: HQ, auto-translate brackets, boxed letters/numbers, time icons…) to Unicode/emoji or custom guild emotes (`xivAtl`, `xivAtr`, `xivHq`). |
 | `XivChatTypeExtensions.cs` | `TypeInfoDict`: the master table of supported `XivChatType` → slug (used in commands, e.g. `fc`, `ls1`) and display name. `GetInfo` masks with `& 0x7F`. Defines `IpcChatType = (XivChatType)99` for IPC messages. |
 | `PluginCommandManager.cs` + `Attributes/` | Reflection-based registration of in-game slash commands from `[Command]`, `[HelpMessage]`, `[Aliases]`, `[DoNotShowInHelp]` attributes on methods of `DiscordBridgePlugin`. |
-| `PluginUI.cs` | ImGui setup window (`/pdiscord`): token, owner name/ID, connection status, invite link. Save disposes and recreates `DiscordHandler`. |
+| `PluginUI.cs` | ImGui setup window (`/dcp`): token, owner name/ID, connection status, invite link. Save disposes and recreates `DiscordHandler`. |
 | `API/` | IPC for other plugins: `DiscordBridge.APIVersion` (returns `1`) and `DiscordBridge.SendMessage(pluginName, avatarUrl, message)`. |
 | `XivApi/` | Legacy XIVAPI client and result models. Mostly unused now (avatars come from NetStone; item icons are built as `beta.xivapi.com` asset URLs). |
 | `Constant.cs` | Help/wiki/Discord/logo URLs. |
 | `BuildInfo.cs` | Build configuration/time/path for the `… loaded (Debug build, built …, from …)` line logged at startup (see DEVELOPMENT.md). |
-| `Dalamud.DiscordBridge.json` | Plugin manifest metadata (name, author, description, tags). |
+| `DiscordChatPears.json` | Plugin manifest metadata (name, author, description, tags). The InternalName comes from `<AssemblyName>DiscordChatPears` in the csproj. |
+| `ConfigImport.cs` | One-time, read-only import of the official Discord Chat Bridge config (`pluginConfigs/Dalamud.DiscordBridge.json`) on first run, stripping its `$type` metadata. |
 
 ## Lifecycle
 

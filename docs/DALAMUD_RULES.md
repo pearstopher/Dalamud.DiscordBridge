@@ -21,7 +21,7 @@ Square Enix's terms prohibit third-party tools in general. These rules are the D
 | XIVAPI icon URLs | ✅ Yes | Public web assets. |
 | IPC `DiscordBridge.SendMessage` | ✅ Yes | Other plugins post to Discord. No game interaction. |
 | Discord configuration commands | ✅ Yes | Discord-only. |
-| Debug commands (`/ddebug`, `/dsaledebug`, `/dprintlist`) | ✅ Yes | Local only. |
+| Debug commands (`/dcpdebug`, `/dcpsaledebug`, `/dcpprintlist`) | ✅ Yes | Local only. |
 | **Discord → game: local display** (#15, planned) | ✅ Yes | Printed into your own chat log with `IChatGui.Print`, client-side only. Nobody else sees it, and nothing is sent to the server. |
 | **Discord → game: owner "send as me"** (#16, planned) | ⚠️ **No (R2)** | Your character sends chat to the server because of a Discord message, without in-game input. It's mitigated: owner-only, opt-in (off by default), you typed the text yourself, rate-limited, and it can't run commands. Similar plugins exist (ChatTwo, ChatAnywhere) but take input inside the client. Never submit this feature to the official repo. |
 
