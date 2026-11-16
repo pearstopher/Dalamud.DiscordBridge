@@ -351,6 +351,7 @@ namespace Dalamud.DiscordBridge.SelfTests
                 ($"**[ls1]** {tag} reply test B", new ReplyTarget(XivChatType.Ls1, null)),
                 ($"**[tell]** → Bob Smith＠Gilgamesh: {tag} reply test C", new ReplyTarget(XivChatType.TellOutgoing, "Bob Smith＠Gilgamesh")),
                 ($"**[tell]** {tag} reply test D", new ReplyTarget(XivChatType.TellOutgoing, me)),
+                ($"**[customemote]**  {tag} reply test E", new ReplyTarget(XivChatType.CustomEmote, null)),
             };
 
             var posted = new List<ulong>();

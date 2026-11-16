@@ -82,7 +82,8 @@ Test with **tells to yourself**, not FC, so nobody else sees test lines. A tell 
 - [ ] D8. **Replies go to the right place** (display mode is fine here, no sending needed):
   - Reply to a relayed **incoming** tell from someone → shown as a tell-coloured `[D] you: → Them＠World: …` (or sent as a tell to them, in send mode).
   - Reply to a relayed `[say]` (or `[ls1]`) line → shown/sent in Say (LS1), not the channel's default.
-  - Reply to a relayed emote or system message, or a normal non-reply message → uses the channel's default (`setinbound`).
+  - Reply to a relayed **custom emote** (`[customemote]`) → shown/sent as a custom emote (`/em`) (#24).
+  - Reply to a standard emote or system message, or a normal non-reply message → uses the channel's default (`setinbound`). Tip: `xl!setinbound e` makes the default Echo, visible only to you.
   - Reload the plugin, then reply to an *older* relayed tell → still goes to that person (parsed from the message).
 - [ ] D9. From the second account (with `setinboundperm everyone`) → shown locally only, never sent.
 - [ ] D10. `xl!togglesend` again → back to display-only. Untick "Allow sending as my character".

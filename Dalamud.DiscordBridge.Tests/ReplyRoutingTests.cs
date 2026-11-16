@@ -77,6 +77,7 @@ public class ReplyRoutingTests
     [InlineData("**[cwls2]** hello", XivChatType.CrossLinkShell2)]
     [InlineData("**[p]** pull in 5", XivChatType.Party)]
     [InlineData("**[fc]** hi", XivChatType.FreeCompany)]
+    [InlineData("**[customemote]**  walks over to the other bed.", XivChatType.CustomEmote)]
     public void ReplyToRelay_NotIndexed_ParsesChannelFromContent(string content, XivChatType expected)
     {
         Assert.Equal(new ReplyTarget(expected, null), ReplyRouting.Resolve(Reply(99, content, "Bob Smith＠Gilgamesh"), new RelayedMessageIndex()));
