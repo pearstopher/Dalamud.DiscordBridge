@@ -85,6 +85,7 @@ Test with **tells to yourself**, not FC, so nobody else sees test lines. A tell 
   - Reply to a relayed **custom emote** (`[customemote]`) → shown/sent as a custom emote (`/em`) (#24).
   - Reply to a standard emote or system message, or a normal non-reply message → uses the channel's default (`setinbound`). Tip: `xl!setinbound e` makes the default Echo, visible only to you.
   - Reload the plugin, then reply to an *older* relayed tell → still goes to that person (parsed from the message).
+- [ ] D8b. **One-off override (#26):** in a channel whose default is `e`, post `!s hello` → shown in Say. `!t <You>@<World> hi` → a tell to you. `!em waves.` → custom emote. `!fcc oops` → ❌ "unknown channel", nothing in game. `!!! wow` → shown normally in the default. Reply to a tell with `!e private note` → Echo (the override beats the reply).
 - [ ] D9. From the second account (with `setinboundperm everyone`) → shown locally only, never sent.
 - [ ] D10. `xl!togglesend` again → back to display-only. Untick "Allow sending as my character".
 

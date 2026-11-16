@@ -1081,6 +1081,8 @@ namespace Dalamud.DiscordBridge
                             + "**Replying** to a relayed message goes to that message's channel instead (or, for a tell, to that person).\n"
                             + $"Kinds: {InboundRules.AllowedSlugList}\n"
                             + $"Format: ``{this.plugin.Config.DiscordBotPrefix}setinbound fc``")
+                        .AddField("!channel message (one-off override)", $"Start a message with a channel to send just that message there, ignoring replies and the default: {ChannelOverride.Examples}. "
+                            + "Example: ``!e note to self`` or ``!t Bob Smith@Gilgamesh omw``.")
                         .AddField($"{this.plugin.Config.DiscordBotPrefix}setinboundperm <owner|everyone|role @role>", "Choose who can relay messages from this channel into the game. Default: owner only.")
                         .AddField($"{this.plugin.Config.DiscordBotPrefix}togglesend", $"Opt-in: your character **says** your own messages from this channel in game (others see them). Also needs \"Allow sending as my character\" in {Constant.MainCommand}. Outside Dalamud's rules.")
                         .AddField($"{this.plugin.Config.DiscordBotPrefix}toggledefaultnameavatar","Enable or disable sending webhook messages using your configured bot's name and the default bot avatar.\n**WARNING:**This should be combined with enabling the `togglesender` function or you will be removing any distinction between different player messages.")
@@ -1225,6 +1227,33 @@ namespace Dalamud.DiscordBridge
             }
 
             var draft = Snapshot(message, config.InboundChatType!.Value, isOwner);
+
+            // "!fc hello", "!e note", "!t Bob Smith@World hi": a one-message override that beats replies and the default.
+            var channelOverride = ChannelOverride.Parse(draft.Content);
+            if (channelOverride.Kind == ChannelOverride.Kind.Invalid)
+            {
+                Logger.Debug("Channel override rejected: {0}", channelOverride.Error ?? "");
+                if (this.plugin.Config.InboundReactions)
+                    await this.ReactAsync(message.Channel.Id, message.Id, "❌");
+                await this.ReplyAsync(message.Channel.Id, message.Id, $"Not sent to game: {channelOverride.Error}.");
+                return true;
+            }
+
+            if (channelOverride.Kind == ChannelOverride.Kind.Override)
+            {
+                var clean = ChannelOverride.Parse(draft.CleanContent);
+                var overridden = draft with
+                {
+                    TargetType = channelOverride.Target.Type,
+                    TellTarget = channelOverride.Target.TellPartner,
+                    Content = channelOverride.Text,
+                    CleanContent = clean.Kind == ChannelOverride.Kind.Override ? clean.Text : channelOverride.Text,
+                    ReplyToAuthor = null,
+                };
+                Logger.Debug("Channel override: {0} → {1}", draft.MessageId, channelOverride.Target);
+                this.InboundQueue.Enqueue(overridden);
+                return true;
+            }
 
             // The gateway's copy of the replied-to message can lack its content (or be missing). If we don't have the
             // relay in memory either, fetch it so routing can parse the channel / tell partner from it.
