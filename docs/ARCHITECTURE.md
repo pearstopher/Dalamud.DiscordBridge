@@ -24,6 +24,7 @@ All source is in `Dalamud.DiscordBridge/`.
 | `InboundSender.cs` | "Send as me": types the owner's converted message into the chat box (`UIModule.ProcessChatBoxEntry`, framework thread) after `Utf8String.SanitizeString` must leave it unchanged. Registers the echo with the guard and returns an `InboundOutcome` (result + reason). |
 | `GameChatCommand.cs` | Pure: chat type → command (`/s /sh /y /p /a /fc /l1-8 /cwl1-8 /e /em`), builds `"/fc text"` and rejects unsupported channels, empty text, leading `/`, line breaks, >500 bytes. Also `SendRateLimiter` (≥2 s apart, ≤5 waiting). |
 | `ChatTypeGroups.cs` | Pure chat-type groups: `Receives` (a channel gets a type it's subscribed to, plus GM messages of the matching player channel: GM tell ↔ tells, GM FC ↔ FC, GM LS1–8 ↔ LS1–8, GM say/shout/yell/party/NN), and `PlayerChat` (the `setup` preset). |
+| `SanePreset.cs` | The `setup` command (pure): player chat both ways for one channel, notifications off, Echo inbound default, display options reset. Never touches identity, customizations, other channels or the send-as-me opt-in. |
 | `ChatContentFormat.cs` | Pure formatting of relayed lines for Discord: `{prefix}**[{slug}]** {body}`, the body with sender and `→ Recipient` for outgoing tells, and cleaning raw tell-recipient text. Parsed back by `ContentParser`. |
 | `ChannelOverride.cs` | Pure parser for one-message overrides typed in Discord (`!e`, `!fc`, `!l1`/`!ls1`, `!cwl1`, `!em`, `!t First Last@World …`). Precedence: override > reply routing > `setinbound` default. Unknown `!word` → ❌, not relayed. |
 | `ReplyRouting.cs` | Discord replies → in-game target. `RelayedMessageIndex` (bounded, in memory, on the plugin) records each outbound relay's Discord message ID → chat type / tell partner. `ReplyRouting.Decide` uses it, or parses an older relay's `**[slug]**`, `→ Name:` and webhook name → `NotAReply` (use default), `Route`, or `Blocked` (GM channels 80–94, retainer sales, system/emote/NPC…, unknown channel, tell without partner; never falls back). `IsGmChannel` is also enforced in `GameChatCommand.TryBuild`. Tells become `/tell Name@World`. |
@@ -122,6 +123,7 @@ All commands are handled in `DiscordHandler.SocketClientOnMessageReceived`, a lo
 | Command | Effect |
 |---|---|
 | `setchannel <kinds>` / `unsetchannel <kinds>` | Add/remove chat types for this channel. `any` = `DefaultChatTypes` (regular chat incl. both tell directions), `all` = `AllChatTypes` (every known kind), `tell` = in+out, `p` = party+cross-party. |
+| `setup` | One-command sane preset for this channel (see `SanePreset`). |
 | `listchannel` | Show this channel's chat types and inbound setting. |
 | `setinbound <kind\|off>` | Relay messages posted in this channel into the game as `<kind>` (`say, shout, yell, p, alliance, fc, ls1–8, cwls1–8, nn, e, customemote`). |
 | `selftesthere [off]` | Developer builds: use this channel for the Discord round-trip and reply-routing self-tests (not in `help`). |

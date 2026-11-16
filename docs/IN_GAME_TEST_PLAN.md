@@ -44,6 +44,7 @@ The steps below are still manual: things that need a second Discord account, oth
 
 ## B. Game → Discord regression (#3–#8)
 
+- [ ] B0. `xl!setup` in your test channel → embed summarising the preset. `xl!listchannel` lists player chat only (no retainer/system), inbound Echo (owner only). A retainer sale no longer posts; `/say hi` does.
 - [ ] B1. `xl!setchannel say,fc` in `#out`. `/say hello` appears once in `#out`, with your name＠world and Lodestone portrait.
 - [ ] B2. After the re-enable in A5, `/say once` still appears **exactly once** (#6).
 - [ ] B3. `/dcpdebug say` posts "Test Message". `/dcpsaledebug` posts a retainer sale with the Titanium Ore icon (#4).

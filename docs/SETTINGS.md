@@ -1,6 +1,6 @@
 # Settings reference
 
-Settings live in `%APPDATA%\XIVLauncher\pluginConfigs\DiscordChatPears.json`, saved as soon as you change them. Most are changed in the `/dcp` window or with Discord commands ([COMMANDS.md](COMMANDS.md)). A few are only in the file: edit them with the game closed (or the plugin disabled), then reload.
+Settings live in `%APPDATA%\XIVLauncher\pluginConfigs\DiscordChatPears.json`, saved as soon as you change them. Most are changed in the `/dcp` window or with Discord commands ([COMMANDS.md](COMMANDS.md)). **`xl!setup`** sets the channel and display settings below to sane values in one go (it changes `ChatTypes`, `IsContentFinder`, `InboundChatType`, `InboundPermission`, `InboundRoleId`, and the display options `InboundDisplayEnabled`, `InboundDisplayAsEcho`, `InboundReactions`, `MarkSentInGame`, `SenderInMessage`, `ForceEmbedFallbackMode`, `ForceDefaultNameAvatar`, `DuplicateCheckMS`). A few are only in the file: edit them with the game closed (or the plugin disabled), then reload.
 
 On first load, settings are imported once from the official Discord Chat Bridge (`Dalamud.DiscordBridge.json`, read-only) if it exists.
 

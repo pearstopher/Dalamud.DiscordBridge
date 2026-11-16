@@ -809,6 +809,18 @@ namespace Dalamud.DiscordBridge
                     return;
                 }
 
+                if (args[0] == this.plugin.Config.DiscordBotPrefix + "setup" &&
+                    await EnsureOwner(message.Author, message.Channel))
+                {
+                    var summary = SanePreset.Apply(this.plugin.Config, message.Channel.Id);
+                    this.plugin.Config.Save();
+
+                    await SendGenericEmbed(message.Channel,
+                        string.Join("\n\n", summary) + $"\n\nAdjust anything with the other commands (``{this.plugin.Config.DiscordBotPrefix}help``).",
+                        "Set up with sane defaults", EmbedColorFine);
+                    return;
+                }
+
                 if (args[0] == this.plugin.Config.DiscordBotPrefix + "selftesthere" &&
                     await EnsureOwner(message.Author, message.Channel))
                 {
@@ -1086,6 +1098,7 @@ namespace Dalamud.DiscordBridge
                         .WithTitle($"{Constant.PluginName} Help")
                         .WithDescription("You can use the following commands to set up the Discord bridge.")
                         .WithColor(new Color(EmbedColorFine))
+                        .AddField($"{this.plugin.Config.DiscordBotPrefix}setup", "**Start here.** One command for sane settings in this channel: all player chat both ways, notifications (retainers, system, loot, duty pops) off, Discord → game defaults to Echo, display options reset. Doesn't touch send-as-me, your customizations or other channels.")
                         .AddField($"{this.plugin.Config.DiscordBotPrefix}setchannel", "Select, which kinds of chat should arrive in this channel.\n" +
                                                  $"Format: ``{this.plugin.Config.DiscordBotPrefix}setchannel <kind1,kind2,...>``\n\n" +
                                                  $"See [this link for a list of all available chat kinds]({Constant.KindListLink}). ``any`` = all regular chat (incl. your own tells), ``all`` = **every** kind (system messages too).")
