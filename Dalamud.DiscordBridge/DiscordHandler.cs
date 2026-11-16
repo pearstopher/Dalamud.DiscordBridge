@@ -39,7 +39,7 @@ namespace Dalamud.DiscordBridge
         /// <summary>
         /// Chat types that are set when used the "all" setting.
         /// </summary>
-        private static readonly XivChatType[] DefaultChatTypes =
+        internal static readonly XivChatType[] DefaultChatTypes =
         [
             XivChatType.Say,
             XivChatType.Shout,
@@ -48,6 +48,7 @@ namespace Dalamud.DiscordBridge
             XivChatType.CrossParty,
             XivChatType.PvPTeam,
             XivChatType.TellIncoming,
+            XivChatType.TellOutgoing,
             XivChatType.Alliance,
             XivChatType.FreeCompany,
             XivChatType.Ls1,
@@ -72,6 +73,12 @@ namespace Dalamud.DiscordBridge
             XivChatType.Echo,
             XivChatType.SystemMessage,
         ];
+
+        /// <summary>
+        /// Chat types set by "all": every kind the plugin knows (except "none").
+        /// </summary>
+        internal static XivChatType[] AllChatTypes =>
+            XivChatTypeExtensions.TypeInfoDict.Keys.Where(t => t != XivChatType.None).ToArray();
 
         /// <summary>
         /// Embed color signalling that everything is fine.
@@ -259,7 +266,7 @@ namespace Dalamud.DiscordBridge
                     // Is there any chat type that's not recognized?
                     if (kinds
                         .Any(x =>
-                        XivChatTypeExtensions.TypeInfoDict.All(y => y.Value.Slug != x) && x != "any"))
+                        XivChatTypeExtensions.TypeInfoDict.All(y => y.Value.Slug != x) && x != "any" && x != "all"))
                     {
                         Logger.Verbose("Could not find kinds");
                         await SendGenericEmbed(message.Channel,
@@ -276,7 +283,11 @@ namespace Dalamud.DiscordBridge
                     {
                         Logger.Verbose(selectedKind);
 
-                        if (selectedKind == "any")
+                        if (selectedKind == "all")
+                        {
+                            config.SetUnique(AllChatTypes);
+                        }
+                        else if (selectedKind == "any")
                         {
                             config.SetUnique(DefaultChatTypes);
                         }
@@ -324,7 +335,7 @@ namespace Dalamud.DiscordBridge
 
                     // Is there any chat type that's not recognized?
                     if (kinds.Any(x =>
-                        XivChatTypeExtensions.TypeInfoDict.All(y => y.Value.Slug != x) && x != "any"))
+                        XivChatTypeExtensions.TypeInfoDict.All(y => y.Value.Slug != x) && x != "any" && x != "all"))
                     {
                         await SendGenericEmbed(message.Channel,
                             $"One or more of the chat kinds you specified could not be found.\nCheck the ``{this.plugin.Config.DiscordBotPrefix}help`` command for more information.",
@@ -338,7 +349,11 @@ namespace Dalamud.DiscordBridge
 
                     foreach (var selectedKind in kinds)
                     {
-                        if (selectedKind == "any")
+                        if (selectedKind == "all")
+                        {
+                            config.UnsetUnique(AllChatTypes);
+                        }
+                        else if (selectedKind == "any")
                         {
                             config.UnsetUnique(DefaultChatTypes);
                         }
@@ -392,7 +407,7 @@ namespace Dalamud.DiscordBridge
 
                     // Is there any chat type that's not recognized?
                     if (kinds.Any(x =>
-                        XivChatTypeExtensions.TypeInfoDict.All(y => y.Value.Slug != x) && x != "any"))
+                        XivChatTypeExtensions.TypeInfoDict.All(y => y.Value.Slug != x) && x != "any" && x != "all"))
                     {
                         await SendGenericEmbed(message.Channel,
                             $"One or more of the chat kinds you specified could not be found.\nCheck the ``{this.plugin.Config.DiscordBotPrefix}help`` command for more information.",
@@ -454,7 +469,7 @@ namespace Dalamud.DiscordBridge
 
                     // Is there any chat type that's not recognized?
                     if (kinds.Any(x =>
-                        XivChatTypeExtensions.TypeInfoDict.All(y => y.Value.Slug != x) && x != "any"))
+                        XivChatTypeExtensions.TypeInfoDict.All(y => y.Value.Slug != x) && x != "any" && x != "all"))
                     {
                         await SendGenericEmbed(message.Channel,
                             $"One or more of the chat kinds you specified could not be found.\nCheck the ``{this.plugin.Config.DiscordBotPrefix}help`` command for more information.",
@@ -525,7 +540,7 @@ namespace Dalamud.DiscordBridge
 
                     // Is there any chat type that's not recognized?
                     if (kinds.Any(x =>
-                        XivChatTypeExtensions.TypeInfoDict.All(y => y.Value.Slug != x) && x != "any"))
+                        XivChatTypeExtensions.TypeInfoDict.All(y => y.Value.Slug != x) && x != "any" && x != "all"))
                     {
                         await SendGenericEmbed(message.Channel,
                             $"One or more of the chat kinds you specified could not be found.\nCheck the ``{this.plugin.Config.DiscordBotPrefix}help`` command for more information.",
@@ -599,7 +614,7 @@ namespace Dalamud.DiscordBridge
 
                     // Is there any chat type that's not recognized?
                     if (kinds.Any(x =>
-                        XivChatTypeExtensions.TypeInfoDict.All(y => y.Value.Slug != x) && x != "any"))
+                        XivChatTypeExtensions.TypeInfoDict.All(y => y.Value.Slug != x) && x != "any" && x != "all"))
                     {
                         await SendGenericEmbed(message.Channel,
                             $"One or more of the chat kinds you specified could not be found.\nCheck the ``{this.plugin.Config.DiscordBotPrefix}help`` command for more information.",
@@ -932,7 +947,7 @@ namespace Dalamud.DiscordBridge
 
                     // Is there any chat type that's not recognized?
                     if (kinds.Any(x =>
-                        XivChatTypeExtensions.TypeInfoDict.All(y => y.Value.Slug != x) && x != "any"))
+                        XivChatTypeExtensions.TypeInfoDict.All(y => y.Value.Slug != x) && x != "any" && x != "all"))
                     {
                         await SendGenericEmbed(message.Channel,
                             $"One or more of the chat kinds you specified could not be found.\nCheck the ``{this.plugin.Config.DiscordBotPrefix}help`` command for more information.",
@@ -1015,7 +1030,7 @@ namespace Dalamud.DiscordBridge
 
                     // Is there any chat type that's not recognized?
                     if (kinds.Any(x =>
-                        XivChatTypeExtensions.TypeInfoDict.All(y => y.Value.Slug != x) && x != "any"))
+                        XivChatTypeExtensions.TypeInfoDict.All(y => y.Value.Slug != x) && x != "any" && x != "all"))
                     {
                         await SendGenericEmbed(message.Channel,
                             $"One or more of the chat kinds you specified could not be found.\nCheck the ``{this.plugin.Config.DiscordBotPrefix}help`` command for more information.",
@@ -1073,7 +1088,7 @@ namespace Dalamud.DiscordBridge
                         .WithColor(new Color(EmbedColorFine))
                         .AddField($"{this.plugin.Config.DiscordBotPrefix}setchannel", "Select, which kinds of chat should arrive in this channel.\n" +
                                                  $"Format: ``{this.plugin.Config.DiscordBotPrefix}setchannel <kind1,kind2,...>``\n\n" +
-                                                 $"See [this link for a list of all available chat kinds]({Constant.KindListLink}) or type ``any`` to enable it for all regular chat messages.")
+                                                 $"See [this link for a list of all available chat kinds]({Constant.KindListLink}). ``any`` = all regular chat (incl. your own tells), ``all`` = **every** kind (system messages too).")
                         //$"The following chat kinds are available:\n```all - All regular chat\n{XivChatTypeExtensions.TypeInfoDict.Select(x => $"{x.Value.Slug} - {x.Value.FancyName}").Aggregate((x, y) => x + "\n" + y)}```")
                         .AddField($"{this.plugin.Config.DiscordBotPrefix}unsetchannel", "Works like the previous command, but removes kinds of chat from the list of kinds that are sent to this channel.")
                         .AddField($"{this.plugin.Config.DiscordBotPrefix}listchannel", "List all chat kinds that are sent to this channel, and its inbound setting.")
