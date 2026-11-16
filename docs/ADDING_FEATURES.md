@@ -9,8 +9,9 @@
 5. **Implement** following the recipes below.
 6. **Config** changes must be backward compatible: give new fields defaults and `Save()` after mutation.
 7. **User-facing text:** update the Discord `help` embed, `/pdiscord` UI text, and `README.md` as applicable.
-8. **Verify** per [TESTING.md](TESTING.md): build (0 errors, warnings ≤ baseline) and tests. Write manual in-game steps in the issue.
-9. **Merge** locally (`--no-ff`, `Closes #n`), push to `origin`, comment, and close. **No PRs. Never touch upstream.**
+8. **Rules:** add or update the feature's row in [DALAMUD_RULES.md](DALAMUD_RULES.md). Anything that breaks the rules must be opt-in, off by default, and say so to the user.
+9. **Verify** per [TESTING.md](TESTING.md): build (0 errors, warnings ≤ baseline) and tests. Write manual in-game steps in the issue, referring to [DEVELOPMENT.md](../DEVELOPMENT.md) (debug commands, `/xllog`), and add a debug command if the feature is otherwise hard to trigger.
+10. **Merge** locally (`--no-ff`, `Closes #n`), push to `origin`, comment, and close. **No PRs. Never touch upstream.**
 
 ## Recipes
 
@@ -81,7 +82,7 @@
 
 ## Things that need owner sign-off (label `needs-human`, don't implement autonomously)
 
-- Discord → FFXIV relaying, or anything that sends in-game chat or executes game commands
+- Anything that sends in-game chat or executes game commands **beyond** what #9 approved (local display, and owner-only opt-in "send as me")
 - New network services or data leaving the machine beyond what's listed in ARCHITECTURE.md
 - Removing or renaming user-visible commands or config fields
 - Changing the plugin manifest identity (`InternalName`, `Name`, `Author`, `RepoUrl`) or publishing/releases

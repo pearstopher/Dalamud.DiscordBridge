@@ -47,7 +47,7 @@ If a test needs a Dalamud assembly that isn't listed, add another `<Reference �
 
 Use the relevant parts for each change. Put the exact steps in the issue's "Manual test plan".
 
-**Setup:** load the dev build (Dalamud Settings → Experimental → Dev Plugin Locations → point at the output folder), `/pdiscord`, enter the token and owner, Save, and wait for status **Connected!**.
+**Setup:** follow [DEVELOPMENT.md](../DEVELOPMENT.md) §1–4 (test Discord server, load the Debug DLL as a dev plugin, confirm the `loaded (...)` line in `/xllog`).
 
 | Area | Check |
 |---|---|

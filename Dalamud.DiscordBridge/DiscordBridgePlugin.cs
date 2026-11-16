@@ -27,7 +27,7 @@ namespace Dalamud.DiscordBridge
         public Configuration Config;
         public DiscordBridgeProvider DiscordBridgeProvider;
 
-        static readonly IPluginLog Logger = Service.Logger;
+        private static IPluginLog Logger => Service.Logger;
 
         // public IPlayerCharacter? cachedLocalPlayer;
         public string cachedPlayerName;
@@ -109,6 +109,9 @@ namespace Dalamud.DiscordBridge
                 Service.Chat.PrintError("The Discord Bridge plugin was installed successfully." +
                                                               "Please use the \"/pdiscord\" command to set it up.");
             }
+
+            // Lets a developer confirm in /xllog exactly which build the game is running (see DEVELOPMENT.md).
+            Logger.Information($"{pluginInterface.Manifest.Name} loaded ({BuildInfo.Describe(pluginInterface.AssemblyLocation.FullName)})");
         }
 
         private void OnTerritoryChanged(uint obj)
@@ -287,6 +290,8 @@ namespace Dalamud.DiscordBridge
             Service.Interface.SavePluginConfig(this.Config);
 
             Service.Interface.UiBuilder.Draw -= this.ui.Draw;
+
+            Logger.Information($"{Service.Interface.Manifest.Name} unloaded");
         }
 
         public void Dispose()
