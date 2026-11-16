@@ -83,7 +83,8 @@ namespace Dalamud.DiscordBridge
             this.echoGuard = echoGuard;
         }
 
-        internal async Task<InboundResult> ShowAsync(InboundDiscordMessage message, string text)
+        /// <param name="asEchoOverride">Self-tests: force Echo mode on/off instead of using the setting.</param>
+        internal async Task<InboundResult> ShowAsync(InboundDiscordMessage message, string text, bool? asEchoOverride = null)
         {
             if (!this.config.InboundDisplayEnabled)
                 return InboundResult.Disabled;
@@ -91,7 +92,7 @@ namespace Dalamud.DiscordBridge
             if (string.IsNullOrEmpty(text))
                 return InboundResult.Empty;
 
-            var entry = InboundFormat.Build(message, text, this.config.InboundSenderFormat, this.config.InboundDisplayAsEcho);
+            var entry = InboundFormat.Build(message, text, this.config.InboundSenderFormat, asEchoOverride ?? this.config.InboundDisplayAsEcho);
 
             try
             {

@@ -34,6 +34,7 @@ All source is in `Dalamud.DiscordBridge/`.
 | `API/` | IPC for other plugins: `DiscordBridge.APIVersion` (returns `1`) and `DiscordBridge.SendMessage(pluginName, avatarUrl, message)`. |
 | `XivApi/` | Legacy XIVAPI client and result models. Mostly unused now (avatars come from NetStone; item icons are built as `beta.xivapi.com` asset URLs). |
 | `Constant.cs` | Help/wiki/Discord/logo URLs. |
+| `SelfTests/` | Dev-only in-game self-tests: `SelfTestFramework.cs` (pure runner with timeouts, JSON/text reports), `GameSelfTests.cs` (the tests), `SelfTestService.cs` (button / `/dcptest` / auto-run after load, writes `selftest-results.json`). Hooks: `DiscordBridgePlugin.ChatObserver`, `DiscordHandler.MessageObserved`. |
 | `BuildInfo.cs` | Build configuration/time/path for the `… loaded (Debug build, built …, from …)` line logged at startup (see DEVELOPMENT.md). |
 | `DiscordChatPears.json` | Plugin manifest metadata (name, author, description, tags). The InternalName comes from `<AssemblyName>DiscordChatPears` in the csproj. |
 | `ConfigImport.cs` | One-time, read-only import of the official Discord Chat Bridge config (`pluginConfigs/Dalamud.DiscordBridge.json`) on first run, stripping its `$type` metadata. |

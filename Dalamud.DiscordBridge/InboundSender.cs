@@ -75,7 +75,7 @@ namespace Dalamud.DiscordBridge
         }
 
         /// <summary>The client's own chat sanitization (framework thread).</summary>
-        private static unsafe string Sanitize(string text)
+        internal static unsafe string Sanitize(string text)
         {
             var str = Utf8String.FromString(text);
             try

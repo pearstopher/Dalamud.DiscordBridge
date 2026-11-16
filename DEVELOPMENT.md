@@ -72,7 +72,20 @@ Hidden from `/xlhelp`. Use them to exercise the pipeline without waiting for rea
 | `/dcpin <kind> <name> <text>` | Fakes a Discord message arriving in game (e.g. `/dcpin fc Alice hello`). Runs the real converter → display → echo-guard path, with no Discord needed. The line must **not** be relayed back to Discord. |
 | `/dcpsend <kind> <text>` | Your character **says** the text in that channel through the real send path (command build, rate limit, sanitize, echo guard), e.g. `/dcpsend e hello` to test safely with Echo. Needs "Allow sending as my character" ticked in `/dcp`. |
 
-## 7. What to check in game
+## 7. Automated in-game self-tests (dev builds)
+
+Dev builds (loaded from a Dev Plugin Location, or any Debug build) add a **Developer: self-tests** section to `/dcp`:
+
+- **Run self-tests**, or type `/dcptest`. This runs about 14 checks in the live game and Discord: the loop guard, the send path via `/e` (local only), slash-command rejection, IPC, Lodestone, game data, channel permissions, and the Discord round trip. They're listed in [docs/IN_GAME_TEST_PLAN.md §0](docs/IN_GAME_TEST_PLAN.md).
+- Results appear in a table (hover a test for its description), as a chat summary with failures listed, in `/xllog`, and in **`%APPDATA%\XIVLauncher\pluginConfigs\DiscordChatPears\selftest-results.json`**. Claude reads that file after you test, so there's nothing to copy. **Copy results** puts a text version on the clipboard.
+- **Run self-tests after each load**: combined with Dalamud's automatic reloading (§3), `dotnet build` → reload → tests run by themselves once you're logged in and connected.
+- `xl!selftesthere` (once, in a private channel) enables the Discord round-trip test. `xl!selftesthere off` disables it.
+
+Nothing in the self-tests sends chat to the game server. The only send test uses `/e` (Echo), which stays on your client. Release builds don't show the section, and `/dcptest` refuses to run there.
+
+**Adding tests:** see `Dalamud.DiscordBridge/SelfTests/GameSelfTests.cs`. Every self-test id must appear in the test plan (a unit test enforces this).
+
+## 8. What to check in game
 
 For a full session, follow [docs/IN_GAME_TEST_PLAN.md](docs/IN_GAME_TEST_PLAN.md). [docs/TESTING.md § 3](docs/TESTING.md) has the short checklist. Each issue's "Manual test plan" lists the specific steps. Issues that need a check in game carry the `needs-in-game-test` label:
 
@@ -82,11 +95,11 @@ gh issue list --label needs-in-game-test --state all
 
 After testing, comment the result on the issue and remove the label.
 
-## 8. CI
+## 9. CI
 
 [.github/workflows/build.yml](.github/workflows/build.yml) builds and tests on every push to `master`, on demand, and **daily against the latest Dalamud**, so a game/Dalamud patch that breaks the plugin shows up as a failed run (GitHub emails the owner). The packaged `latest.zip` is uploaded as a 7-day artifact.
 
-## 9. Releasing
+## 10. Releasing
 
 Players install Discord Chat Pears from the owner's combined custom repo, [pearstopher/ffxiv-plugins](https://github.com/pearstopher/ffxiv-plugins):
 

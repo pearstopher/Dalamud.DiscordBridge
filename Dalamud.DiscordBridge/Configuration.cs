@@ -57,6 +57,14 @@ namespace Dalamud.DiscordBridge
         /// <summary>How many "send as me" messages may wait for their turn before more are rejected.</summary>
         public int SendQueueLimit { get; set; } = 5;
 
+        // Developer self-tests (dev builds only).
+
+        /// <summary>Discord channel used by the self-test round trip (set with the selftesthere command).</summary>
+        public ulong? SelfTestChannelId { get; set; }
+
+        /// <summary>Dev builds: run the self-tests automatically after each (re)load, once logged in and connected.</summary>
+        public bool DevRunSelfTestsOnLoad { get; set; } = false;
+
 
         public void Initialize(IDalamudPluginInterface pluginInterface)
         {

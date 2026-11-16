@@ -52,6 +52,14 @@ namespace Dalamud.DiscordBridge
             }
         }
 
+        /// <summary>XIVAPI asset URL for an item icon (folder and file are zero-padded to 6 digits).</summary>
+        internal static string ItemIconUrl(uint icon)
+        {
+            var iconFolder = $"{icon / 1000 * 1000}".PadLeft(6, '0');
+            var iconFile = $"{icon}".PadLeft(6, '0');
+            return $"https://beta.xivapi.com/api/1/asset?path=ui%2Ficon%2F{iconFolder}%2F{iconFile}_hr1.tex&format=png";
+        }
+
         private async Task ProcessRetainerSaleAsync(QueuedRetainerItemSaleEvent retainerSaleEvent)
         {
             if (retainerSaleEvent.Message.Payloads.FirstOrDefault(x => x.Type == PayloadType.Item) is not ItemPayload itemLink)
@@ -62,10 +70,7 @@ namespace Dalamud.DiscordBridge
 
             var itemRow = Service.Data.GetExcelSheet<Item>().GetRow(itemLink.Item.RowId);
 
-            // XIVAPI wants these padded with 0s in the front if under 6 digits.
-            var iconFolder = $"{itemRow.Icon / 1000 * 1000}".PadLeft(6, '0');
-            var iconFile = $"{itemRow.Icon}".PadLeft(6, '0');
-            var avatarUrl = $"https://beta.xivapi.com/api/1/asset?path=ui%2Ficon%2F{iconFolder}%2F{iconFile}_hr1.tex&format=png";
+            var avatarUrl = ItemIconUrl(itemRow.Icon);
 
             await this.plugin!.Discord.SendItemSaleEvent(itemRow.Name, avatarUrl, itemLink.Item.RowId, retainerSaleEvent.Message.TextValue, retainerSaleEvent.ChatType);
         }
