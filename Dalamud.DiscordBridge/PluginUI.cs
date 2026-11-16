@@ -25,6 +25,85 @@ namespace Dalamud.DiscordBridge
             this.isVisible = true;
         }
 
+        private static Vector4 warnColor = new(1f, 0.8f, 0.2f, 1f);
+        private static Vector4 skipColor = new(0.6f, 0.6f, 0.6f, 1f);
+
+        /// <summary>Developer builds only: run the in-game self-tests and show the results.</summary>
+        private void DrawSelfTests()
+        {
+            var tests = this.Plugin.SelfTests;
+            var config = this.Plugin.Config;
+
+            ImGui.Dummy(new Vector2(10, 10));
+            ImGui.Separator();
+            ImGui.TextColored(warnColor, "Developer: self-tests");
+
+            if (tests.IsRunning)
+            {
+                ImGui.Text($"Running… {tests.Snapshot().Count}/{tests.TotalTests}");
+            }
+            else if (ImGui.Button("Run self-tests"))
+            {
+                tests.Start();
+            }
+
+            var results = tests.Snapshot();
+            if (!tests.IsRunning && tests.LastReport is { } report)
+            {
+                ImGui.SameLine();
+                if (ImGui.Button("Copy results"))
+                    ImGui.SetClipboardText(SelfTests.SelfTestRunner.ToText(report));
+                ImGui.SameLine();
+                ImGui.Text($"{report.Summary} ({report.StartedAt:HH:mm:ss})");
+            }
+
+            var autoRun = config.DevRunSelfTestsOnLoad;
+            if (ImGui.Checkbox("Run self-tests after each load", ref autoRun))
+            {
+                config.DevRunSelfTestsOnLoad = autoRun;
+                config.Save();
+            }
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip("With Dalamud's automatic reloading, every dotnet build reloads the plugin and runs the tests once you're logged in.");
+
+            ImGui.TextDisabled($"Results file: {SelfTests.SelfTestService.ResultsPath}");
+            if (config.SelfTestChannelId == null)
+                ImGui.TextDisabled($"Discord round trip: run {config.DiscordBotPrefix}selftesthere in a private channel to enable.");
+
+            if (results.Count == 0)
+                return;
+
+            if (ImGui.BeginTable("selftests", 3, ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg | ImGuiTableFlags.SizingStretchProp))
+            {
+                ImGui.TableSetupColumn("Result");
+                ImGui.TableSetupColumn("Test");
+                ImGui.TableSetupColumn("Details");
+                ImGui.TableHeadersRow();
+
+                foreach (var r in results)
+                {
+                    ImGui.TableNextRow();
+                    ImGui.TableNextColumn();
+                    var color = r.Status switch
+                    {
+                        SelfTests.SelfTestStatus.Pass => fineColor,
+                        SelfTests.SelfTestStatus.Fail => errorColor,
+                        SelfTests.SelfTestStatus.Warn => warnColor,
+                        _ => skipColor,
+                    };
+                    ImGui.TextColored(color, r.Status.ToString().ToUpperInvariant());
+                    ImGui.TableNextColumn();
+                    ImGui.Text(r.Id);
+                    if (ImGui.IsItemHovered())
+                        ImGui.SetTooltip(r.Description);
+                    ImGui.TableNextColumn();
+                    ImGui.TextWrapped($"{r.Message} ({r.DurationMs} ms)");
+                }
+
+                ImGui.EndTable();
+            }
+        }
+
         public void Draw()
         {
             if (!this.isVisible)
@@ -103,6 +182,9 @@ namespace Dalamud.DiscordBridge
                 ImGui.SetTooltip($"Your own Discord messages, in channels where you ran {config.DiscordBotPrefix}togglesend, are said in game by your character.");
             if (config.AllowSendAsCharacter)
                 ImGui.TextColored(errorColor, "Outside Dalamud's plugin rules: the game server receives chat you didn't type in game. Use at your own risk.");
+
+            if (SelfTests.SelfTestService.IsDevBuild)
+                this.DrawSelfTests();
 
             ImGui.Dummy(new Vector2(10, 10));
 

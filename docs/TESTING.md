@@ -43,7 +43,11 @@ If a test needs a Dalamud assembly that isn't listed, add another `<Reference �
 - Test names: `Method_Scenario_ExpectedResult`. One behaviour per test, Arrange/Act/Assert.
 - Tests must be deterministic: no network, no real clock dependence (inject the time), no file system outside a temp dir.
 
-## 3. Manual in-game checklist (owner)
+## 3. In-game self-tests (dev builds)
+
+`/dcp` → **Run self-tests** (or `/dcptest`) runs the automated in-game checks and writes `pluginConfigs\DiscordChatPears\selftest-results.json`. See [DEVELOPMENT.md §7](../DEVELOPMENT.md). When results exist, Claude reads that file to verify game-dependent behaviour. Every game- or Discord-dependent feature should add a self-test (`SelfTests/GameSelfTests.cs`).
+
+## 4. Manual in-game checklist (owner)
 
 Use the relevant parts for each change. Put the exact steps in the issue's "Manual test plan".
 

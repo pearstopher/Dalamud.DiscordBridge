@@ -43,6 +43,9 @@ namespace Dalamud.DiscordBridge.API
             }
         }
 
+        /// <summary>Whether this plugin registered both IPC endpoints (false if another plugin owns them).</summary>
+        public bool OwnsIpc => this.registeredApiVersion && this.registeredSendMessage;
+
         public void Dispose()
         {
             if (this.registeredApiVersion)

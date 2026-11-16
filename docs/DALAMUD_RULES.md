@@ -22,6 +22,7 @@ Square Enix's terms prohibit third-party tools in general. These rules are the D
 | IPC `DiscordBridge.SendMessage` | ✅ Yes | Other plugins post to Discord. No game interaction. |
 | Discord configuration commands | ✅ Yes | Discord-only. |
 | Debug commands (`/dcpdebug`, `/dcpsaledebug`, `/dcpprintlist`, `/dcpin`) | ✅ Yes | Local only. |
+| Developer self-tests (`/dcptest`, dev builds only) | ✅ Yes | Local checks. The only send test uses `/e` (Echo), which never reaches the server. The optional Discord round trip posts and deletes one message in the owner's chosen channel. |
 | `/dcpsend` debug command | ✅ Yes | You type it in game yourself (direct input), like typing the chat line. |
 | Settings import from Discord Chat Bridge (#11) | ✅ Yes | Reads a local config file once. |
 | Discord reactions and replies about inbound messages | ✅ Yes | Discord-only. |

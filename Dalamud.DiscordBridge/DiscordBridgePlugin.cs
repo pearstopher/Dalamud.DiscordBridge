@@ -1,6 +1,7 @@
 using Dalamud.DiscordBridge.API;
 using Dalamud.DiscordBridge.Attributes;
 using Dalamud.DiscordBridge.Model;
+using Dalamud.DiscordBridge.SelfTests;
 using Dalamud.Game.Chat;
 using Dalamud.Game.ClientState.Objects.SubKinds;
 using Dalamud.Game.Text;
@@ -29,11 +30,22 @@ namespace Dalamud.DiscordBridge
         /// <summary>Swallows the game's echo of lines we print/send for Discord messages, so they aren't relayed back.</summary>
         internal readonly InboundEchoGuard EchoGuard = new();
 
+        /// <summary>
+        /// Self-test hook: called for every chat line with (type, text, swallowedByEchoGuard). Null outside self-tests.
+        /// </summary>
+        internal Action<XivChatType, string, bool>? ChatObserver;
+
         /// <summary>Converts inbound Discord messages to game-safe text.</summary>
         internal readonly DiscordToGameConverter InboundConverter = new();
 
         private InboundDisplay inboundDisplay = null!;
         private InboundSender inboundSender = null!;
+
+        internal InboundDisplay InboundDisplayService => this.inboundDisplay;
+        internal InboundSender InboundSenderService => this.inboundSender;
+
+        /// <summary>Dev-only in-game self-tests (see DEVELOPMENT.md).</summary>
+        internal SelfTestService SelfTests { get; private set; } = null!;
 
         private static IPluginLog Logger => Service.Logger;
 
@@ -93,6 +105,7 @@ namespace Dalamud.DiscordBridge
             this.DiscordBridgeProvider = new DiscordBridgeProvider(pluginInterface, new DiscordBridgeAPI(this));
             this.inboundDisplay = new InboundDisplay(this.Config, this.EchoGuard);
             this.inboundSender = new InboundSender(this.Config, this.EchoGuard);
+            this.SelfTests = new SelfTestService(this);
             this.Discord = new DiscordHandler(this);
             // Task t = this.Discord.Start(); // bot won't start if we just have this
 
@@ -138,6 +151,9 @@ namespace Dalamud.DiscordBridge
                 Service.Chat.PrintError($"{Constant.PluginName} was installed successfully. " +
                                                               $"Please use the \"{Constant.MainCommand}\" command to set it up.");
             }
+
+            if (SelfTestService.IsDevBuild && this.Config.DevRunSelfTestsOnLoad)
+                this.SelfTests.StartWhenReady();
 
             // Lets a developer confirm in /xllog exactly which build the game is running (see DEVELOPMENT.md).
             Logger.Information($"{pluginInterface.Manifest.Name} loaded ({BuildInfo.Describe(pluginInterface.AssemblyLocation.FullName)})");
@@ -206,7 +222,9 @@ namespace Dalamud.DiscordBridge
             if (message.IsHandled) return; // don't process a message that's been handled.
 
             // A line we printed or sent because of a Discord message: don't relay it back to Discord.
-            if (this.EchoGuard.TryConsume(message.LogKind, message.Message.TextValue)) return;
+            var isOwnEcho = this.EchoGuard.TryConsume(message.LogKind, message.Message.TextValue);
+            this.ChatObserver?.Invoke(message.LogKind, message.Message.TextValue, isOwnEcho);
+            if (isOwnEcho) return;
 
             if (message.LogKind == XivChatType.RetainerSale)
             {
@@ -387,6 +405,23 @@ namespace Dalamud.DiscordBridge
             });
         }
 
+        [Command("/dcptest")]
+        [HelpMessage("Developer builds: run the in-game self-tests.")]
+        [DoNotShowInHelp]
+        public void SelfTestCommand(string command, string args)
+        {
+            if (!SelfTestService.IsDevBuild)
+            {
+                Service.Chat.PrintError("Self-tests are only available in developer builds.");
+                return;
+            }
+
+            if (this.SelfTests.Start())
+                Service.Chat.Print($"{Constant.PluginName}: running {this.SelfTests.TotalTests} self-tests…");
+            else
+                Service.Chat.PrintError("Self-tests are already running.");
+        }
+
         [Command("/dcpprintlist")]
         [HelpMessage("Dump all plugin config to chat box.")]
         [DoNotShowInHelp]
@@ -411,6 +446,8 @@ namespace Dalamud.DiscordBridge
             Service.State.Login -= OnLoginEvent;
             Service.State.Logout -= OnLogoutEvent;
             Service.State.TerritoryChanged -= OnTerritoryChanged;
+
+            this.SelfTests?.Dispose();
 
             this.DiscordBridgeProvider.Dispose();
             

@@ -195,8 +195,20 @@ namespace Dalamud.DiscordBridge
 
         }
 
+        /// <summary>Self-test hook: every message the gateway delivers, before any filtering.</summary>
+        internal event Action<SocketMessage>? MessageObserved;
+
         private async Task SocketClientOnMessageReceived(SocketMessage message)
         {
+            try
+            {
+                this.MessageObserved?.Invoke(message);
+            }
+            catch (Exception ex)
+            {
+                Logger.Warning(ex, "Self-test message observer failed.");
+            }
+
             if (message.Author.IsBot || message.Author.IsWebhook)
                 return;
 
@@ -782,6 +794,21 @@ namespace Dalamud.DiscordBridge
                     return;
                 }
 
+                if (args[0] == this.plugin.Config.DiscordBotPrefix + "selftesthere" &&
+                    await EnsureOwner(message.Author, message.Channel))
+                {
+                    var off = args.Length > 1 && args[1].Equals("off", StringComparison.OrdinalIgnoreCase);
+                    this.plugin.Config.SelfTestChannelId = off ? null : message.Channel.Id;
+                    this.plugin.Config.Save();
+
+                    await SendGenericEmbed(message.Channel,
+                        off
+                            ? "OK! Self-tests will no longer post to Discord."
+                            : $"OK! Developer self-tests ({Constant.MainCommand} → Run self-tests, or /dcptest) will post a test message here and check it comes back. Use a private channel.",
+                        "Self-test channel", EmbedColorFine);
+                    return;
+                }
+
                 if (args[0] == this.plugin.Config.DiscordBotPrefix + "togglesend" &&
                     await EnsureOwner(message.Author, message.Channel))
                 {
@@ -1262,6 +1289,24 @@ namespace Dalamud.DiscordBridge
             }
         }
 
+        /// <summary>Whether the Lodestone client has been created (after <see cref="Start"/>).</summary>
+        internal bool LodestoneReady => this.lodestoneClient != null;
+
+        /// <summary>Self-tests: find a character's Lodestone portrait URL, or null if not found.</summary>
+        internal async Task<string?> FindLodestoneAvatarAsync(string name, string world)
+        {
+            var page = await this.lodestoneClient.SearchCharacter(new CharacterSearchQuery { CharacterName = name, World = world });
+            var entry = page?.Results.FirstOrDefault(r => r.Name == name);
+            if (entry == null)
+                return null;
+
+            var character = await entry.GetCharacter();
+            return character?.Avatar?.ToString();
+        }
+
+        /// <summary>Self-tests: the bot account's user ID, or 0 before login.</summary>
+        internal ulong BotUserId => this.socketClient.CurrentUser?.Id ?? 0;
+
         /// <summary>Server nickname, else global display name, else username.</summary>
         private static string DisplayNameOf(IUser user)
             => (user as IGuildUser)?.DisplayName ?? user.GlobalName ?? user.Username;
@@ -1353,7 +1398,7 @@ namespace Dalamud.DiscordBridge
         /// and decide how to deliver to it. Checks for DMs before any guild-only API is touched.
         /// </summary>
         /// <returns>The channel, or null if it no longer exists or can't be accessed, and the route to use.</returns>
-        private async Task<(IMessageChannel? Channel, DeliveryRoute Route)> ResolveDeliveryAsync(ulong channelId, bool forceEmbed)
+        internal async Task<(IMessageChannel? Channel, DeliveryRoute Route)> ResolveDeliveryAsync(ulong channelId, bool forceEmbed)
         {
             IMessageChannel? channel = this.socketClient.GetChannel(channelId) as IMessageChannel;
             if (channel == null)
@@ -1678,7 +1723,7 @@ namespace Dalamud.DiscordBridge
         /// </summary>
         /// <param name="channel">The guild text channel to get the webhook for</param>
         /// <returns>A webhook client for the channel, or null if one couldn't be created.</returns>
-        private async Task<DiscordWebhookClient?> GetOrCreateWebhookClient(ITextChannel channel)
+        internal async Task<DiscordWebhookClient?> GetOrCreateWebhookClient(ITextChannel channel)
         {
             if (channel is { } textChannel)
             {

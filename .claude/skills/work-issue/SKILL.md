@@ -18,6 +18,8 @@ git status --short          # must be clean; if not, stash with a descriptive na
 
 ## 2. Understand the issue
 
+- If `%APPDATA%\XIVLauncher\pluginConfigs\DiscordChatPears\selftest-results.json` exists, read it. A FAIL related to this issue's area is evidence. Note its timestamp versus `git log -1 --format=%ci`.
+
 - `gh issue view $ARGUMENTS --comments`
 - If it has `needs-human`, or it depends on an open issue ("Depends on #X"), skip it and say why.
 - Read the relevant docs in `docs/` (always `docs/ADDING_FEATURES.md`, `docs/CODING_STANDARDS.md`, `docs/TESTING.md` once they exist) and the code you'll touch.
@@ -27,7 +29,7 @@ git status --short          # must be clean; if not, stash with a descriptive na
 
 - `git checkout -b issue/$ARGUMENTS-<short-slug>`
 - Implement the smallest complete change that satisfies the acceptance criteria. Follow the coding standards and match the surrounding code.
-- Add or update tests per `docs/TESTING.md` once a test project exists.
+- Add or update unit tests per `docs/TESTING.md`. If behaviour depends on the live game or Discord, add an in-game self-test in `SelfTests/GameSelfTests.cs` (never send to the game server; use Echo) and reference its id in `docs/IN_GAME_TEST_PLAN.md`.
 - Update docs (README, `docs/*`, in-plugin help text) if behaviour or configuration changes.
 
 ## 4. Verify
