@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -330,27 +331,31 @@ namespace Dalamud.DiscordBridge.SelfTests
                 : SelfTestResult.Fail("the printed line was NOT swallowed: it would be relayed back to Discord");
         }
 
-        /// <summary>Same settings Dalamud uses to save and load plugin configs (type metadata on every object).</summary>
-        private static readonly Newtonsoft.Json.JsonSerializerSettings DalamudJson = new()
-        {
-            TypeNameAssemblyFormatHandling = Newtonsoft.Json.TypeNameAssemblyFormatHandling.Simple,
-            TypeNameHandling = Newtonsoft.Json.TypeNameHandling.Objects,
-        };
-
+        /// <summary>
+        /// Save the live settings with Dalamud and load them back with Dalamud's own loader (the same calls as a plugin
+        /// load), then compare. Reimplementing the loader here doesn't work: inside the game, the plugin's types live in
+        /// the plugin's own load context, which only Dalamud's loader resolves.
+        /// </summary>
         private static SelfTestResult ConfigRoundTrip(Configuration config)
         {
             try
             {
-                var json = Newtonsoft.Json.JsonConvert.SerializeObject(config, DalamudJson);
-                var back = Newtonsoft.Json.JsonConvert.DeserializeObject<Configuration>(json, DalamudJson);
-                if (back == null)
-                    return SelfTestResult.Fail("reloading returned nothing");
+                config.Save();
+                var text = File.ReadAllText(Service.Interface.ConfigFile.FullName);
+                if (text.Contains("ConcurrentDictionary"))
+                    return SelfTestResult.Fail("saved with a collection type older versions can't load");
+
+                if (Service.Interface.GetPluginConfig() is not Configuration back)
+                    return SelfTestResult.Fail("Dalamud couldn't load the saved settings: the next plugin load would start empty");
+                if (ReferenceEquals(back, config))
+                    return SelfTestResult.Warn("Dalamud returned the live object instead of reloading the file; nothing to compare");
+
                 if (back.ChannelConfigs.Count != config.ChannelConfigs.Count || back.PrefixConfigs.Count != config.PrefixConfigs.Count ||
-                    back.DiscordOwnerName != config.DiscordOwnerName)
+                    back.DiscordOwnerName != config.DiscordOwnerName ||
+                    back.ChannelConfigs.Any(kv => !config.ChannelConfigs.TryGetValue(kv.Key, out var live) || !live.ChatTypes.SequenceEqual(kv.Value.ChatTypes)))
                     return SelfTestResult.Fail("settings changed after a save and reload");
-                if (json.Contains("ConcurrentDictionary"))
-                    return SelfTestResult.Fail("saved with a type older versions can't load");
-                return SelfTestResult.Pass($"{config.ChannelConfigs.Count} channel(s), {config.PrefixConfigs.Count} prefix(es) round-tripped");
+
+                return SelfTestResult.Pass($"{config.ChannelConfigs.Count} channel(s), {config.PrefixConfigs.Count} prefix(es) saved and reloaded by Dalamud");
             }
             catch (Exception ex)
             {
