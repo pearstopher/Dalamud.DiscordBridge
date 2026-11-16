@@ -246,6 +246,9 @@ namespace Dalamud.DiscordBridge.SelfTests
                     return SelfTestResult.Pass(string.Join("; ", summary));
                 }, TimeSpan.FromSeconds(30)),
 
+            new DelegateSelfTest("discord.reply-routing", "Discord", "Real relay messages read back from Discord route replies correctly (plan D8)",
+                token => ReplyRoutingTest(plugin, token), TimeSpan.FromSeconds(40)),
+
             new DelegateSelfTest("discord.round-trip", "Discord", "Post to the self-test channel and see it come back through the gateway",
                 token => DiscordRoundTrip(plugin, token), TimeSpan.FromSeconds(30)),
         ];
@@ -320,6 +323,82 @@ namespace Dalamud.DiscordBridge.SelfTests
             {
                 plugin.Discord.MessageObserved -= Observer;
             }
+        }
+
+        /// <summary>
+        /// Posts relay-formatted webhook messages to the self-test channel, fetches them back from Discord (REST), and
+        /// runs them through the same reply-field extraction and routing as a real reply, both from the in-memory index
+        /// and by parsing. Deletes the messages afterwards.
+        /// </summary>
+        private static async Task<SelfTestResult> ReplyRoutingTest(DiscordBridgePlugin plugin, CancellationToken token)
+        {
+            if (plugin.Config.SelfTestChannelId is not { } channelId)
+                return SelfTestResult.Skip($"no self-test channel; run {plugin.Config.DiscordBotPrefix}selftesthere in a private channel to enable");
+            if (plugin.Discord.State != DiscordState.Ready)
+                return SelfTestResult.Skip("Discord not connected");
+
+            var (channel, route) = await plugin.Discord.ResolveDeliveryAsync(channelId, forceEmbed: false);
+            if (channel == null)
+                return SelfTestResult.Fail($"self-test channel {channelId} not reachable");
+            if (route != DiscordHandler.DeliveryRoute.Webhook || await plugin.Discord.GetOrCreateWebhookClient((ITextChannel)channel) is not { } webhook)
+                return SelfTestResult.Skip($"self-test channel uses {route}, not a webhook");
+
+            var me = string.IsNullOrEmpty(plugin.cachedPlayerName) ? "Test Player＠World" : $"{plugin.cachedPlayerName}＠{plugin.cachedPlayerWorld}";
+            var tag = NewTag();
+            var cases = new (string Content, ReplyTarget Expected)[]
+            {
+                ($"**[say]** {tag} reply test A", new ReplyTarget(XivChatType.Say, null)),
+                ($"**[ls1]** {tag} reply test B", new ReplyTarget(XivChatType.Ls1, null)),
+                ($"**[tell]** → Bob Smith＠Gilgamesh: {tag} reply test C", new ReplyTarget(XivChatType.TellOutgoing, "Bob Smith＠Gilgamesh")),
+                ($"**[tell]** {tag} reply test D", new ReplyTarget(XivChatType.TellOutgoing, me)),
+            };
+
+            var posted = new List<ulong>();
+            var failures = new List<string>();
+            try
+            {
+                for (var i = 0; i < cases.Length; i++)
+                {
+                    var id = await webhook.SendMessageAsync(cases[i].Content, username: me, allowedMentions: AllowedMentions.None);
+                    posted.Add(id);
+                }
+
+                for (var i = 0; i < cases.Length; i++)
+                {
+                    var fetched = await channel.GetMessageAsync(posted[i]);
+                    var fields = DiscordHandler.ReplyFieldsOf(fetched, posted[i]);
+                    var draft = FakeMessage(XivChatType.FreeCompany, isOwner: true) with
+                    {
+                        ReplyToMessageId = fields.MessageId,
+                        ReplyToAuthor = fields.Author,
+                        ReplyToContent = fields.Content,
+                        ReplyToIsRelay = fields.IsRelay,
+                    };
+
+                    // Parsed from the message itself (as after a reload)...
+                    var parsed = ReplyRouting.Resolve(draft, new RelayedMessageIndex(), plugin.Config.CustomSlugsConfigs);
+                    // ...and from the in-memory index (as right after relaying).
+                    var index = new RelayedMessageIndex();
+                    index.Record(posted[i], cases[i].Expected);
+                    var indexed = ReplyRouting.Resolve(draft, index, plugin.Config.CustomSlugsConfigs);
+
+                    if (parsed != cases[i].Expected)
+                        failures.Add($"{(char)('A' + i)} parsed → {parsed?.ToString() ?? "default"} (relay={fields.IsRelay}, author='{fields.Author}', content='{fields.Content}')");
+                    if (indexed != cases[i].Expected)
+                        failures.Add($"{(char)('A' + i)} indexed → {indexed?.ToString() ?? "default"}");
+                }
+            }
+            finally
+            {
+                foreach (var id in posted)
+                {
+                    try { await webhook.DeleteMessageAsync(id); } catch { /* best effort */ }
+                }
+            }
+
+            return failures.Count == 0
+                ? SelfTestResult.Pass($"{cases.Length} relay messages in #{channel.Name} route replies correctly (parsed and indexed)")
+                : SelfTestResult.Fail(string.Join(" | ", failures));
         }
 
         private static InboundDiscordMessage FakeMessage(XivChatType target, bool isOwner) => new()

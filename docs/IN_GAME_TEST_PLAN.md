@@ -29,6 +29,7 @@ For the Discord round trip, run `xl!selftesthere` once in a **private** channel.
 | `send.tell-self` | *(opt-in)* Real tell to yourself via the send path; both copies swallowed | D3 |
 | `send.slash-rejected` | `/logout` is rejected and you stay logged in | D5 |
 | `discord.channels` | Every configured channel reachable, webhook permission | B4 (permission part) |
+| `discord.reply-routing` | Relay messages read back from Discord route replies to the right channel/person | D8 (routing part) |
 | `discord.round-trip` | Post → gateway → back, Message Content intent working | — |
 
 The steps below are still manual: things that need a second Discord account, other players, logging out, reloading, or judging how something looks. Steps fully covered above are marked *(automated)*; skip them if section 0 passed.
