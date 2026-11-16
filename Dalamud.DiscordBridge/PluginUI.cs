@@ -188,7 +188,7 @@ namespace Dalamud.DiscordBridge
                 config.Save();
             }
             if (ImGui.IsItemHovered())
-                ImGui.SetTooltip($"Your own Discord messages, in channels where you ran {config.DiscordBotPrefix}togglesend, are said in game by your character.");
+                ImGui.SetTooltip($"When ticked, your own Discord messages are really sent as your character (shown as [S]); otherwise only shown to you ([D]). Only this checkbox controls it. Channels: {config.DiscordBotPrefix}togglesend, are said in game by your character.");
             var markSent = config.MarkSentInGame;
             if (ImGui.Checkbox($"Tag messages sent by the plugin with {SentMarker.Tag(config.SentTag)} on my screen", ref markSent))
             {

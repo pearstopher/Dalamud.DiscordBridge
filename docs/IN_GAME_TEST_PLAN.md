@@ -76,7 +76,7 @@ Test with **tells to yourself**, not FC, so nobody else sees test lines. A tell 
 - [ ] D1. With "Allow sending as my character" **off**: `/dcpsend e hi` → error "turned off in /dcp".
 - [ ] D2. Tick it (a red warning appears). `/dcpsend e hello from dev` → Echo line from you, and nothing in Discord.
 - [ ] D3. *(automated, opt-in: `send.tell-self`, tick "Self-tests may send a tell to myself")* In game, `/tell <your name>@<world> ping` yourself. Discord shows the relayed tell (`→ You＠World: ping`).
-- [ ] D4. In the channel with `setinbound` (any default kind) run `xl!togglesend`. In Discord, **reply** to the relayed `[tell] → You＠World: ping` with `pong` → your character sends `/tell You@World pong`. In game you see it twice (outgoing and incoming), with ✅ on Discord, and **neither copy is relayed back** to Discord.
+- [ ] D4. With "Allow sending as my character" ticked (the only switch), in the channel with `setinbound`, **reply** to the relayed `[tell] → You＠World: ping` with `pong` → your character sends `/tell You@World pong`. In game you see it twice (outgoing and incoming), with ✅ on Discord, and **neither copy is relayed back** to Discord.
 - [ ] D5. *(automated: `send.slash-rejected`)* **Command safety:** Discord's client turns `/logout` into its own slash-command menu, so post ` /logout` (leading space) or `` `/logout` ``. Expect ❌ with the reply "Not sent to game: messages can't start with /". You are **not** logged out, and nothing is said in game. In display-only channels the text is shown literally as `/logout` (printing never runs commands).
 - [ ] D6. Reply to the tell with 600 characters → ❌ "too long for game chat".
 - [ ] D7. Reply 10 times quickly → about one every 2 s, and the extras ❌ "too many at once".
@@ -91,7 +91,7 @@ Test with **tells to yourself**, not FC, so nobody else sees test lines. A tell 
 - [ ] D8b. **One-off override (#26):** in a channel whose default is `e`, post `!s hello` → shown in Say. `!t <You>@<World> hi` → a tell to you. `!em waves.` → custom emote. `!fcc oops` → ❌ "unknown channel", nothing in game. `!!! wow` → shown normally in the default. Reply to a tell with `!e private note` → Echo (the override beats the reply).
 - [ ] D9. From the second account (with `setinboundperm everyone`) → shown locally only, never sent.
 - [ ] D9b. **[D] vs [S] (#28):** a shown-only message has `[D]` and a 👁️ reaction. A really-sent one (send-as-me on) shows on **your** screen as `[S]` (e.g. `>> [S] Ane Mora: hi`, `[S] Ane Mora >> hi`) and gets ✅. Untick "Tag messages sent by the plugin" in `/dcp` → sent messages look like normal chat again.
-- [ ] D10. `xl!togglesend` again → back to display-only. Untick "Allow sending as my character".
+- [ ] D10. Untick "Allow sending as my character" → your messages are only shown again (`[D]`, 👁️).
 
 ## E. Wrap-up
 

@@ -145,11 +145,11 @@ namespace Dalamud.DiscordBridge
         }
 
         /// <summary>
-        /// "Send as me" applies only to the owner, only with the global switch on, and only in channels that opted in.
-        /// Everyone else (and the owner elsewhere) gets local display.
+        /// "Send as me" is controlled only in game: when "Allow sending as my character" is ticked in /dcp, the owner's
+        /// messages are really sent. Nothing in Discord can turn it on or off. Everyone else's are only shown.
         /// </summary>
-        internal static bool ShouldSendAsOwner(bool isOwner, bool globalAllowed, bool channelAllowed)
-            => isOwner && globalAllowed && channelAllowed;
+        internal static bool ShouldSendAsOwner(bool isOwner, bool allowSendAsCharacter)
+            => isOwner && allowSendAsCharacter;
 
         /// <summary>Reaction added to the Discord message for each outcome, or null for none.</summary>
         internal static string? ReactionFor(InboundResult result) => result switch
@@ -175,8 +175,7 @@ namespace Dalamud.DiscordBridge
                 InboundPermission.Role => config.InboundRoleId is { } r ? $"owner + <@&{r}>" : "owner (role not set)",
                 _ => "owner only",
             };
-            var send = config.InboundSendAsOwner ? "; your messages are sent as your character" : string.Empty;
-            return $"Inbound (Discord → game): {target.GetFancyName()} ({who}{send})";
+            return $"Inbound (Discord → game): {target.GetFancyName()} ({who})";
         }
     }
 }

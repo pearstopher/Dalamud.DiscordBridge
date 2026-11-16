@@ -26,9 +26,10 @@ namespace Dalamud.DiscordBridge.Model
         public ulong? InboundRoleId { get; set; }
 
         /// <summary>
-        /// When on (and <c>Configuration.AllowSendAsCharacter</c> is on), the owner's messages in this channel are said in
-        /// game by their character instead of only being shown locally.
+        /// No longer used: sending is controlled only by <c>Configuration.AllowSendAsCharacter</c> in /dcp (#33).
+        /// Kept so older configs still load.
         /// </summary>
+        [Obsolete("Sending is controlled only by Configuration.AllowSendAsCharacter (in game).")]
         public bool InboundSendAsOwner { get; set; }
 
         public void SetUnique(XivChatType type)

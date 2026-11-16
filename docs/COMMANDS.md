@@ -8,7 +8,7 @@ Kinds are chat-type names such as `say`, `fc`, `ls1`, `cwls1`, `p`, `tell`, `e` 
 
 | Command | Who | What it does |
 |---|---|---|
-| `xl!setup` | Owner | **Start here.** Sane settings for this channel in one go. **Game → Discord:** all player chat (say, shout, yell, tells, party, alliance, PvP team, FC, LS1–8, CWLS1–8, Novice Network, emotes; GM messages in those come along). This *replaces* the list, so retainer sales, system/loot/battle/NPC messages, Echo relays and Duty Finder pops are **off**. **Discord → game:** default Echo, owner only (replies and `!` prefixes reach every player channel). **Display:** shown in game, reactions and `[S]` tags on; Echo mode, sender-in-message, embed fallback, bot-name override off; duplicate window 5000 ms. **Never touched:** token, owner, prefix, your per-kind prefixes/names/avatars, other channels, and send-as-me (stays opt-in). Safe to run again. |
+| `xl!setup` | Owner | **Start here.** Sane settings for this channel in one go. **Game → Discord:** all player chat (say, shout, yell, tells, party, alliance, PvP team, FC, LS1–8, CWLS1–8, Novice Network, emotes; GM messages in those come along). This *replaces* the list, so retainer sales, system/loot/battle/NPC messages, Echo relays and Duty Finder pops are **off**. **Discord → game:** default Echo, owner only (replies and `!` prefixes reach every player channel). **Display:** shown in game, reactions and `[S]` tags on; Echo mode, sender-in-message, embed fallback, bot-name override off; duplicate window 5000 ms. **Never touched:** token, owner, prefix, your per-kind prefixes/names/avatars, other channels, and send-as-me (only the in-game checkbox controls it). Safe to run again. |
 
 ## Discord: game → Discord (what gets relayed to this channel)
 
@@ -37,7 +37,6 @@ Kinds are chat-type names such as `say`, `fc`, `ls1`, `cwls1`, `p`, `tell`, `e` 
 |---|---|---|---|
 | `xl!setinbound <kind\|off>` | Owner | Messages posted in this channel appear in game as this kind. Kinds: `say, shout, yell, p, alliance, fc, ls1–ls8, cwls1–cwls8, nn, e, customemote`, or `off`. | `xl!setinbound e` |
 | `xl!setinboundperm <owner\|everyone\|role @role>` | Owner | Who may relay from this channel (default owner only; the owner is always allowed). | `xl!setinboundperm role @FC` |
-| `xl!togglesend` | Owner | Opt-in **send as me**: your own messages here are said in game by your character. Also needs "Allow sending as my character" in `/dcp`. Outside Dalamud's rules. | |
 | `xl!selftesthere [off]` | Owner | Developer builds: use this (private) channel for the Discord round-trip and reply-routing self-tests. Not listed in `xl!help`. | |
 
 **Where a message goes** (first match wins):
@@ -58,7 +57,7 @@ Kinds are chat-type names such as `say`, `fc`, `ls1`, `cwls1`, `p`, `tell`, `e` 
    **Replies only work for channels you can talk in.** A reply to a relay from a **GM channel** (GM tell/say/shout/yell/party/FC/linkshell/novice network), a **retainer sale**, a system/loot/battle/NPC message, a standard emote, or anything whose channel can't be determined is **blocked**: ❌ plus a reply saying why. Nothing is shown or sent, and it never falls back to the default. To answer anyway, start the message with a `!channel` prefix. There is no `!` prefix for GM channels, and the plugin never sends to them.
 3. **Default:** the channel's `setinbound` kind (for messages that aren't replies, or replies to someone's Discord message rather than a relay).
 
-**Shown vs sent:** without send-as-me, messages are only *shown* on your screen (`[D]`). With send-as-me on, the **owner's** messages are *sent* through the game (`[S]` on your screen). Everyone else's are always only shown. Sending refuses text starting with `/`, over 500 bytes, or faster than one per 2 s (with a ❌ and a reply saying why).
+**Shown vs sent:** controlled **only in game**, by "Allow sending as my character" in `/dcp`. Unticked: messages are only *shown* on your screen (`[D]`). Ticked: the **owner's** messages are *sent* through the game (`[S]` on your screen), in every channel with `setinbound`. Everyone else's are always only shown. Sending refuses text starting with `/`, over 500 bytes, or faster than one per 2 s (with a ❌ and a reply saying why).
 
 **Reactions on your Discord message:** 👁️ shown on your screen · ✅ sent through the game · ⏸️ not logged in · ❌ rejected (with a reply) · ⚠️ error. Turn off with "React on Discord…" in `/dcp`.
 

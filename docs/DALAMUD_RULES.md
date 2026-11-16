@@ -31,7 +31,7 @@ Square Enix's terms prohibit third-party tools in general. These rules are the D
 | Discord → game text conversion (#14) | ✅ Yes | Pure text processing. |
 | **Discord → game: local display** (#15) | ✅ Yes | Printed into your own chat log with `IChatGui.Print`, client-side only. Nobody else sees it, and nothing is sent to the server. |
 | Discord → game: replies routed to the replied message's channel or tell partner (#21, #30) | Same as display / send below | Routing only decides *where*. Showing stays local (✅), sending as a tell is part of send-as-me (⚠️). Replies to GM channels, retainer sales, system messages etc. are blocked, and the plugin never sends to GM channels. |
-| **Discord → game: owner "send as me"** (#16, `togglesend`, incl. tells #21) | ⚠️ **No (R2)** | Your character sends chat to the server because of a Discord message, without in-game input. It's mitigated: owner-only, opt-in (off by default), you typed the text yourself, rate-limited, and it can't run commands. Similar plugins exist (ChatTwo, ChatAnywhere) but take input inside the client. Never submit this feature to the official repo. |
+| **Discord → game: owner "send as me"** (#16, in-game checkbox only (#33), incl. tells #21) | ⚠️ **No (R2)** | Your character sends chat to the server because of a Discord message, without in-game input. It's mitigated: owner-only, opt-in (off by default), you typed the text yourself, rate-limited, and it can't run commands. Similar plugins exist (ChatTwo, ChatAnywhere) but take input inside the client. Never submit this feature to the official repo. |
 
 ## Adding a feature
 

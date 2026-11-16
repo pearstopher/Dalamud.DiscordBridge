@@ -195,20 +195,12 @@ public class SendRateLimiterTests
 public class SendDecisionTests
 {
     [Theory]
-    [InlineData(true, true, true, true)]
-    [InlineData(false, true, true, false)]  // not the owner: display only
-    [InlineData(true, false, true, false)]  // global switch off
-    [InlineData(true, true, false, false)]  // channel didn't opt in
-    public void ShouldSendAsOwner_RequiresAllThree(bool owner, bool global, bool channel, bool expected)
+    [InlineData(true, true, true)]     // owner + box ticked: really sent
+    [InlineData(false, true, false)]   // not the owner: display only
+    [InlineData(true, false, false)]   // box unticked: display only
+    public void ShouldSendAsOwner_DependsOnlyOnOwnerAndTheInGameSwitch(bool owner, bool allow, bool expected)
     {
-        Assert.Equal(expected, InboundRules.ShouldSendAsOwner(owner, global, channel));
+        Assert.Equal(expected, InboundRules.ShouldSendAsOwner(owner, allow));
     }
 
-    [Fact]
-    public void Describe_MentionsSendMode()
-    {
-        var config = new DiscordChannelConfig { InboundChatType = XivChatType.FreeCompany, InboundSendAsOwner = true };
-
-        Assert.Contains("sent as your character", InboundRules.Describe(config));
-    }
 }

@@ -352,9 +352,7 @@ namespace Dalamud.DiscordBridge
         /// <param name="forceSend">Use the send path regardless of channel setting/owner (for /dcpsend).</param>
         internal async Task<InboundOutcome> HandleInboundAsync(InboundDiscordMessage message, bool forceSend = false)
         {
-            var channelSends = this.Config.ChannelConfigs.TryGetValue(message.ChannelId, out var channel) && channel.InboundSendAsOwner;
-
-            if (forceSend || InboundRules.ShouldSendAsOwner(message.IsOwner, this.Config.AllowSendAsCharacter, channelSends))
+            if (forceSend || InboundRules.ShouldSendAsOwner(message.IsOwner, this.Config.AllowSendAsCharacter))
             {
                 if (!this.Config.AllowSendAsCharacter)
                     return new InboundOutcome(InboundResult.Rejected, $"sending as your character is turned off in {Constant.MainCommand}");
