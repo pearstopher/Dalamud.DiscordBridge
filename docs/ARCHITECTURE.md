@@ -157,7 +157,7 @@ All commands are handled in `DiscordHandler.SocketClientOnMessageReceived`, a lo
 | Queue task | `DiscordMessageQueue.RunAsync`: one background task that sleeps on a `SemaphoreSlim` until `Enqueue` signals it, and is cancelled by `Stop()` | Serial processing keeps message order. Each event is processed in its own try/catch, so one failure never ends the loop. `Start()` is idempotent, and `Stop()` waits up to 2 s for an in-flight event. |
 | Discord.Net gateway | `Ready`, `MessageReceived` handlers (commands, duplicate filter) | Don't block the gateway. Shared state touched here and on the queue task needs synchronization (e.g. `DuplicateFilter` locks its recent-message set and never holds the lock across `await`). |
 
-`Configuration` is mutated from both the gateway (commands) and the queue (webhook ID caching, removing dead channels) without locking. Be careful when adding new mutation points.
+`Configuration` is read and changed from the gateway (commands), the queue (webhook IDs, deleted channels) and the UI at the same time (#46). So the per-channel and per-kind maps are `ConcurrentDictionary` (same JSON as before; remove with `TryRemove`), `DiscordChannelConfig.ChatTypes` is copy-on-write (`SetUnique`/`UnsetUnique` swap in a new list, so never `Add`/`Remove` on it directly), senders snapshot channel lists (`ToList()`) before awaiting, and `Save()` is serialized. `ConfigThreadSafetyTests` hammer these paths.
 
 ## Persistence
 
