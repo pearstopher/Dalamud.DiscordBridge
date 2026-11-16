@@ -29,7 +29,8 @@ Save, then install **Discord Chat Pears** from `/xlplugins`.
    - Discord reacts ✅ when a message reached the game and ⏸️ if you weren't logged in.
    - A channel can be both: `setchannel fc` + `setinbound fc` gives you a two-way FC channel.
 5. **Replies.** Reply (Discord's reply button) to a relayed message and your reply goes to **where that message came from**: the same channel, or for a tell, back to that person. Non-replies use the channel's `setinbound` kind.
-6. **Send as me (optional).** In `/dcp`, tick **Allow sending as my character**, then run `xl!togglesend` in that channel. Now **your own** messages there are said in game by your character (`/fc …`, or `/tell Name@World …` when replying to a tell), so the other players see them. Other people's messages are still only shown to you.
+6. **One-off channel override.** Start a message with `!e`, `!s`, `!fc`, `!l1`, `!cwl1`, `!p`, `!em`… to send just that message there, ignoring replies and the default. For a tell: `!t First Last@World message`. Unknown channels (typos) are rejected with ❌ instead of going anywhere.
+7. **Send as me (optional).** In `/dcp`, tick **Allow sending as my character**, then run `xl!togglesend` in that channel. Now **your own** messages there are said in game by your character (`/fc …`, or `/tell Name@World …` when replying to a tell), so the other players see them. Other people's messages are still only shown to you.
 
 `xl!help` lists every Discord command. The `/dcp` window has the on/off switches.
 
