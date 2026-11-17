@@ -36,13 +36,22 @@ public class FcLoginNoticeTests
     }
 
     [Fact]
-    public void Resolve_PlayerLinkWins()
+    public void Resolve_PlayerLinkNameWins_HomeWorldBeatsLinkWorld()
     {
-        var (name, world, text) = FcLoginNotice.Resolve("Bob Smith", "Gilgamesh", "Bob Smith has logged in.", "Famfrit");
+        // Real login lines carry a link whose world shows as "Dev" (#55); FC members share your home world.
+        var (name, world, text) = FcLoginNotice.Resolve("Bob Smith", "Dev", "Bob Smith has logged in.", "Famfrit");
 
         Assert.Equal("Bob Smith", name);
-        Assert.Equal("Gilgamesh", world);
+        Assert.Equal("Famfrit", world);
         Assert.Equal("🟢 Bob Smith has logged in.", text);
+    }
+
+    [Fact]
+    public void Resolve_NoHomeWorld_FallsBackToLinkWorld()
+    {
+        var (_, world, _) = FcLoginNotice.Resolve("Bob Smith", "Gilgamesh", "Bob Smith has logged in.", null);
+
+        Assert.Equal("Gilgamesh", world);
     }
 
     [Fact]
