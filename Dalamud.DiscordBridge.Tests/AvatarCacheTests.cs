@@ -69,3 +69,21 @@ public class AvatarCacheTests
         Assert.Contains("this.LookupAvatarAsync(senderName, senderWorld)", source);
     }
 }
+
+public class LodestoneNameMatchTests
+{
+    [Theory]
+    [InlineData("Reaper&#39; Grimm")]
+    [InlineData("Reaper’ Grimm")]
+    [InlineData("reaper' grimm")]
+    [InlineData("Reaper' Grimm")]
+    public void ApostropheEncodingAndCase_DontMatter(string lodestoneName)
+        => Assert.True(DiscordHandler.SameName(lodestoneName, "Reaper' Grimm"));
+
+    [Fact]
+    public void DifferentNames_DontMatch()
+    {
+        Assert.False(DiscordHandler.SameName("Grimm Reaper-", "Reaper' Grimm"));
+        Assert.False(DiscordHandler.SameName(null, "Reaper' Grimm"));
+    }
+}
