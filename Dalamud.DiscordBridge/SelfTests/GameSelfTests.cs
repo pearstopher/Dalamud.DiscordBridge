@@ -64,16 +64,16 @@ namespace Dalamud.DiscordBridge.SelfTests
                         : SelfTestResult.Fail($"Unexpected item data: name '{name}', icon {icon}");
                 }),
 
-            new DelegateSelfTest("outbound.fc-login", "Game → Discord", "An FC login line with a real player link resolves to name, world and 🟢 (#53)",
+            new DelegateSelfTest("outbound.fc-login", "Game → Discord", "An FC login line with a player link resolves to name, your home world (not the link's bogus world, #55) and 🟢 (#53)",
                 async _ =>
                 {
                     if (!await LoggedIn())
                         return SelfTestResult.Skip("not logged in");
 
-                    var (name, worldId) = await Service.Framework.RunOnFrameworkThread(() =>
-                        (Service.PlayerState.CharacterName ?? string.Empty, Service.PlayerState.HomeWorld.RowId));
+                    var name = await Service.Framework.RunOnFrameworkThread(() => Service.PlayerState.CharacterName ?? string.Empty);
                     // Built locally, never printed or posted: just run the relay's own resolution on it.
-                    var line = new SeStringBuilder().Add(new PlayerPayload(name, worldId)).AddText(name).Add(RawPayload.LinkTerminator).AddText(" has logged in.").Build();
+                    // Real login lines carry a link whose world is bogus (showed "Dev", #55): use world 0 to reproduce that.
+                    var line = new SeStringBuilder().Add(new PlayerPayload(name, 0)).AddText(name).Add(RawPayload.LinkTerminator).AddText(" has logged in.").Build();
                     var (who, world, text) = DiscordMessageQueue.ResolveFcLogin(line, new Dalamud.Game.Text.SeStringHandling.SeString(), plugin.cachedPlayerWorld, line.TextValue);
 
                     return who == name && world == plugin.cachedPlayerWorld && text == $"🟢 {name} has logged in."
@@ -315,7 +315,7 @@ namespace Dalamud.DiscordBridge.SelfTests
             new DelegateSelfTest("discord.reaction", "Discord", "Reacting to a just-received message works from the gateway cache (#50)",
                 token => ReactionTest(plugin, token), TimeSpan.FromSeconds(30)),
 
-            new DelegateSelfTest("discord.ping", "Discord", "xl!ping's reaction matches your login state (#37)",
+            new DelegateSelfTest("discord.ping", "Discord", "xl!ping's reaction matches your login and pause state (#37, #54)",
                 token => PingTest(plugin, token), TimeSpan.FromSeconds(30)),
 
             new DelegateSelfTest("lodestone.cache", "Lodestone", "A second portrait lookup comes from the cache, instantly (#47)",
@@ -541,7 +541,7 @@ namespace Dalamud.DiscordBridge.SelfTests
                 return SelfTestResult.Fail("the test message never came back through the gateway");
             try
             {
-                var expected = InboundRules.PingReaction(await LoggedIn());
+                var expected = PauseStatus.PingReaction(plugin.Config.Paused, await LoggedIn()); // ⏸️ while paused (#54)
                 await plugin.Discord.AnswerPingAsync(seen);
                 return await WaitForOwnReaction(channel!, seen.Id, expected, token)
                     ? SelfTestResult.Pass($"reacted {expected}")
