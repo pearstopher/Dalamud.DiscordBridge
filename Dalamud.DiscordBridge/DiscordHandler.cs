@@ -723,10 +723,10 @@ namespace Dalamud.DiscordBridge
         }
 
         /// <summary>
-        /// A character's Lodestone portrait: cached, else searched with a <see cref="LodestoneTimeout"/> limit. Misses and
-        /// failures are remembered for a while (#47), so the relay queue never waits on the same slow search twice. A
-        /// search that runs past the limit isn't thrown away: it finishes in the background and its portrait is cached
-        /// for the next message (#55).
+        /// A character's Lodestone portrait: cached, else searched with a <see cref="LodestoneTimeout"/> limit. Found
+        /// portraits and "no such character" answers are remembered (#47). A failed or timed-out lookup is not: the
+        /// player's next message tries again (#55). A search that runs past the limit keeps going in the background; its
+        /// portrait is cached when it arrives, and the next message waits on it rather than starting a second search.
         /// </summary>
         /// <returns>The portrait URL, or null (use the fallback avatar).</returns>
         internal async Task<string?> LookupAvatarAsync(string name, string world)
@@ -741,32 +741,40 @@ namespace Dalamud.DiscordBridge
                 return null;
             }
 
-            var search = this.FindLodestoneAvatarAsync(name, world);
+            var search = PendingLookups.GetOrAdd(key, _ => this.StartLookup(key, name, world));
             try
             {
-                var url = await search.WaitAsync(LodestoneTimeout);
-                RememberLookup(key, url);
-                return url;
+                return await search.WaitAsync(LodestoneTimeout);
             }
             catch (TimeoutException)
             {
-                Logger.Debug("Lodestone lookup for {0} took over {1} s; using the fallback avatar and finishing it in the background.", key, LodestoneTimeout.TotalSeconds);
-                _ = search.ContinueWith(
-                    t =>
-                    {
-                        if (t.IsCompletedSuccessfully)
-                            RememberLookup(key, t.Result);
-                    },
-                    TaskScheduler.Default);
+                Logger.Debug("Lodestone lookup for {0} took over {1} s; using the fallback avatar, still finishing in the background.", key, LodestoneTimeout.TotalSeconds);
             }
             catch (Exception ex)
             {
-                Logger.Warning(ex, "Lodestone lookup for {0} failed; using the fallback avatar.", key);
+                Logger.Warning(ex, "Lodestone lookup for {0} failed; using the fallback avatar, will retry on their next message.", key);
             }
 
-            // Until a late result arrives (a hit replaces this), don't start another search for them.
-            Avatars.AddMiss(key, DateTimeOffset.UtcNow, AvatarCache.FailedTtl);
             return null;
+        }
+
+        /// <summary>Lodestone searches still running, by "Name＠World", so a slow one is joined, not repeated (#55).</summary>
+        private static readonly ConcurrentDictionary<string, Task<string?>> PendingLookups = new();
+
+        /// <summary>One search; remembers a hit or a not-found, and leaves <see cref="PendingLookups"/> when done.</summary>
+        private async Task<string?> StartLookup(string key, string name, string world)
+        {
+            await Task.Yield(); // so the finally below never runs before GetOrAdd has stored this task
+            try
+            {
+                var url = await this.FindLodestoneAvatarAsync(name, world);
+                RememberLookup(key, url);
+                return url;
+            }
+            finally
+            {
+                PendingLookups.TryRemove(key, out _);
+            }
         }
 
         private static void RememberLookup(string key, string? url)

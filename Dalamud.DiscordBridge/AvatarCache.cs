@@ -6,16 +6,13 @@ namespace Dalamud.DiscordBridge
     /// <summary>
     /// Lodestone portrait lookups, remembered (#47). Found portraits are kept for the session. Characters that weren't
     /// found are remembered too, for <see cref="NotFoundTtl"/>, so every message from them doesn't repeat a slow search
-    /// and stall the relay queue; failed or timed-out lookups for <see cref="FailedTtl"/>. Thread-safe; pure (the clock is
+    /// and stall the relay queue. Failed or timed-out lookups aren't remembered: the next message retries (#55). Thread-safe; pure (the clock is
     /// passed in, unit tested).
     /// </summary>
     internal sealed class AvatarCache
     {
         /// <summary>How long a "no such character on the Lodestone" answer is remembered.</summary>
         internal static readonly TimeSpan NotFoundTtl = TimeSpan.FromHours(1);
-
-        /// <summary>How long a failed or timed-out lookup is remembered before trying again.</summary>
-        internal static readonly TimeSpan FailedTtl = TimeSpan.FromMinutes(5);
 
         private readonly ConcurrentDictionary<string, string> hits = new();
         private readonly ConcurrentDictionary<string, DateTimeOffset> misses = new();
