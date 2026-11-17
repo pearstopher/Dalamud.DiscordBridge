@@ -25,7 +25,7 @@ Square Enix's terms prohibit third-party tools in general. These rules are the D
 | FC member login/logout posts (#53) | ✅ Yes | Relays the login/logout lines the client already shows in chat. |
 | Pause/resume and server info bar icon (#54) | ✅ Yes | Uses Dalamud's server info bar API; pausing only stops the plugin's own relaying. |
 | Online/offline status posts (#34) | ✅ Yes | Discord-only: the bot posts when the plugin loads and unloads. No game interaction. |
-| Debug commands (`/dcpdebug`, `/dcpsaledebug`, `/dcpprintlist`, `/dcpin`, `/dcpfriends`) | ✅ Yes | Local only. `/dcpfriends` reads the friend list the client already holds, and never reads account or content IDs (R3). |
+| Debug commands (`/dcpdebug`, `/dcpsaledebug`, `/dcpprintlist`, `/dcpin`) | ✅ Yes | Local only. |
 | Developer self-tests (`/dcptest`, dev builds only) | ✅ Yes (except opt-in `send.tell-self`: ⚠️ sends one real tell, to yourself only) | Local checks. The default send test uses `/e` (Echo), which never reaches the server. The optional Discord round trip posts and deletes one message in the owner's chosen channel. |
 | `/dcpsend` debug command | ✅ Yes | You type it in game yourself (direct input), like typing the chat line. |
 | Settings import from Discord Chat Bridge (#11) | ✅ Yes | Reads a local config file once. |

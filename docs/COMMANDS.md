@@ -83,4 +83,3 @@ Mentions in relayed game text (`<@123>`, `<@&456>`, `@everyone`) show as text an
 | `/dcpdebug <kind>` | Developer: relay a fake "Test Message" of that kind to Discord. Hidden. |
 | `/dcpsaledebug` | Developer: relay a fake retainer sale. Hidden. |
 | `/dcpprintlist` | Print every chat kind (`id slug - name`). Hidden. |
-| `/dcpfriends` | Research (#36): print the friends the client currently holds, with home/current world and online status. Read-only, sends nothing. Hidden. |

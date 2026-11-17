@@ -13,7 +13,6 @@ Developer docs for **Discord Chat Pears** (`DiscordChatPears`), a fork of Discor
 | [IN_GAME_TEST_PLAN.md](IN_GAME_TEST_PLAN.md) | you're testing a build in game (one checklist for everything) |
 | [DALAMUD_RULES.md](DALAMUD_RULES.md) | you need to know which features follow Dalamud's plugin rules |
 | [design/discord-to-game.md](design/discord-to-game.md) | you're working on the two-way (Discord → game) feature |
-| [design/friends-list.md](design/friends-list.md) | you're working on the friends list / numbered tells (research, #36) |
 | [../DEVELOPMENT.md](../DEVELOPMENT.md) | you want to build, load the plugin in game, use debug commands, or check CI |
 
 Related:
