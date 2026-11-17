@@ -47,7 +47,7 @@ All source is in `Dalamud.DiscordBridge/`.
 | `ChannelLookup.cs` | Pure (#39): classifies a failed channel lookup (`Found`/`NotFound`/`Error`). Only a definitive "Unknown Channel" removes a channel's settings; outages and missing access keep them (`WarnOnce` logs once per session). |
 | `MentionPolicy.cs` | Pure (#41): relays never ping, except the users/roles/`@everyone` written in the owner's own prefix (`DiscordHandler.MentionsForPrefix`). |
 | `SwapGate.cs` | One `/dcp` Save reconnect at a time (#44). |
-| `AvatarCache.cs` | Lodestone portraits (#47): hits kept for the session, "not found" remembered 1 h, failures/timeouts 5 min; each lookup capped at 5 s (`DiscordHandler.LookupAvatarAsync`); a slower one finishes in the background and is cached for the next message (#55). Names are compared HTML-decoded, ignoring case (apostrophes, #55). |
+| `AvatarCache.cs` | Lodestone portraits (#47): hits kept for the session, "not found" remembered 1 h; failures/timeouts not remembered, so the next message retries (#55); each lookup capped at 5 s (`DiscordHandler.LookupAvatarAsync`), a slower one finishes in the background, is cached, and is joined (not repeated) by the next message (#55). Names are compared HTML-decoded, ignoring case (apostrophes, #55). |
 | `RelayFilter.cs` | Game-thread check (#49): drops chat lines no channel would receive before they're queued. Same rule as `SendChatEvent` (outgoing tells as tells, GM lines with their player channel), cached per `Configuration.Revision` (bumped by every `Save()`). |
 | `FcLoginNotice.cs` | FC member login/logout lines (type 70, `fclogin`, #53): member from the player link or the text (world = your home world, since the link's world is bogus and shows "Dev", #55; the link only as a last resort), 🟢/⚫ in front of the game's line, "Free Company" if no name. Used by `DiscordMessageQueue.ResolveFcLogin`. |
 | `PauseStatus.cs` | Pause/resume (#54), pure: `BridgeState` (running/paused/off), the server info bar icon/tooltip/click, ping and Discord texts. `Configuration.Paused` is checked on the game thread before queueing (after the echo guard), for duty pops and IPC, and in `TryRouteInboundAsync` (💤). `DiscordBridgePlugin.SetPaused` saves, announces and updates the `IDtrBar` entry. |
@@ -175,7 +175,7 @@ Commands live in `DiscordHandler.Commands.cs` (#52): one method per command and 
 | Service | Used for | Notes |
 |---|---|---|
 | Discord gateway/REST (Discord.Net) | Bot login, commands, webhooks, embeds | Intents: `AllUnprivileged`, `GuildMessages`, `GuildWebhooks`, `MessageContent` (privileged, must be enabled in the Discord developer portal). Invite permission integer `2684742720`. |
-| Lodestone (NetStone) | Player portraits | Network scrape per unseen `name@world`, at most 5 s each. `AvatarCache`: found portraits kept for the session, misses for 1 h, failures for 5 min (#47). |
+| Lodestone (NetStone) | Player portraits | Network scrape per unseen `name@world`, at most 5 s each. `AvatarCache`: found portraits kept for the session, misses for 1 h (#47); failures retried on the next message (#55). |
 | `beta.xivapi.com` asset API | Item icons for retainer sales | URL built directly, no request made by the plugin. |
 | `xivapi.com` | Duty images (`/i/{folder}/{image}.png`) | |
 | goatcorp DalamudAssets | Default logo/avatar | `Constant.LogoLink` |

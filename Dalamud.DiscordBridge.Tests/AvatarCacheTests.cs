@@ -32,16 +32,6 @@ public class AvatarCacheTests
     }
 
     [Fact]
-    public void FailedLookup_IsRetriedSooner()
-    {
-        Assert.True(AvatarCache.FailedTtl < AvatarCache.NotFoundTtl);
-        var cache = new AvatarCache();
-        cache.AddMiss("a", T0, AvatarCache.FailedTtl);
-
-        Assert.False(cache.TryGet("a", T0 + AvatarCache.FailedTtl, out _));
-    }
-
-    [Fact]
     public void HitAfterMiss_Wins()
     {
         var cache = new AvatarCache();
