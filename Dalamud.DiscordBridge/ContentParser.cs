@@ -50,7 +50,10 @@ namespace Dalamud.DiscordBridge
         private const string SlugGroup = "slug";
         private const string TextGroup = "text";
         
-        private static readonly Regex Parse = new(@$"(?'{PrefixGroup}'.*)\*\*\[(?'{SlugGroup}'.+)\]\*\* (?'{TextGroup}'.+)");
+        // "{prefix}[slug] text" (#56), or the older bold "{prefix}**[slug]** text", so replies to and duplicate checks on
+        // messages posted before #56 still work. The first [slug] (no spaces or brackets) wins.
+        private static readonly Regex Parse = new(
+            @$"(?'{PrefixGroup}'.*?)(?:\*\*\[(?'{SlugGroup}'[^\]\s]+)\]\*\*|\[(?'{SlugGroup}'[^\]\s]+)\]) (?'{TextGroup}'.+)");
 
         private readonly Match match;
     }

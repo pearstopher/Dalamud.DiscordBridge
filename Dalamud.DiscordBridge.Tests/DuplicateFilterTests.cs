@@ -35,6 +35,14 @@ public class DuplicateFilterTests
     public void IsDuplicate_SameChannelAuthorSlugText_IsDuplicate()
     {
         Assert.True(DuplicateFilter.IsDuplicate(1, "Alice＠Cactuar", "**[fc]** hello", 1, "Alice＠Cactuar", "🍐**[fc]** hello"));
+        Assert.True(DuplicateFilter.IsDuplicate(1, "Alice＠Cactuar", "[fc] hello", 1, "Alice＠Cactuar", "🍐[fc] hello"));
+    }
+
+    [Fact]
+    public void IsDuplicate_BoldAndPlainTag_AreTheSameMessage()
+    {
+        // A post from before #56 and its plain-tag repeat right after updating.
+        Assert.True(DuplicateFilter.IsDuplicate(1, "Alice＠Cactuar", "[fc] hello", 1, "Alice＠Cactuar", "**[fc]** hello"));
     }
 
     [Theory]
@@ -48,7 +56,9 @@ public class DuplicateFilterTests
     }
 
     [Theory]
-    [InlineData(true, "**[fc]** hello", true)]
+    [InlineData(true, "[fc] hello", true)]                               // current plain tag (#56)
+    [InlineData(true, "🍐[ls1] Ane Mora: hi", true)]
+    [InlineData(true, "**[fc]** hello", true)]                           // older bold tag
     [InlineData(true, "🍐 **[ls1]** Ane Mora: hi", true)]
     [InlineData(false, "**[fc]** hello", false)]                         // channel the bridge doesn't use
     [InlineData(true, "New commit pushed to master", false)]              // GitHub-style webhook

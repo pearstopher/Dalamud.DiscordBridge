@@ -107,7 +107,10 @@ public class ReplyRoutingTests
     }
 
     [Theory]
-    [InlineData("**[say]** hello", XivChatType.Say)]
+    [InlineData("[say] hello", XivChatType.Say)]                 // current plain tag (#56)
+    [InlineData("🍐[ls1] hello", XivChatType.Ls1)]
+    [InlineData("[customemote]  walks over.", XivChatType.CustomEmote)]
+    [InlineData("**[say]** hello", XivChatType.Say)]             // older bold tag
     [InlineData("🍐**[ls1]** hello", XivChatType.Ls1)]
     [InlineData("**[cwls2]** hello", XivChatType.CrossLinkShell2)]
     [InlineData("**[p]** pull in 5", XivChatType.Party)]
@@ -128,6 +131,7 @@ public class ReplyRoutingTests
     }
 
     [Theory]
+    [InlineData("[tell] → Bob Smith＠Gilgamesh: on my way")]
     [InlineData("**[tell]** → Bob Smith＠Gilgamesh: on my way")]
     [InlineData("**[tell]** Ane Mora＠Famfrit → Bob Smith＠Gilgamesh: on my way")]
     public void ReplyToOutgoingTellRelay_TellsTheRecipient(string content)

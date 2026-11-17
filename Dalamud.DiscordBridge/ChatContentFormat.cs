@@ -19,9 +19,12 @@ namespace Dalamud.DiscordBridge
             return senderInMessage ? $"{displayName}: {message}" : message;
         }
 
-        /// <summary>Full content: "{prefix}**[{slug}]** {body}", or "{prefix} {body}" for IPC messages (no slug).</summary>
+        /// <summary>
+        /// Full content: "{prefix}[{slug}] {body}", or "{prefix} {body}" for IPC messages (no slug). Plain, not bold: bold
+        /// added four characters to push notifications (#56).
+        /// </summary>
         internal static string Content(string? prefix, string slug, bool isIpc, string body)
-            => isIpc ? $"{prefix} {body}" : $"{prefix}**[{slug}]** {body}";
+            => isIpc ? $"{prefix} {body}" : $"{prefix}[{slug}] {body}";
 
         /// <summary>
         /// Clean the raw sender text of an outgoing tell (used when there's no player link): drop the game's

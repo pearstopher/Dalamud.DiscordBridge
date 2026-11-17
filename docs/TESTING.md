@@ -35,7 +35,7 @@ If a test needs a Dalamud assembly that isn't listed, add another `<Reference �
 | `Configuration` | JSON round-trip and backward compatibility (deserialize an old-shape JSON sample) |
 | Extracted pure helpers | e.g. message-content formatting, sender-name resolution, duplicate comparison |
 
-**Not unit-testable as-is:** anything that touches `Service.*` at runtime, `DiscordSocketClient`, webhooks, NetStone, or ImGui. **Design guidance:** when you change logic in those areas, extract the decision-making into a pure `internal static` method (inputs → output) and test that, leaving a thin I/O shell. Example: build the `"{prefix}**[{slug}]** {text}"` string in a static formatter rather than inline in `SendChatEvent`.
+**Not unit-testable as-is:** anything that touches `Service.*` at runtime, `DiscordSocketClient`, webhooks, NetStone, or ImGui. **Design guidance:** when you change logic in those areas, extract the decision-making into a pure `internal static` method (inputs → output) and test that, leaving a thin I/O shell. Example: build the `"{prefix}[{slug}] {text}"` string in a static formatter rather than inline in `SendChatEvent`.
 
 **Rules:**
 - Bug fixes: add a test that fails without the fix whenever the logic is reachable without I/O.

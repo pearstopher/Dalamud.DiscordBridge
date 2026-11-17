@@ -458,7 +458,7 @@ namespace Dalamud.DiscordBridge.SelfTests
 
             // Mention the bot itself (harmless) the way a player could type it in game, and send it like a relay.
             var tag = NewTag();
-            var content = $"**[say]** <@{plugin.Discord.BotUserId}> {tag} mention test (safe to ignore; deleted automatically)";
+            var content = $"[say] <@{plugin.Discord.BotUserId}> {tag} mention test (safe to ignore; deleted automatically)";
             var arrived = new TaskCompletionSource<SocketMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
             void Observer(SocketMessage m)
             {
@@ -625,13 +625,13 @@ namespace Dalamud.DiscordBridge.SelfTests
             var cases = new (string Content, ReplyTarget? Expected)[]
             {
                 // null = must be blocked (GM, retainer sale): never routed, never the default.
-                ($"**[gmtell]** {tag} reply test GM", null),
-                ($"**[retainersale]** {tag} reply test R", null),
-                ($"**[say]** {tag} reply test A", new ReplyTarget(XivChatType.Say, null)),
-                ($"**[ls1]** {tag} reply test B", new ReplyTarget(XivChatType.Ls1, null)),
-                ($"**[tell]** → Bob Smith＠Gilgamesh: {tag} reply test C", new ReplyTarget(XivChatType.TellOutgoing, "Bob Smith＠Gilgamesh")),
-                ($"**[tell]** {tag} reply test D", new ReplyTarget(XivChatType.TellOutgoing, me)),
-                ($"**[customemote]**  {tag} reply test E", new ReplyTarget(XivChatType.CustomEmote, null)),
+                ($"[gmtell] {tag} reply test GM", null),
+                ($"[retainersale] {tag} reply test R", null),
+                ($"[say] {tag} reply test A", new ReplyTarget(XivChatType.Say, null)),
+                ($"**[ls1]** {tag} reply test B", new ReplyTarget(XivChatType.Ls1, null)), // older bold tag (pre-#56) still routes
+                ($"[tell] → Bob Smith＠Gilgamesh: {tag} reply test C", new ReplyTarget(XivChatType.TellOutgoing, "Bob Smith＠Gilgamesh")),
+                ($"[tell] {tag} reply test D", new ReplyTarget(XivChatType.TellOutgoing, me)),
+                ($"[customemote]  {tag} reply test E", new ReplyTarget(XivChatType.CustomEmote, null)),
             };
 
             var posted = new List<ulong>();

@@ -115,7 +115,7 @@ namespace Dalamud.DiscordBridge
             }
             else
             {
-                // Only relay-shaped messages ("**[slug]** …" from a webhook/bot) count as replies to the game.
+                // Only relay-shaped messages ("[slug] …" or older "**[slug]** …" from a webhook/bot) count as replies to the game.
                 if (!message.ReplyToIsRelay || string.IsNullOrEmpty(message.ReplyToContent))
                     return ReplyDecision.NotAReply;
 

@@ -80,7 +80,7 @@
 
 ### Change how messages look
 
-- The content format `{prefix}**[{slug}]** {text}` is parsed back by `ContentParser` for duplicate detection. If you change the format, update `ContentParser` and its tests in the same change, or the duplicate filter breaks silently.
+- The content format `{prefix}[{slug}] {text}` is parsed back by `ContentParser` for duplicate detection. If you change the format, update `ContentParser` and its tests in the same change, or the duplicate filter breaks silently.
 - Glyph mappings live in `SpecialCharsHandler.BuildDict`.
 
 ## Things that need owner sign-off (label `needs-human`, don't implement autonomously)

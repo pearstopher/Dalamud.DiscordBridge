@@ -64,7 +64,7 @@ The steps below are still manual: things that need a second Discord account, oth
 - [ ] B6. DM the bot `xl!setchannel say`, then `/say dm test` → an embed arrives in the DM (#5). Reload the plugin and repeat: it still works, and the DM config wasn't deleted.
 - [ ] B7. (If you have custom emotes `xivAtl`, `xivAtr`, `xivHq` in the server) An auto-translate phrase and an HQ item link show the custom emotes (#8).
 - [ ] B8. (Two players running the plugin into one channel) A shared FC line appears once, and the **older** copy is the one kept (#7).
-- [ ] B10. Send someone a tell → Discord shows `**[tell]** → Them＠World: text` from you. A tell you receive looks as before (#19).
+- [ ] B10. Send someone a tell → Discord shows `[tell] → Them＠World: text` from you. A tell you receive looks as before (#19).
 - [ ] B9. Idle for a minute with the plugin loaded: no unusual CPU use from the game (#4).
 
 - [ ] B11. **FC logins (#53):** with `fclogin` on (`xl!setup` includes it), when an FC member logs in or out the channel shows "🟢/⚫ Name has logged in/out." under their name and portrait. `/xllog` (Debug) shows `FC login line format: …` once; paste it to Claude if anything looks wrong.
