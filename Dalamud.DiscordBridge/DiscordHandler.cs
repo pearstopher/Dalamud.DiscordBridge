@@ -31,9 +31,6 @@ namespace Dalamud.DiscordBridge
         /// <summary>Lodestone portraits and misses, shared by every handler this session (#47).</summary>
         private static readonly AvatarCache Avatars = new();
 
-        /// <summary>Your FC's Lodestone member list, used before searching (#55).</summary>
-        private static readonly FcRoster Roster = new();
-
         /// <summary>Longest a single Lodestone lookup may hold up the relay queue (#47).</summary>
         internal static readonly TimeSpan LodestoneTimeout = TimeSpan.FromSeconds(5);
 
@@ -727,26 +724,16 @@ namespace Dalamud.DiscordBridge
 
         /// <summary>
         /// A character's Lodestone portrait: cached, else searched with a <see cref="LodestoneTimeout"/> limit. Misses and
-        /// failures are remembered for a while (#47), so the relay queue never waits on the same slow search twice.
+        /// failures are remembered for a while (#47), so the relay queue never waits on the same slow search twice. A
+        /// search that runs past the limit isn't thrown away: it finishes in the background and its portrait is cached
+        /// for the next message (#55).
         /// </summary>
         /// <returns>The portrait URL, or null (use the fallback avatar).</returns>
         internal async Task<string?> LookupAvatarAsync(string name, string world)
         {
             var key = $"{name}＠{world}";
-            if (Avatars.TryGet(key, DateTimeOffset.UtcNow, out var known) && known != null)
+            if (Avatars.TryGet(key, DateTimeOffset.UtcNow, out var known))
                 return known;
-
-            // FC members come from the roster: no search, and it finds names the Lodestone search can't (#55). Checked
-            // before remembered misses, so a member missed before the roster loaded is found once it has.
-            this.EnsureFcRoster();
-            if (Roster.TryGet(name, world, out var member) && member != null)
-            {
-                Avatars.AddHit(key, member);
-                return member;
-            }
-
-            if (Avatars.TryGet(key, DateTimeOffset.UtcNow, out _))
-                return null; // a remembered miss
 
             if (this.lodestoneClient == null)
             {
@@ -754,93 +741,51 @@ namespace Dalamud.DiscordBridge
                 return null;
             }
 
+            var search = this.FindLodestoneAvatarAsync(name, world);
             try
             {
-                var url = await this.FindLodestoneAvatarAsync(name, world).WaitAsync(LodestoneTimeout);
-                if (url != null)
-                    Avatars.AddHit(key, url);
-                else
-                    Avatars.AddMiss(key, DateTimeOffset.UtcNow, AvatarCache.NotFoundTtl);
+                var url = await search.WaitAsync(LodestoneTimeout);
+                RememberLookup(key, url);
                 return url;
             }
             catch (TimeoutException)
             {
-                Logger.Debug("Lodestone lookup for {0} took over {1} s; using the fallback avatar.", key, LodestoneTimeout.TotalSeconds);
+                Logger.Debug("Lodestone lookup for {0} took over {1} s; using the fallback avatar and finishing it in the background.", key, LodestoneTimeout.TotalSeconds);
+                _ = search.ContinueWith(
+                    t =>
+                    {
+                        if (t.IsCompletedSuccessfully)
+                            RememberLookup(key, t.Result);
+                    },
+                    TaskScheduler.Default);
             }
             catch (Exception ex)
             {
                 Logger.Warning(ex, "Lodestone lookup for {0} failed; using the fallback avatar.", key);
             }
 
+            // Until a late result arrives (a hit replaces this), don't start another search for them.
             Avatars.AddMiss(key, DateTimeOffset.UtcNow, AvatarCache.FailedTtl);
             return null;
         }
 
+        private static void RememberLookup(string key, string? url)
+        {
+            if (url != null)
+                Avatars.AddHit(key, url);
+            else
+                Avatars.AddMiss(key, DateTimeOffset.UtcNow, AvatarCache.NotFoundTtl);
+        }
+
         /// <summary>
-        /// Starts a background load of your FC's Lodestone member list when it's missing or stale (#55). Never waits:
-        /// lookups meanwhile fall through to the normal search.
+        /// Lodestone names may come HTML-encoded ("Reaper&amp;#39; Grimm") or with a typographic apostrophe; compare them
+        /// normalised, ignoring case (#55).
         /// </summary>
-        internal void EnsureFcRoster()
+        internal static bool SameName(string? lodestoneName, string name)
         {
-            var name = this.plugin.cachedPlayerName;
-            var world = this.plugin.cachedPlayerWorld;
-            if (this.lodestoneClient == null || string.IsNullOrEmpty(name) || string.IsNullOrEmpty(world))
-                return;
-
-            var who = FcRoster.Key(name, world);
-            if (!Roster.TryBeginLoad(who, DateTimeOffset.UtcNow))
-                return;
-
-            _ = Task.Run(async () =>
-            {
-                try
-                {
-                    await this.LoadFcRosterAsync(who, name, world);
-                }
-                catch (Exception ex)
-                {
-                    Logger.Warning(ex, "Could not load the FC member list from the Lodestone; retrying in {0} min.", FcRoster.RetryAfter.TotalMinutes);
-                }
-            });
+            static string Normalize(string s) => System.Net.WebUtility.HtmlDecode(s).Replace('’', '\'').Trim();
+            return lodestoneName != null && string.Equals(Normalize(lodestoneName), Normalize(name), StringComparison.OrdinalIgnoreCase);
         }
-
-        /// <summary>Your character → its FC → every page of the FC's member list.</summary>
-        private async Task LoadFcRosterAsync(string who, string name, string world)
-        {
-            if (this.lodestoneClient is not { } client)
-                return;
-
-            var page = await client.SearchCharacter(new CharacterSearchQuery { CharacterName = name, World = world });
-            var me = page?.Results.FirstOrDefault(r => SameName(r.Name, name));
-            var fcId = me == null ? null : (await me.GetCharacter())?.FreeCompany?.Id;
-            if (string.IsNullOrEmpty(fcId))
-            {
-                Logger.Debug("FC roster: {0} isn't in a Free Company on the Lodestone (or wasn't found).", who);
-                Roster.Replace(who, [], DateTimeOffset.UtcNow);
-                return;
-            }
-
-            var members = new List<(string, string, string?)>();
-            var membersPage = await client.GetFreeCompanyMembers(fcId, 1);
-            while (membersPage != null)
-            {
-                members.AddRange(membersPage.Members.Select(m => (m.Name ?? string.Empty, m.Server ?? world, m.Avatar?.ToString())));
-                membersPage = membersPage.CurrentPage < membersPage.NumPages ? await membersPage.GetNextPage() : null;
-            }
-
-            Roster.Replace(who, members, DateTimeOffset.UtcNow);
-            Logger.Debug("FC roster: {0} members with portraits loaded for {1}.", Roster.Count, who);
-        }
-
-        /// <summary>Self-tests: your FC roster's size (0 until loaded).</summary>
-        internal static int FcRosterCount => Roster.Count;
-
-        /// <summary>Self-tests: whether a character is on the loaded FC roster.</summary>
-        internal static bool FcRosterHas(string name, string world) => Roster.TryGet(name, world, out _);
-
-        /// <summary>Lodestone names may be HTML-encoded or use a typographic apostrophe; compare them normalised.</summary>
-        private static bool SameName(string? lodestoneName, string name)
-            => lodestoneName != null && string.Equals(FcRoster.Key(lodestoneName, string.Empty), FcRoster.Key(name, string.Empty), StringComparison.OrdinalIgnoreCase);
 
         /// <summary>Whether the Lodestone client has been created (after <see cref="Start"/>).</summary>
         internal bool LodestoneReady => this.lodestoneClient != null;

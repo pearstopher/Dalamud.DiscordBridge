@@ -17,7 +17,7 @@ Square Enix's terms prohibit third-party tools in general. These rules are the D
 |---|---|---|
 | Relay in-game chat to Discord (outbound) | ✅ Yes | Reads chat the client already received. No server interaction. |
 | Duty-pop and retainer-sale notifications | ✅ Yes | Reads local events. |
-| Lodestone portraits (NetStone) | ✅ Yes | Public Lodestone web pages, not game servers. Only names/worlds already visible in chat (R3 is about account IDs). The FC member list (#55) is the same public Lodestone page anyone can open for your FC. |
+| Lodestone portraits (NetStone) | ✅ Yes | Public Lodestone web pages, not game servers. Only names/worlds already visible in chat (R3 is about account IDs). |
 | XIVAPI icon URLs | ✅ Yes | Public web assets. |
 | IPC `DiscordBridge.SendMessage` | ✅ Yes | Other plugins post to Discord. No game interaction. |
 | Discord configuration commands | ✅ Yes | Discord-only. |
