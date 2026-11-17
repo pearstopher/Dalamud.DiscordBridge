@@ -40,6 +40,7 @@ For the Discord round trip, run `xl!selftesthere` once in a **private** channel.
 | `discord.reaction` | Reacting from the gateway cache works (#50) | — |
 | `discord.ping` | `xl!ping`'s reaction matches your login state (#37) | A7 (reaction part) |
 | `lodestone.cache` | Second portrait lookup is instant (#47) | — |
+| `lodestone.fc-roster` | Your FC's Lodestone member list loads, and your own portrait is on it (#55) | B12 |
 
 The steps below are still manual: things that need a second Discord account, other players, logging out, reloading, or judging how something looks. Steps fully covered above are marked *(automated)*; skip them if section 0 passed.
 
@@ -68,6 +69,7 @@ The steps below are still manual: things that need a second Discord account, oth
 - [ ] B9. Idle for a minute with the plugin loaded: no unusual CPU use from the game (#4).
 
 - [ ] B11. **FC logins (#53):** with `fclogin` on (`xl!setup` includes it), when an FC member logs in or out the channel shows "🟢/⚫ Name has logged in/out." under their name and portrait. `/xllog` (Debug) shows `FC login line format: …` once; paste it to Claude if anything looks wrong.
+- [ ] B12. **FC portraits and login world (#55):** messages from FC members with hyphens or apostrophes in their names (Astra-lune Elek, Reaper' Grimm) show their Lodestone portrait; FC login/logout lines show `Name＠<your home world>`, not `＠Dev`.
 
 ## C. Discord → game: display (#13–#15)
 

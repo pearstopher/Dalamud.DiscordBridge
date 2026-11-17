@@ -59,8 +59,9 @@ namespace Dalamud.DiscordBridge
         }
 
         /// <summary>
-        /// Sender name, world and text to post. The player link wins; otherwise the name comes from the text. FC members
-        /// always share the FC's home world, so <paramref name="homeWorld"/> (yours) fills in a missing world.
+        /// Sender name, world and text to post. The player link's name wins; otherwise the name comes from the text. FC
+        /// members always share the FC's home world, so <paramref name="homeWorld"/> (yours) is used whenever it's known:
+        /// the link's world in real login lines is bogus (shown as "Dev", #55) and is only a last resort.
         /// </summary>
         internal static (string Name, string World, string Text) Resolve(string? linkName, string? linkWorld, string text, string? homeWorld)
         {
@@ -69,7 +70,7 @@ namespace Dalamud.DiscordBridge
             if (string.IsNullOrWhiteSpace(name))
                 return (UnknownSender, string.Empty, body);
 
-            var world = !string.IsNullOrWhiteSpace(linkWorld) ? linkWorld : homeWorld ?? string.Empty;
+            var world = !string.IsNullOrWhiteSpace(homeWorld) ? homeWorld : linkWorld ?? string.Empty;
             return (name, world, body);
         }
     }

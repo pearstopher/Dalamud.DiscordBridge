@@ -337,6 +337,25 @@ namespace Dalamud.DiscordBridge.SelfTests
                         ? SelfTestResult.Pass($"{(first == null ? "miss" : "portrait")} cached; second lookup {watch.ElapsedMilliseconds} ms")
                         : SelfTestResult.Fail($"second lookup took {watch.ElapsedMilliseconds} ms (not cached?)");
                 }, TimeSpan.FromSeconds(20)),
+
+            new DelegateSelfTest("lodestone.fc-roster", "Lodestone", "Your FC's Lodestone member list loads and you're on it (#55)",
+                async token =>
+                {
+                    if (!plugin.Discord.LodestoneReady)
+                        return SelfTestResult.Skip("Lodestone client not ready yet");
+                    if (string.IsNullOrEmpty(plugin.cachedPlayerName) || string.IsNullOrEmpty(plugin.cachedPlayerWorld))
+                        return SelfTestResult.Skip("not logged in");
+
+                    plugin.Discord.EnsureFcRoster();
+                    for (var i = 0; i < 50 && DiscordHandler.FcRosterCount == 0; i++)
+                        await Task.Delay(500, token);
+
+                    if (DiscordHandler.FcRosterCount == 0)
+                        return SelfTestResult.Skip("no FC roster after 25 s (not in an FC on the Lodestone, or it's slow; see /xllog)");
+                    return DiscordHandler.FcRosterHas(plugin.cachedPlayerName, plugin.cachedPlayerWorld)
+                        ? SelfTestResult.Pass($"{DiscordHandler.FcRosterCount} members with portraits")
+                        : SelfTestResult.Fail($"{DiscordHandler.FcRosterCount} members loaded, but you aren't among them");
+                }, TimeSpan.FromSeconds(30)),
         ];
 
         private static async Task<SelfTestResult> DisplayLoopTest(DiscordBridgePlugin plugin, bool asEcho, CancellationToken token)

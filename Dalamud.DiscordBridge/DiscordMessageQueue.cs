@@ -72,7 +72,7 @@ namespace Dalamud.DiscordBridge
 
         /// <summary>
         /// Who an FC login/logout line is about (#53): the player link in the message or sender, else the name at the
-        /// start of the text; the world from the link, else your home world (FC members share it).
+        /// start of the text; the world is your home world (FC members share it; the link's world is bogus, #55).
         /// </summary>
         /// <param name="flattenedText">The line as relayed text; defaults to the message's plain text.</param>
         internal static (string Name, string World, string Text) ResolveFcLogin(SeString message, SeString sender, string? homeWorld, string? flattenedText = null)
