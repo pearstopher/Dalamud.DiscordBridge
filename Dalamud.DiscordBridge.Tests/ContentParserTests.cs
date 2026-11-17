@@ -22,6 +22,35 @@ public class ContentParserTests
         Assert.Equal("pears are great", parser.Text);
     }
 
+    [Theory]
+    [InlineData("[fc] hello there", "")]
+    [InlineData("🍐 [ls1] hello there", "🍐 ")]
+    [InlineData("💬[tell] hello there", "💬")]
+    public void Parse_PlainTag_ExtractsPrefixSlugAndText(string content, string prefix)
+    {
+        // The current format (#56); the bold one above is still parsed for older messages.
+        var parser = new ContentParser(content);
+
+        Assert.Equal(prefix, parser.Prefix);
+        Assert.NotEqual("", parser.Slug);
+        Assert.Equal("hello there", parser.Text);
+    }
+
+    [Fact]
+    public void Parse_FirstTagWins_BracketsInTextStayInText()
+    {
+        var parser = new ContentParser("[say] see [this] and **[that]** too");
+
+        Assert.Equal("say", parser.Slug);
+        Assert.Equal("see [this] and **[that]** too", parser.Text);
+    }
+
+    [Fact]
+    public void Parse_BracketsWithSpaces_AreNotATag()
+    {
+        Assert.Equal("", new ContentParser("[not a tag] hi").Slug);
+    }
+
     [Fact]
     public void Parse_UnformattedMessage_ReturnsEmptyGroups()
     {

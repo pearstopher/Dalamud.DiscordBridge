@@ -26,13 +26,13 @@ All source is in `Dalamud.DiscordBridge/`.
 | `ChatTypeGroups.cs` | Pure chat-type groups: `Receives` (a channel gets a type it's subscribed to, plus GM messages of the matching player channel: GM tell ↔ tells, GM FC ↔ FC, GM LS1–8 ↔ LS1–8, GM say/shout/yell/party/NN), and `PlayerChat` (the `setup` preset). |
 | `StatusAnnouncer.cs` | Pure helpers for the 🟢 online / 🔴 offline posts (#34): target channels (any chat kinds, duty pops or inbound), text, and a once-per-load gate held by the plugin (`DiscordBridgePlugin.Status`), so gateway reconnects and `/dcp` Save never repost. |
 | `SanePreset.cs` | The `setup` command (pure): player chat both ways for one channel, notifications off, Echo inbound default, display options reset. Never touches identity, customizations, other channels or the send-as-me opt-in. |
-| `ChatContentFormat.cs` | Pure formatting of relayed lines for Discord: `{prefix}**[{slug}]** {body}`, the body with sender and `→ Recipient` for outgoing tells, and cleaning raw tell-recipient text. Parsed back by `ContentParser`. |
+| `ChatContentFormat.cs` | Pure formatting of relayed lines for Discord: `{prefix}[{slug}] {body}`, the body with sender and `→ Recipient` for outgoing tells, and cleaning raw tell-recipient text. Parsed back by `ContentParser`. |
 | `ChannelOverride.cs` | Pure parser for one-message overrides typed in Discord (`!e`, `!fc`, `!l1`/`!ls1`, `!cwl1`, `!em`, `!t First Last@World …`). Precedence: override > reply routing > `setinbound` default. Unknown `!word` → ❌, not relayed. |
-| `ReplyRouting.cs` | Discord replies → in-game target. `RelayedMessageIndex` (bounded, in memory, on the plugin) records each outbound relay's Discord message ID → chat type / tell partner. `ReplyRouting.Decide` uses it, or parses an older relay's `**[slug]**`, `→ Name:` and webhook name → `NotAReply` (use default), `Route`, or `Blocked` (GM channels 80–94, retainer sales, system/emote/NPC…, unknown channel, tell without partner; never falls back). `IsGmChannel` is also enforced in `GameChatCommand.TryBuild`. Tells become `/tell Name@World`. |
+| `ReplyRouting.cs` | Discord replies → in-game target. `RelayedMessageIndex` (bounded, in memory, on the plugin) records each outbound relay's Discord message ID → chat type / tell partner. `ReplyRouting.Decide` uses it, or parses an older relay's `[slug]` (or pre-#56 bold `**[slug]**`), `→ Name:` and webhook name → `NotAReply` (use default), `Route`, or `Blocked` (GM channels 80–94, retainer sales, system/emote/NPC…, unknown channel, tell without partner; never falls back). `IsGmChannel` is also enforced in `GameChatCommand.TryBuild`. Tells become `/tell Name@World`. |
 | `InboundEchoGuard.cs` | Remembers whether each expected echo was *displayed* or *sent* (`EchoKind`). For sent lines, `DiscordBridgePlugin.ReshowAsSent` hides the original on this screen (`PreventOriginal`) and prints a copy tagged `[S]` (others are unaffected). Loop prevention: lines printed/sent for Discord messages are registered first, and `ChatOnOnChatMessage` swallows the matching echo once (type + text, 10 s window) so it isn't relayed back to Discord. |
 | `Model/InboundDiscordMessage.cs` | Discord-free snapshot of a message to relay into the game (author, owner flag, target chat type, content, attachments, stickers, reply author). |
 | `DuplicationFilter.cs` | `DuplicateFilter`: watches relay-format webhook messages in configured channels only (`IsCandidate`, #43) and suppresses/deletes duplicates within `DuplicateCheckMS`. Useful when several players in the same FC/LS each run the plugin into the same channel. |
-| `ContentParser.cs` | Regex parser for the posted format `{prefix}**[{slug}]** {text}`, used by the duplicate filter to compare messages. |
+| `ContentParser.cs` | Regex parser for the posted format `{prefix}[{slug}] {text}`, used by the duplicate filter and reply routing; also accepts the pre-#56 bold `**[slug]**`. |
 | `SpecialCharsHandler.cs` | Maps FFXIV private-use glyphs (U+E020–U+E0DB: HQ, auto-translate brackets, boxed letters/numbers, time icons…) to Unicode/emoji or custom guild emotes (`xivAtl`, `xivAtr`, `xivHq`). |
 | `XivChatTypeExtensions.cs` | `TypeInfoDict`: the master table of supported `XivChatType` → slug (used in commands, e.g. `fc`, `ls1`) and display name. `GetInfo` masks with `& 0x7F`. Defines `IpcChatType = (XivChatType)99` for IPC messages. |
 | `PluginCommandManager.cs` + `Attributes/` | Reflection-based registration of in-game slash commands from `[Command]`, `[HelpMessage]`, `[Aliases]`, `[DoNotShowInHelp]` attributes on methods of `DiscordBridgePlugin`. |
@@ -90,7 +90,7 @@ Game chat ─► IChatGui.ChatMessage ─► DiscordBridgePlugin.ChatOnOnChatMes
            2. avatar: explicit > ChatTypeAvatarURL[type] > DefaultAvatarURL > Lodestone portrait (NetStone, cached per name@world)
            3. channels = ChannelConfigs where ChatTypeGroups.Receives (subscribed type, or GM message of a subscribed player channel) (none → return)
            4. SpecialCharsHandler.TransformToUnicode
-           5. content = "{prefix}**[{customSlug|slug}]** {[displayName: ]message}"
+           5. content = "{prefix}[{customSlug|slug}] {[displayName: ]message}"
            6. per channel (ResolveDeliveryAsync → ChooseRoute): DM → embed | ForceEmbedFallbackMode → embed |
                            no ManageWebhooks → error embed | else DuplicateFilter check → webhook
                               (username = "Name＠World", or the bot name when ForceDefaultNameAvatar is set)
@@ -98,7 +98,7 @@ Game chat ─► IChatGui.ChatMessage ─► DiscordBridgePlugin.ChatOnOnChatMes
 
 Content-finder pops go to channels with `IsContentFinder` as an embed (duty name + image), sent through the webhook as "Dalamud Chat Bridge".
 
-Other plugins can call IPC `DiscordBridge.SendMessage`, which enqueues a `QueuedChatEvent` with `ChatType = IpcChatType` (99). For that type, `SendChatEvent` omits the `**[slug]**` tag and the world.
+Other plugins can call IPC `DiscordBridge.SendMessage`, which enqueues a `QueuedChatEvent` with `ChatType = IpcChatType` (99). For that type, `SendChatEvent` omits the `[slug]` tag and the world.
 
 ## Inbound flow (Discord → game)
 

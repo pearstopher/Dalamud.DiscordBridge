@@ -96,7 +96,7 @@ namespace Dalamud.DiscordBridge
 
         /// <summary>
         /// A webhook message the filter may compare and delete (#43): in a configured channel, and in the relay format
-        /// <c>{prefix}**[slug]** text</c>. Other bots' webhooks (GitHub, RSS…) are never touched.
+        /// <c>{prefix}[slug] text</c> (or the older bold <c>**[slug]**</c>). Other bots' webhooks (GitHub, RSS…) are never touched.
         /// </summary>
         internal static bool IsCandidate(bool channelConfigured, string? content)
         {

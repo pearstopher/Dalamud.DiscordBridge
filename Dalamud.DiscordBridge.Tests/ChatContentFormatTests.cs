@@ -16,7 +16,7 @@ public class ChatContentFormatTests
     [Fact]
     public void Content_Normal_HasSlug()
     {
-        Assert.Equal("💬**[tell]** → Bob: hi", ChatContentFormat.Content("💬", "tell", isIpc: false, "→ Bob: hi"));
+        Assert.Equal("💬[tell] → Bob: hi", ChatContentFormat.Content("💬", "tell", isIpc: false, "→ Bob: hi"));
     }
 
     [Fact]
